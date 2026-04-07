@@ -1,4 +1,4 @@
-import { type SyntheticEvent, useState } from 'react'
+import { type SyntheticEvent, useState } from "react";
 import {
   Box,
   Button,
@@ -7,19 +7,19 @@ import {
   FormControlLabel,
   TextField,
   Typography,
-} from '@mui/material'
-import './Login.css'
+} from "@mui/material";
+import "./Login.css";
 
 function Login() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [stayLoggedIn, setStayLoggedIn] = useState(true)
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [stayLoggedIn, setStayLoggedIn] = useState(true);
 
   const handleSubmit = (event: SyntheticEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    console.log({ email, password, stayLoggedIn })
-    alert(`Iniciando sesión con ${email}`)
-  }
+    event.preventDefault();
+    console.log({ email, password, stayLoggedIn });
+    alert(`Iniciando sesión con ${email}`);
+  };
 
   return (
     <Box className="login-container">
@@ -41,7 +41,12 @@ function Login() {
           </Typography>
         </Box>
 
-        <Box component="form" onSubmit={handleSubmit} noValidate className="login-form">
+        <Box
+          component="form"
+          onSubmit={handleSubmit}
+          noValidate
+          className="login-form"
+        >
           <TextField
             label="Email"
             type="email"
@@ -71,24 +76,20 @@ function Login() {
               <Checkbox
                 checked={stayLoggedIn}
                 onChange={(event) => setStayLoggedIn(event.target.checked)}
-                color="primary"
+                color="default"
               />
             }
             label="Stayed logged in"
             className="checkbox-label"
           />
 
-          <Button
-            type="submit"
-            variant="contained"
-            className="submit-button"
-          >
+          <Button type="submit" variant="contained" className="submit-button">
             Continue
           </Button>
         </Box>
       </Card>
     </Box>
-  )
+  );
 }
 
-export default Login
+export default Login;
