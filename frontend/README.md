@@ -1,73 +1,94 @@
-# React + TypeScript + Vite
+# TechMahindra Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React + TypeScript frontend application built with Vite, Material-UI, and modern development practices.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **React 18** with TypeScript
+- **Vite** for build tooling and development server
+- **Material-UI (MUI)** for UI components
+- **ESLint** for code linting
 
-## React Compiler
+## Project Structure
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+frontend/
+├── public/                          # Static assets
+├── src/
+│   ├── assets/                      # Images, fonts, and other assets
+│   ├── components/                  # Reusable UI components
+│   │   ├── layout/                  # Layout components (Layout, Header, etc.)
+│   │   ├── routes/                  # Route-specific components
+│   │   └── shared/                  # Shared/reusable components
+│   ├── pages/                       # Page components
+│   ├── App.tsx                      # Main App component
+│   └── main.tsx                     # Application entry point
+├── eslint.config.js                 # ESLint configuration
+├── tsconfig*.json                   # TypeScript configurations
+├── vite.config.ts                   # Vite configuration
+├── package.json                     # Dependencies and scripts
+└── README.md                        # This file
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Component Organization
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Layout Components (`src/components/layout/`)
+- `Layout.tsx` - Main application layout with header and content area
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Shared Components (`src/components/shared/`)
+- `Button.tsx` - Custom styled button component
+- `index.ts` - Barrel exports for easy imports
+
+### Route Components (`src/components/routes/`)
+- Organized by route/feature
+- `login/LoginForm.tsx` - Login form component
+
+### Pages (`src/pages/`)
+- Top-level page components
+- Each page represents a route in the application
+
+## Development
+
+### Prerequisites
+
+- Node.js 18+
+- npm or yarn
+
+### Installation
+
+```bash
+npm install
 ```
+
+### Development Server
+
+```bash
+npm run dev
+```
+
+### Build
+
+```bash
+npm run build
+```
+
+### Linting
+
+```bash
+npm run lint
+```
+
+## Code Style
+
+This project uses ESLint for code linting. The configuration includes:
+
+- TypeScript-specific rules
+- React-specific rules
+- Custom rules for code quality
+
+## Architecture Principles
+
+- **Modularization**: Components are organized into logical modules
+- **Reusability**: Shared components are extracted for reuse across the app
+- **Separation of Concerns**: Pages, components, and logic are properly separated
+- **Type Safety**: Full TypeScript coverage for better development experience

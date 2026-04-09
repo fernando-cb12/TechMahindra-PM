@@ -1,5 +1,5 @@
 import { CssBaseline } from '@mui/material'
-import Login from './login/Login'
+import Login from './pages/Login'
 
 function App() {
   return (
