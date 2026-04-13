@@ -9,8 +9,14 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 
-function LoginForm() {
+interface LoginFormProps {
+  onLogin: () => void;
+}
+
+function LoginForm({ onLogin }: LoginFormProps) {
+  const theme = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [stayLoggedIn, setStayLoggedIn] = useState(true);
@@ -18,19 +24,32 @@ function LoginForm() {
   const handleSubmit = (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
     console.log({ email, password, stayLoggedIn });
-    alert(`Logging in as ${email}`);
+    onLogin();
   };
+
+  const fontFamily = theme.typography.fontFamily ?? '"Montserrat", sans-serif';
+  const cardBg = "#2c2c2c";
+  const labelColor = theme.palette.text.secondary ?? "#999";
+  const helperColor = theme.palette.grey[400] ?? "#b8b8b8";
+  const inputBg = "#1a1a1a";
+  const inputBorder = theme.palette.grey[700] ?? "#444";
+  const inputBorderHover = theme.palette.grey[500] ?? "#777";
+  const inputBorderFocus = theme.palette.primary.main ?? "#5F0229";
+  const buttonBg = theme.palette.primary.main ?? "#5f0229";
+  const buttonHover = theme.palette.primary.dark ?? "#4d0121";
+  const checkedColor = theme.palette.primary.main ?? "#5F0229";
+  const headingColor = theme.palette.primary.contrastText ?? "#fff";
 
   const inputSx = {
     "& .MuiOutlinedInput-root": {
-      backgroundColor: "#1a1a1a",
+      backgroundColor: inputBg,
       color: "#fff",
-      "& fieldset": { borderColor: "#444" },
-      "&:hover fieldset": { borderColor: "#777" },
-      "&.Mui-focused fieldset": { borderColor: "#5F0229" },
+      "& fieldset": { borderColor: inputBorder },
+      "&:hover fieldset": { borderColor: inputBorderHover },
+      "&.Mui-focused fieldset": { borderColor: inputBorderFocus },
     },
-    "& .MuiInputLabel-root": { color: "#999" },
-    "& .MuiInputLabel-root.Mui-focused": { color: "#5F0229" },
+    "& .MuiInputLabel-root": { color: labelColor },
+    "& .MuiInputLabel-root.Mui-focused": { color: inputBorderFocus },
   };
 
   return (
@@ -39,7 +58,7 @@ function LoginForm() {
       sx={{
         width: "100%",
         maxWidth: 420,
-        bgcolor: "#2c2c2c",
+        bgcolor: cardBg,
         borderRadius: 2,
         position: "relative",
         zIndex: 1,
@@ -51,13 +70,13 @@ function LoginForm() {
           <Typography
             variant="h6"
             component="h1"
-            sx={{ fontWeight: 700, color: "#fff", fontFamily: '"Montserrat", sans-serif' }}
+            sx={{ fontWeight: 700, color: headingColor, fontFamily }}
           >
             Your Collab X Account
           </Typography>
           <Typography
             variant="body2"
-            sx={{ color: "#b8b8b8", mt: 0.5, fontFamily: '"Montserrat", sans-serif' }}
+            sx={{ color: helperColor, mt: 0.5, fontFamily }}
           >
             Enter your credentials to log in
           </Typography>
@@ -98,16 +117,13 @@ function LoginForm() {
                 checked={stayLoggedIn}
                 onChange={(e) => setStayLoggedIn(e.target.checked)}
                 sx={{
-                  color: "#999",
-                  "&.Mui-checked": { color: "#5F0229" },
+                  color: labelColor,
+                  "&.Mui-checked": { color: checkedColor },
                 }}
               />
             }
             label={
-              <Typography
-                variant="body2"
-                sx={{ color: "#fff", fontFamily: '"Montserrat", sans-serif' }}
-              >
+              <Typography variant="body2" sx={{ color: headingColor, fontFamily }}>
                 Stay logged in
               </Typography>
             }
@@ -121,13 +137,13 @@ function LoginForm() {
             sx={{
               mt: 1,
               py: 1.25,
-              bgcolor: "#5f0229",
-              fontFamily: '"Montserrat", sans-serif',
+              bgcolor: buttonBg,
+              fontFamily,
               fontWeight: 600,
               letterSpacing: "0.05em",
               textTransform: "none",
               fontSize: "0.95rem",
-              "&:hover": { bgcolor: "#4d0121" },
+              "&:hover": { bgcolor: buttonHover },
             }}
           >
             Continue
