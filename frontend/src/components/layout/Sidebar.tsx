@@ -12,36 +12,7 @@ import {
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import mahindraLogo from '../../assets/mahindralogobk.png';
-
-type NavItem = {
-  label: string;
-  value: string;
-};
-
-type ProjectSubsection = {
-  label: string;
-  id: string;
-};
-
-type Project = {
-  label: string;
-  id: string;
-  subsections: ProjectSubsection[];
-};
-
-interface SidebarProps {
-  activeNavItem?: string;
-  activeProject?: string;
-  activeSubsection?: string;
-  onNavItemClick?: (value: string) => void;
-  onProjectClick?: (projectId: string) => void;
-  onSubsectionClick?: (projectId: string, subsectionId: string) => void;
-  userName?: string;
-  userPoints?: number;
-  userInitials?: string;
-  navItems?: NavItem[];
-  projects?: Project[];
-}
+import type { NavItem, Project, SidebarProps } from './types';
 
 const defaultNavItems: NavItem[] = [
   { label: 'Dashboard', value: 'dashboard' },
@@ -311,5 +282,5 @@ function Sidebar({
   );
 }
 
-export default Sidebar;
+export { Sidebar };
 

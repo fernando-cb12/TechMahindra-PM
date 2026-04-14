@@ -1,5 +1,5 @@
 import { Box } from '@mui/material';
-import { Sidebar } from '../components/layout';
+import { Sidebar } from '../components/layout/Sidebar';
 
 function Dashboard() {
   return (
