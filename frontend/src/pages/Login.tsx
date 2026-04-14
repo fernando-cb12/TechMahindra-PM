@@ -1,8 +1,17 @@
 import { Box, AppBar, Toolbar } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import mahindraLogo from "../assets/mahindralogobk.png";
 import LoginForm from "../components/routes/login/LoginForm";
  
-function Login() {
+interface LoginProps {
+  onLogin: () => void;
+}
+
+function Login({ onLogin }: LoginProps) {
+  const theme = useTheme();
+  const fontFamily = theme.typography.fontFamily ?? '"Montserrat", sans-serif';
+  const appBarBg = "#2c2c2c";
+
   return (
     <Box
       sx={{
@@ -13,14 +22,14 @@ function Login() {
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
-        fontFamily: '"Montserrat", sans-serif',
+        fontFamily,
       }}
     >
       {/* Top Bar */}
       <AppBar
         position="static"
         elevation={0}
-        sx={{ bgcolor: "#2c2c2c", height: 72, justifyContent: "center" }}
+        sx={{ bgcolor: appBarBg, height: 72, justifyContent: "center" }}
       >
         <Toolbar sx={{ justifyContent: "flex-start" }}>
           <Box
@@ -53,7 +62,7 @@ function Login() {
         />
  
         {/* Login Form */}
-        <LoginForm />
+        <LoginForm onLogin={onLogin} />
       </Box>
     </Box>
   );
