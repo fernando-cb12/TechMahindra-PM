@@ -1,9 +1,12 @@
 import { Box, Typography } from '@mui/material';
 import { Sidebar } from '../components/layout/Sidebar';
-import SummaryCards, { type SummaryCardData } from '../components/shared/SummaryCards';
+import SummaryCards, { type SummaryCardData } from '../components/dashboard/SummaryCards';
 import RecentProjectsSection, {
   type RecentProjectData,
 } from '../components/dashboard/RecentProjectsSection';
+import RecentIssuesSection, {
+  type RecentIssueData,
+} from '../components/dashboard/RecentIssuesSection';
 
 function Dashboard() {
   const summaryItems: SummaryCardData[] = [
@@ -44,6 +47,51 @@ function Dashboard() {
     },
   ];
 
+  const recentIssues: RecentIssueData[] = [
+    {
+      key: 'PROJ-123',
+      summary: 'Fix login validation error',
+      assignee: 'Luis Carlos',
+      priority: 'high',
+      status: 'in-progress',
+    },
+    {
+      key: 'PROJ-121',
+      summary: 'Add dark mode theme',
+      assignee: 'Marco',
+      priority: 'medium',
+      status: 'to-do',
+    },
+    {
+      key: 'PROJ-124',
+      summary: 'Optimize database queries',
+      assignee: 'Camou',
+      priority: 'high',
+      status: 'in-progress',
+    },
+    {
+      key: 'PROJ-122',
+      summary: 'Create User manual',
+      assignee: 'Antonio',
+      priority: 'low',
+      status: 'done',
+    },
+    {
+      key: 'PROJ-126',
+      summary: 'Security patch deployment',
+      assignee: 'Luis Carlos',
+      priority: 'high',
+      status: 'done',
+    },
+    {
+      key: 'PROJ-125',
+      summary: 'Add dark mode theme',
+      assignee: 'Marco',
+      priority: 'medium',
+      status: 'to-do',
+    },
+  ];
+
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: '#F5F5F5' }}>
       <Sidebar activeNavItem="dashboard" />
@@ -56,6 +104,7 @@ function Dashboard() {
         </Typography>
         <SummaryCards items={summaryItems} />
         <RecentProjectsSection projects={recentProjects} />
+        <RecentIssuesSection issues={recentIssues} />
       </Box>
     </Box>
   );
