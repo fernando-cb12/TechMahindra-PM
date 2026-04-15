@@ -98,7 +98,7 @@ function Dashboard({ onNavItemClick }: DashboardProps) {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: '#F5F5F5' }}>
-      <Sidebar activeNavItem="dashboard" />
+      <Sidebar activeNavItem="dashboard" onNavItemClick={onNavItemClick} />
       <Box sx={{ flex: 1, p: 3, backgroundColor: '#F5F5F5' }}>
         <Typography
           variant="h3"
