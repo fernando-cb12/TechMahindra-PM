@@ -5,7 +5,11 @@ import RecentProjectsSection, {
   type RecentProjectData,
 } from '../components/dashboard/RecentProjectsSection';
 
-function Dashboard() {
+type DashboardProps = {
+  onNavItemClick?: (value: string) => void;
+};
+
+function Dashboard({ onNavItemClick }: DashboardProps) {
   const summaryItems: SummaryCardData[] = [
     { label: 'Active Projects', value: 12, color: 'primary' },
     { label: 'Open Issues', value: 47, color: 'primary' },
