@@ -1,5 +1,6 @@
+import { useNavigate } from 'react-router-dom';
 import { Box, Button, Stack, Typography } from '@mui/material';
-import { Sidebar } from '../components/layout/Sidebar';
+import { ROUTES } from '../app/routes';
 import { SettingsAppearanceCard } from '../components/settings/SettingsAppearanceCard';
 import { SettingsNotificationsCard } from '../components/settings/SettingsNotificationsCard';
 import {
@@ -16,30 +17,24 @@ const defaultProfile: ProfileFields = {
 };
 
 type SettingsProps = {
-  onNavItemClick?: (value: string) => void;
-  onLogOut?: () => void;
   onProfileEdit?: () => void;
   profile?: ProfileFields;
 };
 
-function Settings({
-  onNavItemClick,
-  onLogOut,
-  onProfileEdit,
-  profile = defaultProfile,
-}: SettingsProps) {
+function Settings({ onProfileEdit, profile = defaultProfile }: SettingsProps) {
+  const navigate = useNavigate();
+
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      <Sidebar activeNavItem="settings" onNavItemClick={onNavItemClick} />
-      <Box
-        component="main"
-        sx={{
-          flex: 1,
-          backgroundColor: '#f5f5f5',
-          px: { xs: 2, sm: 4 },
-          py: 3,
-        }}
-      >
+    <Box
+      component="main"
+      sx={{
+        flex: 1,
+        minHeight: '100vh',
+        backgroundColor: '#f5f5f5',
+        px: { xs: 2, sm: 4 },
+        py: 3,
+      }}
+    >
         <Typography
           sx={{
             fontFamily: 'Montserrat, sans-serif',
@@ -76,7 +71,7 @@ function Settings({
               <Button
                 variant="contained"
                 disableElevation
-                onClick={onLogOut}
+                onClick={() => navigate(ROUTES.login)}
                 sx={{
                   bgcolor: maroon,
                   borderRadius: '5px',
@@ -94,7 +89,6 @@ function Settings({
             </Box>
           </Stack>
         </Stack>
-      </Box>
     </Box>
   );
 }

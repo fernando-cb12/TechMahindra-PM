@@ -1,5 +1,4 @@
 import { Box, Typography } from '@mui/material';
-import { Sidebar } from '../components/layout/Sidebar';
 import SummaryCards, { type SummaryCardData } from '../components/dashboard/SummaryCards';
 import RecentProjectsSection, {
   type RecentProjectData,
@@ -8,11 +7,7 @@ import RecentIssuesSection, {
   type RecentIssueData,
 } from '../components/dashboard/RecentIssuesSection';
 
-type DashboardProps = {
-  onNavItemClick?: (value: string) => void;
-};
-
-function Dashboard({ onNavItemClick }: DashboardProps) {
+function Dashboard() {
   const summaryItems: SummaryCardData[] = [
     { label: 'Active Projects', value: 12, color: 'primary' },
     { label: 'Open Issues', value: 47, color: 'primary' },
@@ -97,19 +92,16 @@ function Dashboard({ onNavItemClick }: DashboardProps) {
   ];
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: '#F5F5F5' }}>
-      <Sidebar activeNavItem="dashboard" onNavItemClick={onNavItemClick} />
-      <Box sx={{ flex: 1, p: 3, backgroundColor: '#F5F5F5' }}>
-        <Typography
-          variant="h3"
-          sx={{ mb: 2.5, color: 'primary.main', fontWeight: 700, fontSize: '32px', lineHeight: 1 }}
-        >
-          Dashboard
-        </Typography>
-        <SummaryCards items={summaryItems} />
-        <RecentProjectsSection projects={recentProjects} />
-        <RecentIssuesSection issues={recentIssues} />
-      </Box>
+    <Box sx={{ flex: 1, p: 3, backgroundColor: '#F5F5F5', minHeight: '100vh' }}>
+      <Typography
+        variant="h3"
+        sx={{ mb: 2.5, color: 'primary.main', fontWeight: 700, fontSize: '32px', lineHeight: 1 }}
+      >
+        Dashboard
+      </Typography>
+      <SummaryCards items={summaryItems} />
+      <RecentProjectsSection projects={recentProjects} />
+      <RecentIssuesSection issues={recentIssues} />
     </Box>
   );
 }
