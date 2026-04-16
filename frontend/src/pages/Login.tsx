@@ -1,13 +1,12 @@
+import { useNavigate } from "react-router-dom";
 import { Box, AppBar, Toolbar } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import mahindraLogo from "../assets/mahindralogobk.png";
 import LoginForm from "../components/routes/login/LoginForm";
- 
-interface LoginProps {
-  onLogin: () => void;
-}
+import { ROUTES } from "../app/routes";
 
-function Login({ onLogin }: LoginProps) {
+function Login() {
+  const navigate = useNavigate();
   const theme = useTheme();
   const fontFamily = theme.typography.fontFamily ?? '"Montserrat", sans-serif';
   const appBarBg = "#2c2c2c";
@@ -62,7 +61,7 @@ function Login({ onLogin }: LoginProps) {
         />
  
         {/* Login Form */}
-        <LoginForm onLogin={onLogin} />
+        <LoginForm onLogin={() => navigate(ROUTES.dashboard)} />
       </Box>
     </Box>
   );

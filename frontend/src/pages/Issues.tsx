@@ -18,7 +18,6 @@ import {
   type SelectChangeEvent,
 } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import { Sidebar } from '../components/layout/Sidebar';
 import { settingsMaroon as maroon } from '../components/settings/settingsTokens';
 
 const priorityColors = {
@@ -77,11 +76,7 @@ function assigneeInitials(name: string) {
     .toUpperCase();
 }
 
-type IssuesProps = {
-  onNavItemClick?: (value: string) => void;
-};
-
-function Issues({ onNavItemClick }: IssuesProps) {
+function Issues() {
   const [tab, setTab] = useState<'all' | 'mine'>('all');
   const [projectFilter, setProjectFilter] = useState('all');
   const [assigneeFilter, setAssigneeFilter] = useState('all');
@@ -123,17 +118,16 @@ function Issues({ onNavItemClick }: IssuesProps) {
   };
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      <Sidebar activeNavItem="issues" onNavItemClick={onNavItemClick} />
-      <Box
-        component="main"
-        sx={{
-          flex: 1,
-          backgroundColor: '#fff',
-          px: { xs: 2, sm: 4 },
-          py: 3,
-        }}
-      >
+    <Box
+      component="main"
+      sx={{
+        flex: 1,
+        minHeight: '100vh',
+        backgroundColor: '#fff',
+        px: { xs: 2, sm: 4 },
+        py: 3,
+      }}
+    >
         <Stack
           direction="row"
           alignItems="flex-start"
@@ -382,7 +376,6 @@ function Issues({ onNavItemClick }: IssuesProps) {
             </TableBody>
           </Table>
         </TableContainer>
-      </Box>
     </Box>
   );
 }

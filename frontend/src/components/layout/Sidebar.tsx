@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Avatar,
@@ -13,6 +14,7 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import mahindraLogo from '../../assets/mahindralogobk.png';
 import type { NavItem, Project, SidebarProps } from './types';
+import { NAV_ITEM_TO_PATH } from '../../app/routes';
 
 const defaultNavItems: NavItem[] = [
   { label: 'Dashboard', value: 'dashboard' },
@@ -64,6 +66,7 @@ function Sidebar({
   navItems = defaultNavItems,
   projects = defaultProjects,
 }: SidebarProps) {
+  const navigate = useNavigate();
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({
     magenta: true,
   });
@@ -107,7 +110,11 @@ function Sidebar({
             <ListItemButton
               key={item.value}
               selected={item.value === activeNavItem}
-              onClick={() => onNavItemClick?.(item.value)}
+              onClick={() => {
+                const path = NAV_ITEM_TO_PATH[item.value];
+                if (path) navigate(path);
+                onNavItemClick?.(item.value);
+              }}
               sx={{
                 borderRadius: 1,
                 mb: 0.5,
