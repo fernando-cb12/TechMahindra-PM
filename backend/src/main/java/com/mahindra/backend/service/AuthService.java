@@ -43,15 +43,15 @@ public class AuthService {
         if (userRepository.existsByEmail(email)) {
             throw new DuplicateEmailException();
         }
-        Role member = roleRepository.findByName("MEMBER")
+        Role developer = roleRepository.findByName("DEVELOPER")
                 .orElseThrow(() -> new IllegalStateException(
-                        "Default role MEMBER is missing; ensure Flyway migration V3 has been applied."));
+                        "Default role DEVELOPER is missing; ensure Flyway migrations through V4 have been applied."));
         User user = new User();
         user.setName(request.name().trim());
         user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setStatus(UserStatus.active);
-        user.getRoles().add(member);
+        user.getRoles().add(developer);
         userRepository.save(user);
         return toResponse(jwtService.generateToken(user));
     }
