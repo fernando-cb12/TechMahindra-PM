@@ -2,6 +2,7 @@ package com.mahindra.backend.security;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.crypto.SecretKey;
@@ -32,15 +33,35 @@ public class JwtService {
     public String generateToken(User user) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + properties.expirationMs());
-        String roles = user.getRoles().stream().map(Role::getName).collect(Collectors.joining(","));
+        Set<String> roleNames = user.getRoles().stream().map(Role::getName).collect(Collectors.toSet());
+        String roles = roleNames.stream().sorted().collect(Collectors.joining(","));
+        int accessLevel = roleNames.stream().mapToInt(JwtService::roleAccessLevel).max().orElse(0);
         return Jwts.builder()
                 .subject(user.getEmail())
                 .claim("uid", user.getId())
                 .claim("roles", roles)
+                .claim("accessLevel", accessLevel)
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(signingKey)
                 .compact();
+    }
+
+    /**
+     * Numeric rank for UI hints; aligns with {@link com.mahindra.backend.config.MethodSecurityConfig} ordering
+     * (higher means more capability). Roles outside this ladder (e.g. {@code DELETED_USER}) map to zero.
+     */
+    private static int roleAccessLevel(String roleName) {
+        if (roleName == null) {
+            return 0;
+        }
+        return switch (roleName) {
+            case "VIEW_ONLY" -> 1;
+            case "DEVELOPER" -> 2;
+            case "TEAM_LEAD" -> 3;
+            case "ADMIN" -> 4;
+            default -> 0;
+        };
     }
 
     public String extractEmail(String token) {
