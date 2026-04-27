@@ -23,7 +23,7 @@ CREATE TABLE workspace (
 -- 2. ROLE  (lookup / seed table)
 CREATE TABLE role (
     id          BIGSERIAL    PRIMARY KEY,
-    name        VARCHAR(50)  NOT NULL UNIQUE,   -- ADMIN | MEMBER | VIEWER
+    name        VARCHAR(50)  NOT NULL UNIQUE,
     description TEXT
 );
 
@@ -323,19 +323,3 @@ CREATE INDEX idx_snapshot_project_date   ON project_analytic_snapshot(project_id
 -- Milestone
 CREATE INDEX idx_milestone_project       ON milestone(project_id);
 
-
--- SEED DATA – Lookup / Config Tables
-
--- Roles
-INSERT INTO role (name, description) VALUES
-    ('ADMIN',  'Full access to workspace settings and all projects'),
-    ('MEMBER', 'Can create and manage tasks within assigned projects'),
-    ('VIEWER', 'Read-only access to projects they are added to');
-
--- Rank configs  (1=Rookie … 5=Legend)
-INSERT INTO rank_config (rank_level, rank_name, min_points, max_points, benefit_description, point_multiplier) VALUES
-    (1, 'Rookie',      0,     499,   'Welcome aboard! Start completing tasks to level up.',   1.00),
-    (2, 'Contributor', 500,   1499,  '10 % point bonus on every completed task.',             1.10),
-    (3, 'Performer',   1500,  3999,  '25 % point bonus and early access to new features.',    1.25),
-    (4, 'Expert',      4000,  9999,  '50 % point bonus and priority support.',                1.50),
-    (5, 'Legend',      10000, 99999, 'Double points and exclusive Legend badge.',             2.00);
