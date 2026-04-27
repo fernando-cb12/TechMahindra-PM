@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Box, AppBar, Toolbar } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import mahindraLogo from "../assets/mahindralogobk.png";
+import loginBg from "../assets/loginbg.png";
 import LoginForm from "../components/routes/login/LoginForm";
 import { ROUTES } from "../app/routes";
 
@@ -17,7 +18,7 @@ function Login() {
         minHeight: "100vh",
         display: "flex",
         flexDirection: "column",
-        backgroundImage: 'url("/src/assets/loginbg.png")',
+        backgroundImage: `url(${loginBg})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
@@ -39,7 +40,7 @@ function Login() {
           />
         </Toolbar>
       </AppBar>
- 
+
       {/* Content area with overlay */}
       <Box
         sx={{
@@ -59,12 +60,12 @@ function Login() {
             bgcolor: "rgba(0,0,0,0.70)",
           }}
         />
- 
+
         {/* Login Form */}
         <LoginForm onLogin={() => navigate(ROUTES.dashboard)} />
       </Box>
     </Box>
   );
 }
- 
+
 export default Login;
