@@ -1,8 +1,6 @@
 -- V2__initial_data_template
 -- Demo seed: three isolated full graphs (Stratos / Meridian / Aegis) for UI and API walkthroughs.
 -- NOTE: If you already ran Flyway once, don't edit this file; create a new migration instead.
---
--- Role IDs after this script: 1 ADMIN, 2 TEAM_LEAD, 3 DEVELOPER, 4 VIEW_ONLY, 5 MEMBER (AuthService default signup), 6 DELETED_USER.
 -- V1 defines tables only (no seed rows); this migration owns roles, rank_config, and demo data.
 -- Demo logins: emails admin1@gmail.com, lead1@gmail.com, developer1@gmail.com, … (see INSERT below).
 -- Password for every seeded account: role123
