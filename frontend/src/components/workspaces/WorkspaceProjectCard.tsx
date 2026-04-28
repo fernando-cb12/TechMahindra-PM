@@ -1,5 +1,6 @@
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
 import { Avatar, Box, Chip, LinearProgress, Paper, Typography } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 
 export type WorkspaceProjectStatus = 'in-progress' | 'planning' | 'active' | 'completed';
 
@@ -16,18 +17,22 @@ export interface WorkspaceProjectCardData {
   status: WorkspaceProjectStatus;
 }
 
-const statusConfig: Record<WorkspaceProjectStatus, { label: string; bg: string; color: string }> = {
-  active: { label: 'Active', bg: '#2C2C2C', color: '#FFFFFF' },
-  'in-progress': { label: 'In Progress', bg: '#EAC24F', color: '#5A1800' },
-  planning: { label: 'Planning', bg: '#B3B3B3', color: '#FFFFFF' },
-  completed: { label: 'Completed', bg: '#4CAF50', color: '#FFFFFF' },
-};
-
 interface WorkspaceProjectCardProps {
   project: WorkspaceProjectCardData;
 }
 
 function WorkspaceProjectCard({ project }: WorkspaceProjectCardProps) {
+  const theme = useTheme();
+  const statusConfig: Record<WorkspaceProjectStatus, { label: string; bg: string; color: string }> = {
+    active: { label: 'Active', bg: theme.palette.grey[800], color: theme.palette.common.white },
+    'in-progress': {
+      label: 'In Progress',
+      bg: theme.palette.warning.main,
+      color: theme.palette.grey[900],
+    },
+    planning: { label: 'Planning', bg: theme.palette.grey[400], color: theme.palette.common.white },
+    completed: { label: 'Completed', bg: theme.palette.success.main, color: theme.palette.common.white },
+  };
   const status = statusConfig[project.status];
 
   return (
@@ -38,7 +43,7 @@ function WorkspaceProjectCard({ project }: WorkspaceProjectCardProps) {
         maxWidth: 300,
         minHeight: 330,
         borderRadius: '5px',
-        bgcolor: '#FFFFFF',
+        bgcolor: 'background.paper',
         px: 2,
         py: 2.5,
       }}
@@ -68,7 +73,19 @@ function WorkspaceProjectCard({ project }: WorkspaceProjectCardProps) {
       </Box>
 
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
-        <Typography sx={{ color: '#5f0229', fontSize: '10.5px', fontWeight: 700, py: 1 }}>{project.title}</Typography>
+        <Typography
+          sx={{
+            color: (theme) =>
+              theme.palette.mode === 'dark'
+                ? theme.palette.text.primary
+                : theme.palette.primary.main,
+            fontSize: '10.5px',
+            fontWeight: 700,
+            py: 1,
+          }}
+        >
+          {project.title}
+        </Typography>
         <Chip
           label={status.label}
           size="small"
@@ -85,7 +102,7 @@ function WorkspaceProjectCard({ project }: WorkspaceProjectCardProps) {
         />
       </Box>
 
-      <Typography sx={{ mt: 0.5, color: '#2C2C2C', fontSize: '8px', minHeight: 28, lineHeight: 1.35 }}>
+      <Typography sx={{ mt: 0.5, color: 'text.primary', fontSize: '8px', minHeight: 28, lineHeight: 1.35 }}>
         {project.description}
       </Typography>
 
@@ -98,8 +115,15 @@ function WorkspaceProjectCard({ project }: WorkspaceProjectCardProps) {
               height: 18,
               fontSize: '9px',
               fontWeight: 700,
-              bgcolor: '#5f0229',
-              border: '1px solid #FFFFFF',
+              bgcolor: 'primary.main',
+              color: (theme) =>
+                theme.palette.mode === 'dark' ? '#F5F5F5' : undefined,
+              border: (theme) =>
+                `1px solid ${
+                  theme.palette.mode === 'dark'
+                    ? theme.palette.background.paper
+                    : theme.palette.common.white
+                }`,
               ml: index === 0 ? 0 : -0.45,
             }}
           >
@@ -115,21 +139,21 @@ function WorkspaceProjectCard({ project }: WorkspaceProjectCardProps) {
           sx={{
             height: 5,
             borderRadius: '2px',
-            bgcolor: '#D9D9D9',
-            '& .MuiLinearProgress-bar': { bgcolor: '#5f0229' },
+            bgcolor: 'grey.300',
+            '& .MuiLinearProgress-bar': { bgcolor: 'primary.main' },
           }}
         />
-        <Typography sx={{ mt: 0.5, color: '#2C2C2C', fontSize: '8px' }}>
+        <Typography sx={{ mt: 0.5, color: 'text.primary', fontSize: '8px' }}>
           {project.currentProgress}% Current Progress
         </Typography>
       </Box>
 
-      <Box sx={{ mt: 0.6, borderTop: '1px solid rgba(95,2,41,0.5)', pt: 0.7 }}>
+      <Box sx={{ mt: 0.6, borderTop: (t) => `1px solid ${alpha(t.palette.primary.main, 0.5)}`, pt: 0.7 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
-          <CalendarMonthOutlinedIcon sx={{ fontSize: 9, color: '#5f0229' }} />
-          <Typography sx={{ color: '#2C2C2C', fontSize: '8px' }}>Due: {project.dueDate}</Typography>
+          <CalendarMonthOutlinedIcon sx={{ fontSize: 9, color: 'primary.main' }} />
+          <Typography sx={{ color: 'text.primary', fontSize: '8px' }}>Due: {project.dueDate}</Typography>
         </Box>
-        <Typography sx={{ mt: 0.7, color: '#2C2C2C', fontSize: '8px' }}>
+        <Typography sx={{ mt: 0.7, color: 'text.primary', fontSize: '8px' }}>
           Development Budget: {project.budgetLabel}
         </Typography>
       </Box>
@@ -141,11 +165,11 @@ function WorkspaceProjectCard({ project }: WorkspaceProjectCardProps) {
           sx={{
             height: 5,
             borderRadius: '2px',
-            bgcolor: '#D9D9D9',
-            '& .MuiLinearProgress-bar': { bgcolor: 'rgba(95,2,41,0.58)' },
+            bgcolor: 'grey.300',
+            '& .MuiLinearProgress-bar': { bgcolor: (t) => alpha(t.palette.primary.main, 0.58) },
           }}
         />
-        <Typography sx={{ mt: 0.5, color: '#2C2C2C', fontSize: '8px' }}>
+        <Typography sx={{ mt: 0.5, color: 'text.primary', fontSize: '8px' }}>
           {project.estimatedProgress}% Estimated Progress
         </Typography>
       </Box>

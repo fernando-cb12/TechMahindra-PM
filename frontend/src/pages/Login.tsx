@@ -1,16 +1,16 @@
 import { useNavigate } from "react-router-dom";
 import { Box, AppBar, Toolbar } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import mahindraLogo from "../assets/mahindralogobk.png";
 import loginBg from "../assets/loginbg.png";
-import LoginForm from "../components/routes/login/LoginForm";
+import LoginForm from "../components/login/LoginForm";
 import { ROUTES } from "../app/routes";
 
 function Login() {
   const navigate = useNavigate();
   const theme = useTheme();
   const fontFamily = theme.typography.fontFamily ?? '"Montserrat", sans-serif';
-  const appBarBg = "#2c2c2c";
+  const appBarBg = theme.palette.grey[800];
 
   return (
     <Box
@@ -57,7 +57,7 @@ function Login() {
           sx={{
             position: "absolute",
             inset: 0,
-            bgcolor: "rgba(0,0,0,0.70)",
+            bgcolor: alpha(theme.palette.common.black, 0.7),
           }}
         />
 

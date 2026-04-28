@@ -1,12 +1,12 @@
-import { useState } from 'react';
 import { Box, Button, Stack, Typography } from '@mui/material';
+import { alpha } from '@mui/material/styles';
+import { useColorMode } from '../../app/colorMode';
 import { SettingsCard } from './SettingsCard';
-import { settingsMaroon as maroon } from './settingsTokens';
 
 type ThemeChoice = 'light' | 'dark';
 
 function SettingsAppearanceCard() {
-  const [applied, setApplied] = useState<ThemeChoice>('light');
+  const { mode, setMode } = useColorMode();
 
   return (
     <SettingsCard>
@@ -16,7 +16,10 @@ function SettingsAppearanceCard() {
             fontFamily: 'Montserrat, sans-serif',
             fontWeight: 700,
             fontSize: 18,
-            color: maroon,
+            color: (theme) =>
+              theme.palette.mode === 'dark'
+                ? theme.palette.text.primary
+                : theme.palette.primary.main,
             mb: 2,
           }}
         >
@@ -26,13 +29,13 @@ function SettingsAppearanceCard() {
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between">
           <ThemePreview
             variant="light"
-            onApply={() => setApplied('light')}
-            isApplied={applied === 'light'}
+            onApply={() => setMode('light')}
+            isApplied={mode === 'light'}
           />
           <ThemePreview
             variant="dark"
-            onApply={() => setApplied('dark')}
-            isApplied={applied === 'dark'}
+            onApply={() => setMode('dark')}
+            isApplied={mode === 'dark'}
           />
         </Stack>
       </Box>
@@ -59,10 +62,10 @@ function ThemePreview({
     <Box sx={{ flex: 1, minWidth: 0, maxWidth: 280 }}>
       <Box
         sx={{
-          border: `3px solid ${maroon}`,
+          border: (theme) => `3px solid ${theme.palette.primary.main}`,
           borderRadius: '2px',
           p: 0,
-          bgcolor: maroon,
+          bgcolor: 'primary.main',
         }}
       >
         <Box sx={{ ml: '12px', bgcolor: innerBg, pt: 1.25, px: 1.25, pb: 1.25 }}>
@@ -86,8 +89,8 @@ function ThemePreview({
             variant="contained"
             disableElevation
             sx={{
-              bgcolor: 'rgba(95, 2, 41, 0.35)',
-              color: '#fff',
+              bgcolor: (theme) => alpha(theme.palette.primary.main, 0.35),
+              color: 'common.white',
               borderRadius: '5px',
               minWidth: 76,
               minHeight: 28,
@@ -105,7 +108,7 @@ function ThemePreview({
             disableElevation
             onClick={onApply}
             sx={{
-              bgcolor: maroon,
+              bgcolor: 'primary.main',
               borderRadius: '5px',
               minWidth: 76,
               minHeight: 28,
@@ -113,7 +116,7 @@ function ThemePreview({
               fontWeight: 700,
               fontSize: 14,
               textTransform: 'none',
-              '&:hover': { bgcolor: '#4a011f' },
+              '&:hover': { bgcolor: 'primary.dark' },
             }}
           >
             Apply

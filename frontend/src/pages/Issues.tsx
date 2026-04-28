@@ -18,15 +18,8 @@ import {
   type SelectChangeEvent,
 } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import { settingsMaroon as maroon } from '../components/settings/settingsTokens';
-
-const priorityColors = {
-  high: '#fb485b',
-  medium: '#eac24f',
-  low: '#20ea37',
-} as const;
-
-type Priority = keyof typeof priorityColors;
+import { alpha, useTheme } from '@mui/material/styles';
+type Priority = 'high' | 'medium' | 'low';
 
 type IssueRow = {
   key: string;
@@ -77,6 +70,13 @@ function assigneeInitials(name: string) {
 }
 
 function Issues() {
+  const theme = useTheme();
+  const priorityColors = {
+    high: theme.palette.error.main,
+    medium: theme.palette.warning.main,
+    low: theme.palette.success.main,
+  } as const;
+
   const [tab, setTab] = useState<'all' | 'mine'>('all');
   const [projectFilter, setProjectFilter] = useState('all');
   const [assigneeFilter, setAssigneeFilter] = useState('all');
@@ -105,15 +105,15 @@ function Issues() {
     fontFamily: 'Montserrat, sans-serif',
     fontWeight: 700,
     fontSize: 14,
-    color: '#7c7c7c',
+    color: 'text.secondary',
     '& .MuiOutlinedInput-notchedOutline': {
-      borderColor: '#000',
+      borderColor: 'common.black',
     },
     '&:hover .MuiOutlinedInput-notchedOutline': {
-      borderColor: '#000',
+      borderColor: 'common.black',
     },
     '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-      borderColor: '#000',
+      borderColor: 'common.black',
     },
   };
 
@@ -123,7 +123,7 @@ function Issues() {
       sx={{
         flex: 1,
         minHeight: '100vh',
-        backgroundColor: '#fff',
+        backgroundColor: 'background.paper',
         px: { xs: 2, sm: 4 },
         py: 3,
       }}
@@ -139,7 +139,10 @@ function Issues() {
               fontFamily: 'Montserrat, sans-serif',
               fontWeight: 700,
               fontSize: 21.5,
-              color: maroon,
+              color: (theme) =>
+                theme.palette.mode === 'dark'
+                  ? theme.palette.text.primary
+                  : theme.palette.primary.main,
             }}
           >
             Issues
@@ -148,7 +151,7 @@ function Issues() {
             variant="contained"
             disableElevation
             sx={{
-              bgcolor: maroon,
+              bgcolor: 'primary.main',
               borderRadius: '5px',
               minHeight: 32,
               px: 2,
@@ -156,7 +159,7 @@ function Issues() {
               fontWeight: 700,
               fontSize: 14,
               textTransform: 'none',
-              '&:hover': { bgcolor: '#4a011f' },
+              '&:hover': { bgcolor: 'primary.dark' },
             }}
           >
             + Create Issue
@@ -176,8 +179,8 @@ function Issues() {
               variant="contained"
               disableElevation
               sx={{
-                bgcolor: tab === 'all' ? maroon : 'transparent',
-                color: tab === 'all' ? '#fff' : '#7c7c7c',
+                bgcolor: tab === 'all' ? 'primary.main' : 'transparent',
+                color: tab === 'all' ? 'common.white' : 'text.secondary',
                 borderRadius: '5px',
                 minHeight: 32,
                 px: 2,
@@ -187,7 +190,7 @@ function Issues() {
                 textTransform: 'none',
                 boxShadow: 'none',
                 '&:hover': {
-                  bgcolor: tab === 'all' ? '#4a011f' : 'rgba(95, 2, 41, 0.06)',
+                  bgcolor: tab === 'all' ? 'primary.dark' : (t) => alpha(t.palette.primary.main, 0.06),
                   boxShadow: 'none',
                 },
               }}
@@ -198,7 +201,12 @@ function Issues() {
               onClick={() => setTab('mine')}
               variant="text"
               sx={{
-                color: '#7c7c7c',
+                color: (theme) =>
+                  tab === 'mine'
+                    ? theme.palette.mode === 'dark'
+                      ? theme.palette.text.primary
+                      : theme.palette.primary.main
+                    : theme.palette.text.secondary,
                 fontFamily: 'Montserrat, sans-serif',
                 fontWeight: 700,
                 fontSize: 14,
@@ -206,8 +214,7 @@ function Issues() {
                 minWidth: 'auto',
                 p: 0.5,
                 ...(tab === 'mine' && {
-                  color: maroon,
-                  bgcolor: 'rgba(95, 2, 41, 0.08)',
+                  bgcolor: alpha(theme.palette.primary.main, 0.08),
                 }),
               }}
             >
@@ -236,7 +243,7 @@ function Issues() {
                 IconComponent={KeyboardArrowDownIcon}
                 sx={{
                   ...selectSx,
-                  backgroundColor: 'rgba(217, 217, 217, 0.35)',
+                  backgroundColor: (t) => alpha(t.palette.grey[300], 0.35),
                 }}
                 inputProps={{ 'aria-label': 'Assignee filter' }}
               >
@@ -248,7 +255,7 @@ function Issues() {
 
         <TableContainer
           sx={{
-            border: '1px solid #f2f3f5',
+            border: (t) => `1px solid ${t.palette.divider}`,
             borderRadius: '12px',
             overflow: 'hidden',
           }}
@@ -257,13 +264,13 @@ function Issues() {
             <TableHead>
               <TableRow
                 sx={{
-                  backgroundColor: 'rgba(217, 217, 217, 0.18)',
+                  backgroundColor: (t) => alpha(t.palette.grey[300], 0.18),
                   '& th': {
-                    borderBottom: '1px solid #f2f3f5',
+                    borderBottom: (t) => `1px solid ${t.palette.divider}`,
                     fontFamily: 'Montserrat, sans-serif',
                     fontWeight: 700,
                     fontSize: 16,
-                    color: 'rgba(135, 135, 135, 0.46)',
+                    color: (t) => alpha(t.palette.text.secondary, 0.58),
                     py: 1.75,
                   },
                 }}
@@ -284,7 +291,7 @@ function Issues() {
                   key={row.key}
                   sx={{
                     '& td': {
-                      borderColor: '#e8e8e8',
+                      borderColor: 'grey.200',
                       fontFamily: 'Montserrat, sans-serif',
                       py: 1.5,
                     },
@@ -297,8 +304,8 @@ function Issues() {
                       onChange={() => toggleRow(row.key)}
                       sx={{
                         p: 0.5,
-                        color: '#000',
-                        '&.Mui-checked': { color: maroon },
+                        color: 'common.black',
+                        '&.Mui-checked': { color: 'primary.main' },
                       }}
                     />
                   </TableCell>
@@ -320,7 +327,7 @@ function Issues() {
                           height: 32,
                           fontSize: 12,
                           fontWeight: 700,
-                          bgcolor: '#29251d',
+                          bgcolor: 'secondary.main',
                         }}
                       >
                         {assigneeInitials(row.assignee)}
@@ -340,7 +347,7 @@ function Issues() {
                         py: 0.25,
                         borderRadius: '5px',
                         bgcolor: priorityColors[row.priority],
-                        color: '#fff',
+                        color: 'common.white',
                         fontWeight: 700,
                         fontSize: 12,
                         textAlign: 'center',
@@ -359,13 +366,13 @@ function Issues() {
                         height: 23,
                         px: 0.75,
                         borderRadius: '5px',
-                        bgcolor: '#9f9f9f',
-                        color: '#fff',
+                        bgcolor: 'grey.500',
+                        color: 'common.white',
                         fontFamily: 'Inter, Montserrat, sans-serif',
                         fontWeight: 700,
                         fontSize: 12,
                         textTransform: 'none',
-                        '&:hover': { bgcolor: '#8a8a8a' },
+                        '&:hover': { bgcolor: 'grey.600' },
                       }}
                     >
                       {row.status}

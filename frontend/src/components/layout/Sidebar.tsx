@@ -10,6 +10,7 @@ import {
   Collapse,
   Typography,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import mahindraLogo from '../../assets/mahindralogobk.png';
@@ -85,8 +86,8 @@ function Sidebar({
       sx={{
         width: '15%',
         minHeight: '100vh',
-        backgroundColor: '#5f0229',
-        color: '#fff',
+        backgroundColor: 'primary.main',
+        color: 'common.white',
         display: 'flex',
         flexDirection: 'column',
         p: 2,
@@ -121,10 +122,10 @@ function Sidebar({
                 px: 2,
                 py: 1.2,
                 '&.Mui-selected': {
-                  backgroundColor: '#29251C',
+                  backgroundColor: 'secondary.main',
                 },
                 '&:hover': {
-                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  backgroundColor: (theme) => alpha(theme.palette.common.white, 0.1),
                 },
               }}
             >
@@ -133,7 +134,7 @@ function Sidebar({
                 primaryTypographyProps={{
                   fontSize: 12,
                   fontWeight: item.value === activeNavItem ? 700 : 500,
-                  color: '#fff',
+                  color: 'common.white',
                 }}
               />
             </ListItemButton>
@@ -147,7 +148,7 @@ function Sidebar({
           sx={{
             fontSize: 10,
             fontWeight: 700,
-            color: 'rgba(255,255,255,0.6)',
+            color: (theme) => alpha(theme.palette.common.white, 0.6),
             textTransform: 'uppercase',
             px: 2,
             mb: 1.5,
@@ -169,10 +170,10 @@ function Sidebar({
                   px: 2,
                   py: 1,
                   '&.Mui-selected': {
-                    backgroundColor: '#29251C',
+                    backgroundColor: 'secondary.main',
                   },
                   '&:hover': {
-                    backgroundColor: 'rgba(255,255,255,0.15)',
+                    backgroundColor: (theme) => alpha(theme.palette.common.white, 0.15),
                   },
                 }}
               >
@@ -181,8 +182,8 @@ function Sidebar({
                     width: 12,
                     height: 12,
                     borderRadius: '50%',
-                    backgroundColor: project.id === activeProject ? '#fff' : 'transparent',
-                    border: '2px solid #fff',
+                    backgroundColor: project.id === activeProject ? 'common.white' : 'transparent',
+                    border: (theme) => `2px solid ${theme.palette.common.white}`,
                     mr: 1.5,
                     flexShrink: 0,
                   }}
@@ -192,7 +193,7 @@ function Sidebar({
                   primaryTypographyProps={{
                     fontSize: 11,
                     fontWeight: project.id === activeProject ? 600 : 400,
-                    color: '#fff',
+                    color: 'common.white',
                   }}
                 />
                 {expandedProjects[project.id] ? (
@@ -220,10 +221,10 @@ function Sidebar({
                         py: 0.8,
                         backgroundColor:
                           project.id === activeProject && subsection.id === activeSubsection
-                            ? '#29251C'
+                            ? 'secondary.main'
                             : 'transparent',
                         '&:hover': {
-                          backgroundColor: 'rgba(255,255,255,0.1)',
+                          backgroundColor: (theme) => alpha(theme.palette.common.white, 0.1),
                         },
                       }}
                     >
@@ -234,8 +235,8 @@ function Sidebar({
                           borderRadius: '50%',
                           backgroundColor:
                             project.id === activeProject && subsection.id === activeSubsection
-                              ? '#fff'
-                              : 'rgba(255,255,255,0.5)',
+                              ? 'common.white'
+                              : (theme) => alpha(theme.palette.common.white, 0.5),
                           mr: 1.5,
                           flexShrink: 0,
                         }}
@@ -248,7 +249,7 @@ function Sidebar({
                             project.id === activeProject && subsection.id === activeSubsection
                               ? 600
                               : 400,
-                          color: '#fff',
+                          color: 'common.white',
                         }}
                       />
                     </ListItemButton>
@@ -261,14 +262,14 @@ function Sidebar({
       </Box>
 
       {/* User Section */}
-      <Divider sx={{ borderColor: 'rgba(255,255,255,0.2)', mb: 2 }} />
+      <Divider sx={{ borderColor: (theme) => alpha(theme.palette.common.white, 0.2), mb: 2 }} />
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
         <Avatar
           sx={{
             width: 40,
             height: 40,
-            bgcolor: '#29251d',
+            bgcolor: 'secondary.main',
             fontWeight: 700,
             fontSize: 14,
             flexShrink: 0,
@@ -277,10 +278,10 @@ function Sidebar({
           {userInitials}
         </Avatar>
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography sx={{ fontSize: 11, fontWeight: 600, color: '#fff' }}>
+          <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'common.white' }}>
             {userName}
           </Typography>
-          <Typography sx={{ fontSize: 9, color: 'rgba(255,255,255,0.7)' }}>
+          <Typography sx={{ fontSize: 9, color: (theme) => alpha(theme.palette.common.white, 0.7) }}>
             {userPoints} pts
           </Typography>
         </Box>

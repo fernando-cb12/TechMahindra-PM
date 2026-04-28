@@ -10,7 +10,6 @@ import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import profilePhoto from '../../assets/settings/profile-photo.png';
 import { SettingsCard } from './SettingsCard';
-import { settingsMaroon as maroon } from './settingsTokens';
 
 export type ProfileFields = {
   name: string;
@@ -36,7 +35,10 @@ function SettingsProfileCard({ profile, onEdit }: SettingsProfileCardProps) {
               fontFamily: 'Montserrat, sans-serif',
               fontWeight: 700,
               fontSize: 18,
-              color: maroon,
+              color: (theme) =>
+                theme.palette.mode === 'dark'
+                  ? theme.palette.text.primary
+                  : theme.palette.primary.main,
             }}
           >
             Profile
@@ -47,7 +49,7 @@ function SettingsProfileCard({ profile, onEdit }: SettingsProfileCardProps) {
             onClick={onEdit}
             startIcon={<LockOutlinedIcon sx={{ fontSize: 17 }} />}
             sx={{
-              bgcolor: maroon,
+              bgcolor: 'primary.main',
               borderRadius: '5px',
               minHeight: 28,
               px: 1.5,
@@ -56,7 +58,7 @@ function SettingsProfileCard({ profile, onEdit }: SettingsProfileCardProps) {
               fontWeight: 700,
               fontSize: 14,
               textTransform: 'none',
-              '&:hover': { bgcolor: '#4a011f' },
+              '&:hover': { bgcolor: 'primary.dark' },
             }}
           >
             Edit
@@ -75,7 +77,7 @@ function SettingsProfileCard({ profile, onEdit }: SettingsProfileCardProps) {
               sx={{
                 width: 147,
                 height: 148,
-                border: `3px solid ${maroon}`,
+                border: (theme) => `3px solid ${theme.palette.primary.main}`,
                 boxSizing: 'border-box',
               }}
             />
@@ -93,7 +95,7 @@ function SettingsProfileCard({ profile, onEdit }: SettingsProfileCardProps) {
               }}
             >
               {hoverAvatar ? (
-                <EditOutlinedIcon sx={{ color: '#fff', fontSize: 32 }} />
+                <EditOutlinedIcon sx={{ color: 'common.white', fontSize: 32 }} />
               ) : null}
             </Box>
           </Box>
@@ -116,7 +118,10 @@ function ProfileRow({ label, value }: { label: string; value: string }) {
       sx={{
         fontFamily: 'Montserrat, sans-serif',
         fontSize: 15,
-        color: maroon,
+        color: (theme) =>
+          theme.palette.mode === 'dark'
+            ? theme.palette.text.primary
+            : theme.palette.primary.main,
       }}
     >
       <Box component="span" sx={{ fontWeight: 600 }}>

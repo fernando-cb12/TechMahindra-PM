@@ -37,7 +37,7 @@ function SummaryCards({ items, sx }: SummaryCardsProps) {
             height: 84,
             borderRadius: '5px',
             boxShadow: 'none',
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'background.paper',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -48,7 +48,10 @@ function SummaryCards({ items, sx }: SummaryCardsProps) {
               component="div"
               sx={{
                 fontWeight: 700,
-                color: 'primary.main',
+                color: (theme) =>
+                  theme.palette.mode === 'dark'
+                    ? theme.palette.text.primary
+                    : theme.palette.primary.main,
                 fontSize: '24px',
                 lineHeight: 1,
               }}
@@ -58,7 +61,10 @@ function SummaryCards({ items, sx }: SummaryCardsProps) {
             <Typography
               sx={{
                 mt: 1,
-                color: 'primary.main',
+                color: (theme) =>
+                  theme.palette.mode === 'dark'
+                    ? theme.palette.text.primary
+                    : theme.palette.primary.main,
                 fontWeight: 400,
                 fontSize: '9.5px',
                 lineHeight: 1.2,
@@ -72,7 +78,10 @@ function SummaryCards({ items, sx }: SummaryCardsProps) {
                 sx={{
                   mt: 0.5,
                   display: 'block',
-                  color: 'primary.main',
+                  color: (theme) =>
+                    theme.palette.mode === 'dark'
+                      ? theme.palette.text.primary
+                      : theme.palette.primary.main,
                   fontSize: { xs: '0.65rem', sm: '0.75rem', md: '0.875rem' },
                 }}
               >
