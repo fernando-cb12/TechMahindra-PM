@@ -7,11 +7,11 @@ import {
   Select,
   Button,
   Box,
-} from "@mui/material";
+} from '@mui/material';
 
 const NewIssue: React.FC = () => {
   return (
-    <form style={{ width: "100%" }}>
+    <form style={{ width: '100%' }}>
       <Stack spacing={2}>
         {/* Project */}
         <FormControl fullWidth required>
@@ -36,7 +36,7 @@ const NewIssue: React.FC = () => {
         />
 
         {/* Priority + Assignee side by side */}
-        <Box sx={{ display: "flex", gap: 2 }}>
+        <Box sx={{ display: 'flex', gap: 2 }}>
           <FormControl fullWidth required>
             <InputLabel>Priority</InputLabel>
             <Select
@@ -55,7 +55,7 @@ const NewIssue: React.FC = () => {
         </Box>
 
         {/* Button */}
-        <Button type="submit" variant="contained" sx={{ width: "fit-content" }}>
+        <Button type="submit" variant="contained" sx={{ width: 'fit-content' }}>
           Create
         </Button>
       </Stack>
