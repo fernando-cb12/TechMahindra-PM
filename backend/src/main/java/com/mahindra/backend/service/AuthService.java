@@ -43,9 +43,9 @@ public class AuthService {
         if (userRepository.existsByEmail(email)) {
             throw new DuplicateEmailException();
         }
-        Role member = roleRepository.findByName("MEMBER")
+        Role member = roleRepository.findByName("VIEW_ONLY")
                 .orElseThrow(() -> new IllegalStateException(
-                        "Default role MEMBER is missing; ensure Flyway migration V3 has been applied."));
+                        "Default role VIEW_ONLY is missing."));
         User user = new User();
         user.setName(request.name().trim());
         user.setEmail(email);
