@@ -7,7 +7,6 @@ import {
   SettingsProfileCard,
   type ProfileFields,
 } from '../components/settings/SettingsProfileCard';
-import { settingsMaroon as maroon } from '../components/settings/settingsTokens';
 
 const defaultProfile: ProfileFields = {
   name: 'Antonio Calderon',
@@ -30,7 +29,7 @@ function Settings({ onProfileEdit, profile = defaultProfile }: SettingsProps) {
       sx={{
         flex: 1,
         minHeight: '100vh',
-        backgroundColor: '#f5f5f5',
+        backgroundColor: 'background.default',
         px: { xs: 2, sm: 4 },
         py: 3,
       }}
@@ -40,7 +39,10 @@ function Settings({ onProfileEdit, profile = defaultProfile }: SettingsProps) {
             fontFamily: 'Montserrat, sans-serif',
             fontWeight: 700,
             fontSize: 21.5,
-            color: maroon,
+            color: (theme) =>
+              theme.palette.mode === 'dark'
+                ? theme.palette.text.primary
+                : theme.palette.primary.main,
             mb: 3,
           }}
         >
@@ -73,7 +75,7 @@ function Settings({ onProfileEdit, profile = defaultProfile }: SettingsProps) {
                 disableElevation
                 onClick={() => navigate(ROUTES.login)}
                 sx={{
-                  bgcolor: maroon,
+                  bgcolor: 'primary.main',
                   borderRadius: '5px',
                   minWidth: 129,
                   minHeight: 30,
@@ -81,7 +83,7 @@ function Settings({ onProfileEdit, profile = defaultProfile }: SettingsProps) {
                   fontWeight: 700,
                   fontSize: 14,
                   textTransform: 'none',
-                  '&:hover': { bgcolor: '#4a011f' },
+                  '&:hover': { bgcolor: 'primary.dark' },
                 }}
               >
                 Log Out

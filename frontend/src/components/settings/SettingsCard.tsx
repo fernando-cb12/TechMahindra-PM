@@ -9,7 +9,7 @@ function SettingsCard({ children, sx, ...props }: SettingsCardProps) {
       {...props}
       sx={{
         borderRadius: '5px',
-        bgcolor: '#fff',
+        bgcolor: 'background.paper',
         overflow: 'hidden',
         ...sx,
       }}

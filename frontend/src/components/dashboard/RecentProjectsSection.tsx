@@ -1,4 +1,5 @@
 import { Avatar, Box, Chip, LinearProgress, Paper, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 
 export interface RecentProjectData {
   title: string;
@@ -13,13 +14,17 @@ interface RecentProjectsSectionProps {
   projects: RecentProjectData[];
 }
 
-const statusConfig: Record<RecentProjectData['status'], { label: string; bg: string; color: string }> = {
-  active: { label: 'Active', bg: '#2C2C2C', color: '#FFFFFF' },
-  'in-progress': { label: 'In Progress', bg: '#EAC24F', color: '#5A1800' },
-  planning: { label: 'Planning', bg: '#B3B3B3', color: '#FFFFFF' },
-};
-
 function RecentProjectCard({ project }: { project: RecentProjectData }) {
+  const theme = useTheme();
+  const statusConfig: Record<RecentProjectData['status'], { label: string; bg: string; color: string }> = {
+    active: { label: 'Active', bg: theme.palette.grey[800], color: theme.palette.common.white },
+    'in-progress': {
+      label: 'In Progress',
+      bg: theme.palette.warning.main,
+      color: theme.palette.grey[900],
+    },
+    planning: { label: 'Planning', bg: theme.palette.grey[400], color: theme.palette.common.white },
+  };
   const status = statusConfig[project.status];
 
   return (
@@ -27,7 +32,7 @@ function RecentProjectCard({ project }: { project: RecentProjectData }) {
       elevation={0}
       sx={{
         borderRadius: '5px',
-        bgcolor: '#FFFFFF',
+        bgcolor: 'background.paper',
         width: '100%',
         minHeight: 129,
         px: 1.5,
@@ -37,7 +42,10 @@ function RecentProjectCard({ project }: { project: RecentProjectData }) {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
         <Typography
           sx={{
-            color: 'primary.dark',
+            color: (theme) =>
+              theme.palette.mode === 'dark'
+                ? theme.palette.text.primary
+                : theme.palette.primary.dark,
             fontSize: '10.5px',
             fontWeight: 700,
             lineHeight: 1.3,
@@ -63,7 +71,7 @@ function RecentProjectCard({ project }: { project: RecentProjectData }) {
       <Typography
         sx={{
           mt: 0.8,
-          color: '#2C2C2C',
+          color: 'text.primary',
           fontSize: '8px',
           fontWeight: 400,
           lineHeight: 1.3,
@@ -84,7 +92,14 @@ function RecentProjectCard({ project }: { project: RecentProjectData }) {
                 fontSize: '9px',
                 fontWeight: 700,
                 bgcolor: 'primary.main',
-                border: '1px solid #FFFFFF',
+                color: (theme) =>
+                  theme.palette.mode === 'dark' ? '#F5F5F5' : undefined,
+                border: (theme) =>
+                  `1px solid ${
+                    theme.palette.mode === 'dark'
+                      ? theme.palette.background.paper
+                      : theme.palette.common.white
+                  }`,
                 ml: index === 0 ? 0 : -0.45,
               }}
             >
@@ -93,7 +108,7 @@ function RecentProjectCard({ project }: { project: RecentProjectData }) {
           ))}
         </Box>
         {project.extraMembers ? (
-          <Typography sx={{ ml: 1, color: '#2C2C2C', fontSize: '8px', fontWeight: 400 }}>
+          <Typography sx={{ ml: 1, color: 'text.primary', fontSize: '8px', fontWeight: 400 }}>
             +{project.extraMembers}
           </Typography>
         ) : null}
@@ -106,14 +121,14 @@ function RecentProjectCard({ project }: { project: RecentProjectData }) {
           sx={{
             height: 5,
             borderRadius: '2px',
-            bgcolor: '#D9D9D9',
+            bgcolor: 'grey.300',
             '& .MuiLinearProgress-bar': {
               borderRadius: '2px',
               bgcolor: 'primary.main',
             },
           }}
         />
-        <Typography sx={{ mt: 0.5, color: '#2C2C2C', fontSize: '8px', fontWeight: 400 }}>
+        <Typography sx={{ mt: 0.5, color: 'text.primary', fontSize: '8px', fontWeight: 400 }}>
           {project.progress}% Complete
         </Typography>
       </Box>
@@ -124,7 +139,17 @@ function RecentProjectCard({ project }: { project: RecentProjectData }) {
 function RecentProjectsSection({ projects }: RecentProjectsSectionProps) {
   return (
     <Box sx={{ mt: 3 }}>
-      <Typography sx={{ color: 'primary.dark', fontSize: '15px', fontWeight: 700, mb: 1.5 }}>
+      <Typography
+        sx={{
+          color: (theme) =>
+            theme.palette.mode === 'dark'
+              ? theme.palette.text.primary
+              : theme.palette.primary.dark,
+          fontSize: '15px',
+          fontWeight: 700,
+          mb: 1.5,
+        }}
+      >
         Recent Projects
       </Typography>
       <Box

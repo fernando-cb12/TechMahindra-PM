@@ -1,5 +1,4 @@
 import { Box, Typography } from '@mui/material';
-import { settingsMaroon as maroon } from '../components/settings/settingsTokens';
 
 function Metrics() {
   return (
@@ -8,7 +7,7 @@ function Metrics() {
       sx={{
         flex: 1,
         minHeight: '100vh',
-        backgroundColor: '#f5f5f5',
+        backgroundColor: 'background.default',
         px: { xs: 2, sm: 4 },
         py: 3,
       }}
@@ -18,7 +17,10 @@ function Metrics() {
           fontFamily: 'Montserrat, sans-serif',
           fontWeight: 700,
           fontSize: 21.5,
-          color: maroon,
+          color: (theme) =>
+            theme.palette.mode === 'dark'
+              ? theme.palette.text.primary
+              : theme.palette.primary.main,
         }}
       >
         Metrics

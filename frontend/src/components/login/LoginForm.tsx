@@ -9,14 +9,12 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
 
 interface LoginFormProps {
   onLogin: () => void;
 }
 
 function LoginForm({ onLogin }: LoginFormProps) {
-  const theme = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [stayLoggedIn, setStayLoggedIn] = useState(true);
@@ -27,18 +25,18 @@ function LoginForm({ onLogin }: LoginFormProps) {
     onLogin();
   };
 
-  const fontFamily = theme.typography.fontFamily ?? '"Montserrat", sans-serif';
+  const fontFamily = '"Montserrat", sans-serif';
   const cardBg = "#2c2c2c";
-  const labelColor = theme.palette.text.secondary ?? "#999";
-  const helperColor = theme.palette.grey[400] ?? "#b8b8b8";
+  const labelColor = "#999";
+  const helperColor = "#b8b8b8";
   const inputBg = "#1a1a1a";
-  const inputBorder = theme.palette.grey[700] ?? "#444";
-  const inputBorderHover = theme.palette.grey[500] ?? "#777";
-  const inputBorderFocus = theme.palette.primary.main ?? "#5F0229";
-  const buttonBg = theme.palette.primary.main ?? "#5f0229";
-  const buttonHover = theme.palette.primary.dark ?? "#4d0121";
-  const checkedColor = theme.palette.primary.main ?? "#5F0229";
-  const headingColor = theme.palette.primary.contrastText ?? "#fff";
+  const inputBorder = "#444";
+  const inputBorderHover = "#777";
+  const inputBorderFocus = "#5F0229";
+  const buttonBg = "#5f0229";
+  const buttonHover = "#4d0121";
+  const checkedColor = "#5F0229";
+  const headingColor = "#fff";
 
   const inputSx = {
     "& .MuiOutlinedInput-root": {
@@ -65,7 +63,6 @@ function LoginForm({ onLogin }: LoginFormProps) {
       }}
     >
       <CardContent sx={{ p: 4 }}>
-        {/* Header */}
         <Box sx={{ textAlign: "center", mb: 3 }}>
           <Typography
             variant="h6"
@@ -82,7 +79,6 @@ function LoginForm({ onLogin }: LoginFormProps) {
           </Typography>
         </Box>
 
-        {/* Form */}
         <Box
           component="form"
           onSubmit={handleSubmit}

@@ -1,24 +1,36 @@
 import { createTheme } from "@mui/material/styles";
 
-// COLOR TOKENS
-const brand = {
-  main: "#7A0026",
-  dark: "#5A001C",
-  light: "#A3334D",
-  contrastText: "#FFFFFF",
-};
-
-const grey = {
-  50: "#F7F7F7",
-  100: "#EFEFEF",
-  200: "#E0E0E0",
-  300: "#C7C7C7",
-  400: "#A0A0A0",
-  500: "#707070",
-  600: "#505050",
-  700: "#303030",
-  800: "#1F1F1F",
-  900: "#121212",
+// Shared colors currently used across pages/components.
+const colors = {
+  primary: {
+    main: "#5F0229",
+    dark: "#4A011F",
+    light: "#A3334D",
+    contrastText: "#FFFFFF",
+  },
+  neutral: {
+    white: "#FFFFFF",
+    black: "#000000",
+    50: "#F7F7F7",
+    100: "#F2F3F5",
+    200: "#E8E8E8",
+    300: "#D9D9D9",
+    400: "#B3B3B3",
+    500: "#9F9F9F",
+    600: "#7C7C7C",
+    700: "#444444",
+    800: "#2C2C2C",
+    900: "#121212",
+  },
+  surface: {
+    sidebar: "#29251D",
+  },
+  status: {
+    success: "#4CAF50",
+    warning: "#EAC24F",
+    error: "#FB485B",
+    lowPriority: "#20EA37",
+  },
 };
 
 // TYPOGRAPHY
@@ -48,46 +60,41 @@ export const lightTheme = createTheme({
   palette: {
     mode: "light",
 
-    primary: brand,
-
-    grey: grey,
+    primary: colors.primary,
+    secondary: {
+      main: colors.surface.sidebar,
+      contrastText: colors.neutral.white,
+    },
+    grey: colors.neutral,
 
     background: {
-      default: grey[50],
-      paper: "#FFFFFF",
+      default: colors.neutral[50],
+      paper: colors.neutral.white,
     },
 
     text: {
-      primary: grey[800],
-      secondary: grey[500],
-      disabled: grey[400],
+      primary: colors.neutral[800],
+      secondary: colors.neutral[600],
+      disabled: colors.neutral[500],
     },
 
     success: {
-      main: "#4CAF50",
-      light: "#81C784",
-      dark: "#388E3C",
+      main: colors.status.success,
     },
 
     warning: {
-      main: "#F4B400",
-      light: "#FFD54F",
-      dark: "#C49000",
+      main: colors.status.warning,
     },
 
     error: {
-      main: "#E53935",
-      light: "#EF5350",
-      dark: "#B71C1C",
+      main: colors.status.error,
     },
 
     info: {
-      main: "#2196F3",
-      light: "#64B5F6",
-      dark: "#1976D2",
+      main: colors.primary.light,
     },
 
-    divider: grey[200],
+    divider: colors.neutral[100],
   },
 
   typography,
@@ -103,40 +110,43 @@ export const darkTheme = createTheme({
     mode: "dark",
 
     primary: {
-      ...brand,
-      main: brand.light,
+      ...colors.primary,
+      main: colors.primary.main,
     },
-
-    grey: grey,
+    secondary: {
+      main: colors.surface.sidebar,
+      contrastText: colors.neutral.white,
+    },
+    grey: colors.neutral,
 
     background: {
-      default: grey[900],
-      paper: grey[800],
+      default: colors.neutral[800],
+      paper: colors.neutral[700],
     },
 
     text: {
-      primary: "#FFFFFF",
-      secondary: grey[300],
-      disabled: grey[500],
+      primary: '#F5F5F5',
+      secondary: colors.neutral[300],
+      disabled: colors.neutral[500],
     },
 
     success: {
-      main: "#66BB6A",
+      main: colors.status.success,
     },
 
     warning: {
-      main: "#FFCA28",
+      main: colors.status.warning,
     },
 
     error: {
-      main: "#EF5350",
+      main: colors.status.error,
     },
 
     info: {
-      main: "#42A5F5",
+      main: colors.primary.main,
     },
 
-    divider: grey[700],
+    divider: colors.neutral[700],
   },
 
   typography,

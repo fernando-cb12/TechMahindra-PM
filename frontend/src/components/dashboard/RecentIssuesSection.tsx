@@ -1,4 +1,5 @@
 import { Box, Chip, Paper, Typography } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 
 type IssuePriority = 'high' | 'medium' | 'low';
 type IssueStatus = 'in-progress' | 'to-do' | 'done';
@@ -14,18 +15,6 @@ export interface RecentIssueData {
 interface RecentIssuesSectionProps {
   issues: RecentIssueData[];
 }
-
-const priorityConfig: Record<IssuePriority, { label: string; bg: string; color: string }> = {
-  high: { label: 'High', bg: '#FB485B', color: '#FFFFFF' },
-  medium: { label: 'Medium', bg: '#EAC24F', color: '#5A1800' },
-  low: { label: 'Low', bg: '#3CC85F', color: '#FFFFFF' },
-};
-
-const statusConfig: Record<IssueStatus, { label: string; bg: string; color: string }> = {
-  'in-progress': { label: 'In Progress', bg: '#EAC24F', color: '#5A1800' },
-  'to-do': { label: 'To Do', bg: '#A4A4A4', color: '#FFFFFF' },
-  done: { label: 'Done', bg: '#45C84D', color: '#FFFFFF' },
-};
 
 function IssuePill({ label, bg, color }: { label: string; bg: string; color: string }) {
   return (
@@ -53,22 +42,49 @@ function IssuePill({ label, bg, color }: { label: string; bg: string; color: str
 }
 
 function RecentIssuesSection({ issues }: RecentIssuesSectionProps) {
+  const theme = useTheme();
+  const priorityConfig: Record<IssuePriority, { label: string; bg: string; color: string }> = {
+    high: { label: 'High', bg: theme.palette.error.main, color: theme.palette.common.white },
+    medium: { label: 'Medium', bg: theme.palette.warning.main, color: theme.palette.grey[900] },
+    low: { label: 'Low', bg: theme.palette.success.main, color: theme.palette.common.white },
+  };
+
+  const statusConfig: Record<IssueStatus, { label: string; bg: string; color: string }> = {
+    'in-progress': {
+      label: 'In Progress',
+      bg: theme.palette.warning.main,
+      color: theme.palette.grey[900],
+    },
+    'to-do': { label: 'To Do', bg: theme.palette.grey[500], color: theme.palette.common.white },
+    done: { label: 'Done', bg: theme.palette.success.main, color: theme.palette.common.white },
+  };
+
   return (
     <Box sx={{ mt: 2.5 }}>
       <Paper
         elevation={0}
         sx={{
           borderRadius: '5px',
-          bgcolor: '#FFFFFF',
+          bgcolor: 'background.paper',
           px: 1.75,
           py: 1.75,
         }}
       >
-        <Typography sx={{ color: 'primary.dark', fontSize: '15px', fontWeight: 700, mb: 1.5 }}>
+        <Typography
+          sx={{
+            color: (theme) =>
+              theme.palette.mode === 'dark'
+                ? theme.palette.text.primary
+                : theme.palette.primary.dark,
+            fontSize: '15px',
+            fontWeight: 700,
+            mb: 1.5,
+          }}
+        >
           Recent Issues
         </Typography>
 
-        <Box sx={{ bgcolor: '#F5F5F5', borderRadius: '2px', px: 1.25, py: 0.7 }}>
+        <Box sx={{ bgcolor: (t) => alpha(t.palette.text.primary, 0.07), borderRadius: '2px', px: 1.25, py: 0.7 }}>
           <Box
             sx={{
               display: 'grid',
@@ -77,11 +93,44 @@ function RecentIssuesSection({ issues }: RecentIssuesSectionProps) {
               columnGap: 1,
             }}
           >
-            <Typography sx={{ fontSize: '8.5px', fontWeight: 700, color: 'primary.dark' }}>Key</Typography>
-            <Typography sx={{ fontSize: '8.5px', fontWeight: 700, color: '#29251C' }}>Summary</Typography>
-            <Typography sx={{ fontSize: '8.5px', fontWeight: 700, color: '#29251C' }}>Assignee</Typography>
-            <Typography sx={{ fontSize: '8.5px', fontWeight: 700, color: 'primary.dark' }}>Priority</Typography>
-            <Typography sx={{ fontSize: '8.5px', fontWeight: 700, color: 'primary.dark' }}>Status</Typography>
+            <Typography
+              sx={{
+                fontSize: '8.5px',
+                fontWeight: 700,
+                color: (theme) =>
+                  theme.palette.mode === 'dark'
+                    ? theme.palette.text.primary
+                    : theme.palette.primary.dark,
+              }}
+            >
+              Key
+            </Typography>
+            <Typography sx={{ fontSize: '8.5px', fontWeight: 700, color: 'text.primary' }}>Summary</Typography>
+            <Typography sx={{ fontSize: '8.5px', fontWeight: 700, color: 'text.primary' }}>Assignee</Typography>
+            <Typography
+              sx={{
+                fontSize: '8.5px',
+                fontWeight: 700,
+                color: (theme) =>
+                  theme.palette.mode === 'dark'
+                    ? theme.palette.text.primary
+                    : theme.palette.primary.dark,
+              }}
+            >
+              Priority
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: '8.5px',
+                fontWeight: 700,
+                color: (theme) =>
+                  theme.palette.mode === 'dark'
+                    ? theme.palette.text.primary
+                    : theme.palette.primary.dark,
+              }}
+            >
+              Status
+            </Typography>
           </Box>
         </Box>
 
@@ -99,16 +148,25 @@ function RecentIssuesSection({ issues }: RecentIssuesSectionProps) {
                 columnGap: 1,
                 minHeight: 30,
                 px: 1.25,
-                borderBottom: '1px solid #D6A6BC',
+                borderBottom: (t) => `1px solid ${alpha(t.palette.primary.main, 0.28)}`,
               }}
             >
-              <Typography sx={{ fontSize: '8.5px', fontWeight: 700, color: 'primary.dark' }}>
+              <Typography
+                sx={{
+                  fontSize: '8.5px',
+                  fontWeight: 700,
+                  color: (theme) =>
+                    theme.palette.mode === 'dark'
+                      ? theme.palette.text.primary
+                      : theme.palette.primary.dark,
+                }}
+              >
                 {issue.key}
               </Typography>
-              <Typography sx={{ fontSize: '8.5px', fontWeight: 500, color: '#2C2C2C' }}>
+              <Typography sx={{ fontSize: '8.5px', fontWeight: 500, color: 'text.primary' }}>
                 {issue.summary}
               </Typography>
-              <Typography sx={{ fontSize: '8.5px', fontWeight: 500, color: '#2C2C2C' }}>
+              <Typography sx={{ fontSize: '8.5px', fontWeight: 500, color: 'text.primary' }}>
                 {issue.assignee}
               </Typography>
               <IssuePill label={priority.label} bg={priority.bg} color={priority.color} />

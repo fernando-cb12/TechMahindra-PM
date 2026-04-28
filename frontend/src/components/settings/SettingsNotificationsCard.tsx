@@ -9,7 +9,6 @@ import {
 } from '@mui/material';
 import notificationChecked from '../../assets/settings/notification-checked.png';
 import { SettingsCard } from './SettingsCard';
-import { settingsMaroon as maroon } from './settingsTokens';
 
 const NOTIFICATION_KEYS = [
   'issuesAssigned',
@@ -52,7 +51,10 @@ function SettingsNotificationsCard({ initialState }: SettingsNotificationsCardPr
             fontFamily: 'Montserrat, sans-serif',
             fontWeight: 700,
             fontSize: 18,
-            color: maroon,
+            color: (theme) =>
+              theme.palette.mode === 'dark'
+                ? theme.palette.text.primary
+                : theme.palette.primary.main,
             mb: 2,
           }}
         >
@@ -81,9 +83,9 @@ function SettingsNotificationsCard({ initialState }: SettingsNotificationsCardPr
                         sx={{
                           width: 23,
                           height: 23,
-                          border: `2px solid ${maroon}`,
+                          border: (theme) => `2px solid ${theme.palette.primary.main}`,
                           borderRadius: '4px',
-                          bgcolor: '#fff',
+                          bgcolor: 'common.white',
                         }}
                       />
                     }
@@ -104,7 +106,10 @@ function SettingsNotificationsCard({ initialState }: SettingsNotificationsCardPr
                       fontFamily: 'Montserrat, sans-serif',
                       fontWeight: 600,
                       fontSize: 15,
-                      color: maroon,
+                      color: (theme) =>
+                        theme.palette.mode === 'dark'
+                          ? theme.palette.text.primary
+                          : theme.palette.primary.main,
                     }}
                   >
                     {LABELS[key]}
