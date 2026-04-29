@@ -2,6 +2,7 @@ export const ROUTES = {
   login: '/login',
   dashboard: '/dashboard',
   workspaces: '/workspaces',
+  workspaceBoard: '/workspaces/:workspaceId/boards/:boardId',
   issues: '/issues',
   metrics: '/metrics',
   settings: '/settings',
