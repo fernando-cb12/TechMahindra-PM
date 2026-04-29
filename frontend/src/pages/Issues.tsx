@@ -1,19 +1,11 @@
 import { useState } from 'react';
 import {
-  Avatar,
   Box,
   Button,
-  Checkbox,
   FormControl,
   MenuItem,
   Select,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Typography,
   type SelectChangeEvent,
 } from '@mui/material';
@@ -21,11 +13,12 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { alpha, useTheme } from '@mui/material/styles';
 import { Dialog, DialogTitle, DialogContent } from '@mui/material';
 import NewIssue from '../components/issue/NewIssue';
+import IssueList from '../components/issue/IssueList';
 
 type Priority = 'high' | 'medium' | 'low';
 
 type IssueRow = {
-  key: string;
+  issueKey: string;
   summary: string;
   assignee: string;
   priority: Priority;
@@ -34,28 +27,28 @@ type IssueRow = {
 
 const sampleIssues: IssueRow[] = [
   {
-    key: 'APP-101',
+    issueKey: 'APP-101',
     summary: 'Audit current UI components',
     assignee: 'Luis Mares',
     priority: 'high',
     status: 'To Do',
   },
   {
-    key: 'APP-102',
+    issueKey: 'APP-102',
     summary: 'Implement new design system',
     assignee: 'Marco Ibarra',
     priority: 'medium',
     status: 'To Do',
   },
   {
-    key: 'APP-103',
+    issueKey: 'APP-103',
     summary: 'Redesign login screen',
     assignee: 'Antonio Calderon',
     priority: 'high',
     status: 'To Do',
   },
   {
-    key: 'APP-104',
+    issueKey: 'APP-104',
     summary: 'Refactor navigation structure',
     assignee: 'Fernando Camou',
     priority: 'low',
@@ -63,27 +56,13 @@ const sampleIssues: IssueRow[] = [
   },
 ];
 
-function assigneeInitials(name: string) {
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-}
-
 function Issues() {
   const theme = useTheme();
-  const priorityColors = {
-    high: theme.palette.error.main,
-    medium: theme.palette.warning.main,
-    low: theme.palette.success.main,
-  } as const;
 
   const [tab, setTab] = useState<'all' | 'mine'>('all');
   const [projectFilter, setProjectFilter] = useState('all');
   const [assigneeFilter, setAssigneeFilter] = useState('all');
-  const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [openModal, setOpenModal] = useState(false);
 
   const handleProjectChange = (e: SelectChangeEvent) => {
     setProjectFilter(e.target.value);
@@ -92,12 +71,6 @@ function Issues() {
   const handleAssigneeChange = (e: SelectChangeEvent) => {
     setAssigneeFilter(e.target.value);
   };
-
-  const toggleRow = (key: string) => {
-    setSelected((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  const [openModal, setOpenModal] = useState(false);
 
   const visibleIssues =
     tab === 'mine'
@@ -133,6 +106,7 @@ function Issues() {
         py: 3,
       }}
     >
+      {/* Header */}
       <Stack
         direction="row"
         alignItems="flex-start"
@@ -183,6 +157,7 @@ function Issues() {
         </Dialog>
       </Stack>
 
+      {/* Tabs + Filters */}
       <Stack
         direction={{ xs: 'column', md: 'row' }}
         alignItems={{ xs: 'stretch', md: 'center' }}
@@ -273,136 +248,8 @@ function Issues() {
         </Stack>
       </Stack>
 
-      <TableContainer
-        sx={{
-          border: (t) => `1px solid ${t.palette.divider}`,
-          borderRadius: '12px',
-          overflow: 'hidden',
-        }}
-      >
-        <Table size="small" sx={{ tableLayout: 'fixed' }}>
-          <TableHead>
-            <TableRow
-              sx={{
-                backgroundColor: (t) => alpha(t.palette.grey[300], 0.18),
-                '& th': {
-                  borderBottom: (t) => `1px solid ${t.palette.divider}`,
-                  fontFamily: 'Montserrat, sans-serif',
-                  fontWeight: 700,
-                  fontSize: 16,
-                  color: (t) => alpha(t.palette.text.secondary, 0.58),
-                  py: 1.75,
-                },
-              }}
-            >
-              <TableCell padding="checkbox" sx={{ width: 48 }} />
-              <TableCell sx={{ width: '10%' }}>Key</TableCell>
-              <TableCell sx={{ width: '32%' }}>Summary</TableCell>
-              <TableCell sx={{ width: '22%' }}>Assignee</TableCell>
-              <TableCell sx={{ width: '12%' }}>Priority</TableCell>
-              <TableCell sx={{ width: '12%' }} align="right">
-                Status
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {visibleIssues.map((row) => (
-              <TableRow
-                key={row.key}
-                sx={{
-                  '& td': {
-                    borderColor: 'grey.200',
-                    fontFamily: 'Montserrat, sans-serif',
-                    py: 1.5,
-                  },
-                }}
-              >
-                <TableCell padding="checkbox">
-                  <Checkbox
-                    size="small"
-                    checked={!!selected[row.key]}
-                    onChange={() => toggleRow(row.key)}
-                    sx={{
-                      p: 0.5,
-                      color: 'common.black',
-                      '&.Mui-checked': { color: 'primary.main' },
-                    }}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Typography sx={{ fontWeight: 700, fontSize: 12 }}>
-                    {row.key}
-                  </Typography>
-                </TableCell>
-                <TableCell>
-                  <Typography sx={{ fontWeight: 300, fontSize: 12 }}>
-                    {row.summary}
-                  </Typography>
-                </TableCell>
-                <TableCell>
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <Avatar
-                      sx={{
-                        width: 32,
-                        height: 32,
-                        fontSize: 12,
-                        fontWeight: 700,
-                        bgcolor: 'secondary.main',
-                      }}
-                    >
-                      {assigneeInitials(row.assignee)}
-                    </Avatar>
-                    <Typography sx={{ fontWeight: 300, fontSize: 12 }}>
-                      {row.assignee}
-                    </Typography>
-                  </Stack>
-                </TableCell>
-                <TableCell>
-                  <Box
-                    component="span"
-                    sx={{
-                      display: 'inline-block',
-                      minWidth: 47,
-                      px: row.priority === 'medium' ? 1 : 0.75,
-                      py: 0.25,
-                      borderRadius: '5px',
-                      bgcolor: priorityColors[row.priority],
-                      color: 'common.white',
-                      fontWeight: 700,
-                      fontSize: 12,
-                      textAlign: 'center',
-                      textTransform: 'capitalize',
-                    }}
-                  >
-                    {row.priority}
-                  </Box>
-                </TableCell>
-                <TableCell align="right">
-                  <Button
-                    size="small"
-                    disableElevation
-                    sx={{
-                      minWidth: 51,
-                      height: 23,
-                      px: 0.75,
-                      borderRadius: '5px',
-                      bgcolor: 'grey.500',
-                      color: 'common.white',
-                      fontFamily: 'Inter, Montserrat, sans-serif',
-                      fontWeight: 700,
-                      fontSize: 12,
-                      textTransform: 'none',
-                      '&:hover': { bgcolor: 'grey.600' },
-                    }}
-                  >
-                    {row.status}
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      {/* Issue List */}
+      <IssueList issues={visibleIssues} />
     </Box>
   );
 }
