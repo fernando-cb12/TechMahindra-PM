@@ -155,3 +155,16 @@ export const darkTheme = createTheme({
     borderRadius: 8,
   },
 });
+
+export const priorityColors = {
+  High: '#FE9B9C',
+  Medium: '#BD9A5D',
+  Low: '#B9F03D',
+};
+
+export const statusColors = {
+  ToDo: '#347D39',
+  InProgress: '#966600',
+  QA: '#C93C37',
+  Done: '#8256D0',
+};
