@@ -25,38 +25,39 @@ type IssueRow = {
   status: string;
 };
 
-const sampleIssues: IssueRow[] = [
-  {
-    issueKey: 'APP-101',
-    summary: 'Audit current UI components',
-    assignee: 'Luis Mares',
-    priority: 'high',
-    status: 'To Do',
-  },
-  {
-    issueKey: 'APP-102',
-    summary: 'Implement new design system',
-    assignee: 'Marco Ibarra',
-    priority: 'medium',
-    status: 'To Do',
-  },
-  {
-    issueKey: 'APP-103',
-    summary: 'Redesign login screen',
-    assignee: 'Antonio Calderon',
-    priority: 'high',
-    status: 'To Do',
-  },
-  {
-    issueKey: 'APP-104',
-    summary: 'Refactor navigation structure',
-    assignee: 'Fernando Camou',
-    priority: 'low',
-    status: 'To Do',
-  },
-];
+
 
 function Issues() {
+  const [issues, setIssues] = useState<IssueRow[]>([
+    {
+      issueKey: 'APP-101',
+      summary: 'Audit current UI components',
+      assignee: 'Luis Mares',
+      priority: 'high',
+      status: 'To Do',
+    },
+    {
+      issueKey: 'APP-102',
+      summary: 'Implement new design system',
+      assignee: 'Marco Ibarra',
+      priority: 'medium',
+      status: 'To Do',
+    },
+    {
+      issueKey: 'APP-103',
+      summary: 'Redesign login screen',
+      assignee: 'Antonio Calderon',
+      priority: 'high',
+      status: 'To Do',
+    },
+    {
+      issueKey: 'APP-104',
+      summary: 'Refactor navigation structure',
+      assignee: 'Fernando Camou',
+      priority: 'low',
+      status: 'To Do',
+    },
+  ]);
   const theme = useTheme();
 
   const [tab, setTab] = useState<'all' | 'mine'>('all');
@@ -72,10 +73,16 @@ function Issues() {
     setAssigneeFilter(e.target.value);
   };
 
+  const handleNewIssue = (issue: IssueRow) => {
+  setIssues((prev) => [...prev, issue]);
+  setOpenModal(false); // closes the modal after creating
+};
+
+
   const visibleIssues =
-    tab === 'mine'
-      ? sampleIssues.filter((r) => r.assignee === 'Antonio Calderon')
-      : sampleIssues;
+  tab === 'mine'
+    ? issues.filter((r) => r.assignee === 'Antonio Calderon')
+    : issues;
 
   const selectSx = {
     height: 35,
@@ -152,12 +159,11 @@ function Issues() {
         >
           <DialogTitle>Create Issue</DialogTitle>
           <DialogContent>
-            <NewIssue />
+            <NewIssue onSubmit={handleNewIssue} />
           </DialogContent>
         </Dialog>
       </Stack>
 
-      {/* Tabs + Filters */}
       <Stack
         direction={{ xs: 'column', md: 'row' }}
         alignItems={{ xs: 'stretch', md: 'center' }}
@@ -248,7 +254,6 @@ function Issues() {
         </Stack>
       </Stack>
 
-      {/* Issue List */}
       <IssueList issues={visibleIssues} />
     </Box>
   );

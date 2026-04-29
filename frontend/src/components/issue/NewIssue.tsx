@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Stack,
   TextField,
@@ -9,40 +10,91 @@ import {
   Box,
 } from '@mui/material';
 
-const NewIssue: React.FC = () => {
+type NewIssueProps = {
+  onSubmit: (issue: {
+    key: string;
+    summary: string;
+    assignee: string;
+    priority: 'high' | 'medium' | 'low';
+    status: string;
+  }) => void;
+};
+
+const NewIssue: React.FC<NewIssueProps> = ({ onSubmit }) => {
+  const [form, setForm] = useState({
+    project: '',
+    summary: '',
+    description: '',
+    priority: '',
+    assignee: '',
+  });
+
+  const handleChange = (e: any) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    // Mock new issue
+    const newIssue = {
+      key: `APP-${Math.floor(Math.random() * 900) + 100}`, // random key e.g APP-234
+      summary: form.summary,
+      assignee: form.assignee || 'Unassigned',
+      priority: (form.priority || 'low') as 'high' | 'medium' | 'low',
+      status: 'To Do',
+    };
+
+    onSubmit(newIssue); // send it up to Issues.tsx
+  };
+
   return (
-    <form style={{ width: '100%' }}>
+    <form onSubmit={handleSubmit} style={{ width: '100%' }}>
       <Stack spacing={2}>
         {/* Project */}
         <FormControl fullWidth required>
           <InputLabel>Project</InputLabel>
-          <Select name="project" value="" onChange={() => {}} label="Project">
-            <MenuItem value="issue1">Issue 1</MenuItem>
-            <MenuItem value="issue2">Issue 2</MenuItem>
-            <MenuItem value="issue3">Issue 3</MenuItem>
+          <Select
+            name="project"
+            value={form.project}
+            onChange={handleChange}
+            label="Project"
+          >
+            <MenuItem value="Project 1">Issue 1</MenuItem>
+            <MenuItem value="Project 2">Issue 2</MenuItem>
+            <MenuItem value="Project 3">Issue 3</MenuItem>
           </Select>
         </FormControl>
 
         {/* Summary */}
-        <TextField label="Summary" name="summary" fullWidth required />
+        <TextField
+          label="Summary"
+          name="summary"
+          value={form.summary}
+          onChange={handleChange}
+          fullWidth
+          required
+        />
 
         {/* Description */}
         <TextField
           label="Description"
           name="description"
+          value={form.description}
+          onChange={handleChange}
           multiline
           rows={4}
           fullWidth
         />
 
-        {/* Priority + Assignee side by side */}
+        {/* Priority + Assignee */}
         <Box sx={{ display: 'flex', gap: 2 }}>
           <FormControl fullWidth required>
             <InputLabel>Priority</InputLabel>
             <Select
               name="priority"
-              value=""
-              onChange={() => {}}
+              value={form.priority}
+              onChange={handleChange}
               label="Priority"
             >
               <MenuItem value="low">Low</MenuItem>
@@ -51,10 +103,15 @@ const NewIssue: React.FC = () => {
             </Select>
           </FormControl>
 
-          <TextField label="Assignee" name="assignee" fullWidth />
+          <TextField
+            label="Assignee"
+            name="assignee"
+            value={form.assignee}
+            onChange={handleChange}
+            fullWidth
+          />
         </Box>
 
-        {/* Button */}
         <Button type="submit" variant="contained" sx={{ width: 'fit-content' }}>
           Create
         </Button>
