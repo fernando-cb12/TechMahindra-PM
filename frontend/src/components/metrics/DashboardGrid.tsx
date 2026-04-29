@@ -46,10 +46,10 @@ function DashboardGrid() {
   );
 
   const handleLayoutChange = useCallback(
-    (layout: ReactGridLayout.Layout[]) => {
+    (layout: any) => {
       if (!isEditMode) return;
       const updated: Card[] = cards.map((card) => {
-        const item = layout.find((l) => l.i === card.id);
+        const item = layout.find((l: any) => l.i === card.id);
         if (!item) return card;
         return {
           ...card,
@@ -90,8 +90,7 @@ function DashboardGrid() {
         cols={{ lg: GRID_COLS }}
         rowHeight={rowHeight}
         margin={[10, 10] as [number, number]}
-        isResizable={isEditMode}
-        isDraggable={isEditMode}
+        {...({ isResizable: isEditMode, isDraggable: isEditMode } as any)}
         preventCollision={true}
         compactType={undefined}
         onLayoutChange={handleLayoutChange}
