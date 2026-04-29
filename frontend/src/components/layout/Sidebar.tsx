@@ -9,13 +9,17 @@ import {
   ListItemText,
   Collapse,
   Typography,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import LogoutIcon from '@mui/icons-material/Logout';
 import mahindraLogo from '../../assets/mahindralogobk.png';
 import type { NavItem, Project, SidebarProps } from './types';
 import { NAV_ITEM_TO_PATH } from '../../app/routes';
+import { useAuth } from '../../auth/AuthContext';
 
 const defaultNavItems: NavItem[] = [
   { label: 'Dashboard', value: 'dashboard' },
@@ -61,13 +65,18 @@ function Sidebar({
   onNavItemClick,
   onProjectClick,
   onSubsectionClick,
-  userName = 'Marco',
-  userPoints = 250,
-  userInitials = 'M',
+  onLogout,
+  //userPoints = 250,
   navItems = defaultNavItems,
   projects = defaultProjects,
 }: SidebarProps) {
   const navigate = useNavigate();
+  const { session } = useAuth();
+
+  // Derive display values from the JWT session (email is the sub claim)
+  const emailPrefix = session?.email?.split('@')[0] ?? 'User';
+  const userName = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
+  const userInitials = emailPrefix.slice(0, 2).toUpperCase();
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({
     magenta: true,
   });
@@ -267,24 +276,62 @@ function Sidebar({
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
         <Avatar
           sx={{
-            width: 40,
-            height: 40,
+            width: 36,
+            height: 36,
             bgcolor: 'secondary.main',
             fontWeight: 700,
-            fontSize: 14,
+            fontSize: 13,
             flexShrink: 0,
           }}
         >
           {userInitials}
         </Avatar>
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'common.white' }}>
+          <Typography
+            sx={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: 'common.white',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
             {userName}
           </Typography>
-          <Typography sx={{ fontSize: 9, color: (theme) => alpha(theme.palette.common.white, 0.7) }}>
-            {userPoints} pts
+          <Typography
+            sx={{
+              fontSize: 9,
+              color: (theme) => alpha(theme.palette.common.white, 0.7),
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {session?.email ?? ''}
           </Typography>
         </Box>
+
+        {/* Logout button */}
+        <Tooltip title="Log out" placement="right">
+          <IconButton
+            id="sidebar-logout-btn"
+            size="small"
+            onClick={onLogout}
+            aria-label="Log out"
+            sx={{
+              color: (theme) => alpha(theme.palette.common.white, 0.75),
+              flexShrink: 0,
+              '&:hover': {
+                color: 'common.white',
+                backgroundColor: (theme) => alpha(theme.palette.common.white, 0.12),
+              },
+              transition: 'color 0.2s, background-color 0.2s',
+            }}
+          >
+            <LogoutIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        </Tooltip>
       </Box>
     </Box>
   );

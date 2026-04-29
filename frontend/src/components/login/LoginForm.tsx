@@ -8,21 +8,32 @@ import {
   FormControlLabel,
   TextField,
   Typography,
+  Alert,
 } from "@mui/material";
 
 interface LoginFormProps {
-  onLogin: () => void;
+  onLogin: (input: {
+    email: string;
+    password: string;
+    stayLoggedIn: boolean;
+  }) => Promise<void>;
+  errorMessage?: string;
 }
 
-function LoginForm({ onLogin }: LoginFormProps) {
+function LoginForm({ onLogin, errorMessage }: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [stayLoggedIn, setStayLoggedIn] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (event: SyntheticEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
-    console.log({ email, password, stayLoggedIn });
-    onLogin();
+    setIsSubmitting(true);
+    try {
+      await onLogin({ email, password, stayLoggedIn });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const fontFamily = '"Montserrat", sans-serif';
@@ -85,6 +96,7 @@ function LoginForm({ onLogin }: LoginFormProps) {
           noValidate
           sx={{ display: "flex", flexDirection: "column", gap: 1 }}
         >
+          {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
           <TextField
             label="Email"
             type="email"
@@ -119,7 +131,10 @@ function LoginForm({ onLogin }: LoginFormProps) {
               />
             }
             label={
-              <Typography variant="body2" sx={{ color: headingColor, fontFamily }}>
+              <Typography
+                variant="body2"
+                sx={{ color: headingColor, fontFamily }}
+              >
                 Stay logged in
               </Typography>
             }
@@ -130,6 +145,7 @@ function LoginForm({ onLogin }: LoginFormProps) {
             type="submit"
             variant="contained"
             fullWidth
+            disabled={isSubmitting}
             sx={{
               mt: 1,
               py: 1.25,
@@ -142,7 +158,7 @@ function LoginForm({ onLogin }: LoginFormProps) {
               "&:hover": { bgcolor: buttonHover },
             }}
           >
-            Continue
+            {isSubmitting ? "Signing in..." : "Continue"}
           </Button>
         </Box>
       </CardContent>

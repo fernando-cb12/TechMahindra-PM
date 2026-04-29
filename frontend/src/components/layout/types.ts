@@ -21,6 +21,7 @@ export interface SidebarProps {
   onNavItemClick?: (value: string) => void;
   onProjectClick?: (projectId: string) => void;
   onSubsectionClick?: (projectId: string, subsectionId: string) => void;
+  onLogout?: () => void;
   userName?: string;
   userPoints?: number;
   userInitials?: string;
