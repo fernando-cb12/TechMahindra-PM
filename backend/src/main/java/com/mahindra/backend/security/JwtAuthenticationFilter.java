@@ -3,6 +3,7 @@ package com.mahindra.backend.security;
 import java.io.IOException;
 
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -25,6 +26,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     public JwtAuthenticationFilter(JwtService jwtService, UserDetailsService userDetailsService) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
+    }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        // Skip auth endpoints (no JWT needed) and all CORS preflight requests
+        // so Spring's CORS filter can add Access-Control-Allow-Origin before we run.
+        return path.startsWith("/api/auth/")
+                || HttpMethod.OPTIONS.matches(request.getMethod());
     }
 
     @Override

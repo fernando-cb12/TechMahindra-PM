@@ -1,6 +1,13 @@
-export const ROLE_HIERARCHY = ['VIEW_ONLY', 'DEVELOPER', 'TEAM_LEAD', 'ADMIN'] as const;
+import axios from 'axios';
 
-export type AppRole = (typeof ROLE_HIERARCHY)[number];
+export const ROLE_LEVELS = {
+  VIEW_ONLY: 1,
+  DEVELOPER: 2,
+  TEAM_LEAD: 3,
+  ADMIN: 4,
+} as const;
+
+export type AppRole = keyof typeof ROLE_LEVELS;
 
 export interface AuthResponse {
   accessToken: string;
@@ -18,66 +25,96 @@ export interface AuthSession {
   tokenType: string;
   expiresAtMs: number;
   email: string;
-  roles: string[];
+  roles: AppRole[];
 }
 
 const AUTH_STORAGE_KEY = 'collabx.auth.session';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
 
+// Note: Storing tokens in localStorage or sessionStorage is vulnerable to XSS.
+// If backend token refresh is supported in the future, transitioning to HttpOnly
+// cookies or short-lived memory tokens is highly recommended.
 function base64UrlDecode(value: string): string {
   const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
   const padding = normalized.length % 4;
   const base64 = padding === 0 ? normalized : normalized + '='.repeat(4 - padding);
-  return atob(base64);
+  try {
+    return atob(base64);
+  } catch {
+    throw new Error('Failed to decode base64 string');
+  }
 }
 
+// Treat decoded JWT data solely as UI hints.
+// True authorization validation MUST be enforced on the backend.
 function parseJwtPayload(token: string): Record<string, unknown> {
-  const [, payload = ''] = token.split('.');
+  const parts = token.split('.');
+  if (parts.length !== 3) {
+    throw new Error('Malformed token: Expected 3 parts');
+  }
+  const payload = parts[1];
   if (!payload) {
     throw new Error('Invalid token payload');
   }
-  const decoded = base64UrlDecode(payload);
-  return JSON.parse(decoded) as Record<string, unknown>;
+  try {
+    const decoded = base64UrlDecode(payload);
+    return JSON.parse(decoded) as Record<string, unknown>;
+  } catch {
+    throw new Error('Failed to parse JWT payload');
+  }
 }
 
-function parseRoles(payload: Record<string, unknown>): string[] {
+function parseRoles(payload: Record<string, unknown>): AppRole[] {
   const rolesClaim = payload.roles;
   if (typeof rolesClaim !== 'string' || rolesClaim.trim().length === 0) {
     return [];
   }
   return rolesClaim
     .split(',')
-    .map((role) => role.trim())
-    .filter((role) => role.length > 0);
+    .map((role) => role.trim() as AppRole)
+    // Validate whether the role is a known AppRole
+    .filter((role) => role in ROLE_LEVELS);
 }
 
 function parseEmail(payload: Record<string, unknown>): string {
   const subject = payload.sub;
-  return typeof subject === 'string' ? subject : '';
+  if (typeof subject !== 'string' || subject.trim().length === 0) {
+    throw new Error('Missing email (sub claim) in JWT payload');
+  }
+  return subject;
 }
 
-export function hasMinimumRole(roles: string[], minimumRole: AppRole): boolean {
-  const minimumLevel = ROLE_HIERARCHY.indexOf(minimumRole);
-  if (minimumLevel < 0) {
+export function hasMinimumRole(roles: AppRole[], minimumRole: AppRole): boolean {
+  const minimumLevel = ROLE_LEVELS[minimumRole];
+  if (!minimumLevel) {
     return false;
   }
-  return roles.some((role) => ROLE_HIERARCHY.indexOf(role as AppRole) >= minimumLevel);
+  return roles.some((role) => {
+    const level = ROLE_LEVELS[role];
+    return level && level >= minimumLevel;
+  });
 }
 
 export async function login(credentials: LoginCredentials): Promise<AuthSession> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(credentials),
-  });
-
-  if (!response.ok) {
+  let payload: AuthResponse;
+  try {
+    const response = await axios.post<AuthResponse>(`${API_BASE_URL}/api/auth/login`, credentials);
+    payload = response.data;
+  } catch {
     throw new Error('Invalid email or password');
   }
 
-  const payload = (await response.json()) as AuthResponse;
   const jwtPayload = parseJwtPayload(payload.accessToken);
-  const expiresAtMs = Date.now() + payload.expiresInSeconds * 1000;
+  const expClaim = typeof jwtPayload.exp === 'number' ? jwtPayload.exp : 0;
+  
+  const tokenExpiresAtMs = expClaim > 0 ? expClaim * 1000 : Infinity;
+  const responseExpiresAtMs = Date.now() + payload.expiresInSeconds * 1000;
+  
+  const expiresAtMs = Math.min(tokenExpiresAtMs, responseExpiresAtMs);
+
+  if (expiresAtMs <= Date.now()) {
+    throw new Error('Received expired token');
+  }
 
   return {
     accessToken: payload.accessToken,
@@ -110,6 +147,8 @@ export function loadSession(): AuthSession | null {
       clearSession();
       return null;
     }
+    // Defensive sanitization of stored roles just in case local storage contains outdated roles
+    parsed.roles = (parsed.roles || []).filter(role => role in ROLE_LEVELS) as AppRole[];
     return parsed;
   } catch {
     clearSession();

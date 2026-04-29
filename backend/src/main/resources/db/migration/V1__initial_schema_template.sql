@@ -28,7 +28,7 @@ CREATE TABLE role (
 );
 
 -- 3. USER
-CREATE TABLE "user" (
+CREATE TABLE users (
     id              BIGSERIAL    PRIMARY KEY,
     name            VARCHAR(255) NOT NULL,
     email           VARCHAR(255) NOT NULL UNIQUE,
@@ -41,7 +41,7 @@ CREATE TABLE "user" (
 -- 4. USER_ROLE  (M:N junction – User ↔ Role)
 CREATE TABLE user_role (
     id       BIGSERIAL PRIMARY KEY,
-    user_id  BIGINT    NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    user_id  BIGINT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role_id  BIGINT    NOT NULL REFERENCES role(id)   ON DELETE CASCADE,
     UNIQUE (user_id, role_id)
 );
@@ -53,7 +53,7 @@ CREATE TABLE project (
     description   TEXT,
     status        VARCHAR(20)  NOT NULL DEFAULT 'draft'
                       CHECK (status IN ('draft', 'active', 'on_hold', 'completed', 'archived')),
-    created_by    BIGINT       NOT NULL REFERENCES "user"(id),
+    created_by    BIGINT       NOT NULL REFERENCES users(id),
     workspace_id  BIGINT       NOT NULL REFERENCES workspace(id) ON DELETE CASCADE,
     created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
@@ -62,7 +62,7 @@ CREATE TABLE project (
 CREATE TABLE project_member (
     id               BIGSERIAL   PRIMARY KEY,
     project_id       BIGINT      NOT NULL REFERENCES project(id) ON DELETE CASCADE,
-    user_id          BIGINT      NOT NULL REFERENCES "user"(id)  ON DELETE CASCADE,
+    user_id          BIGINT      NOT NULL REFERENCES users(id)  ON DELETE CASCADE,
     role_in_project  VARCHAR(20) NOT NULL DEFAULT 'collaborator'
                          CHECK (role_in_project IN ('owner', 'collaborator', 'viewer')),
     UNIQUE (project_id, user_id)
@@ -73,7 +73,7 @@ CREATE TABLE project_member (
 --    is formally created (e.g. during project_generation flow).
 CREATE TABLE ai_session (
     id            BIGSERIAL    PRIMARY KEY,
-    user_id       BIGINT       NOT NULL REFERENCES "user"(id),
+    user_id       BIGINT       NOT NULL REFERENCES users(id),
     project_id    BIGINT       REFERENCES project(id) ON DELETE SET NULL,   -- nullable
     session_type  VARCHAR(50)  NOT NULL
                       CHECK (session_type IN ('project_generation', 'risk_analysis', 'recommendation')),
@@ -113,8 +113,8 @@ CREATE TABLE task (
     completed_at  TIMESTAMPTZ,
     project_id    BIGINT       NOT NULL REFERENCES project(id)  ON DELETE CASCADE,
     workspace_id  BIGINT       NOT NULL REFERENCES workspace(id),
-    created_by    BIGINT       NOT NULL REFERENCES "user"(id),
-    assigned_to   BIGINT       REFERENCES "user"(id)            ON DELETE SET NULL,
+    created_by    BIGINT       NOT NULL REFERENCES users(id),
+    assigned_to   BIGINT       REFERENCES users(id)            ON DELETE SET NULL,
     milestone_id  BIGINT       REFERENCES milestone(id)         ON DELETE SET NULL,  -- nullable
     created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
@@ -123,7 +123,7 @@ CREATE TABLE task (
 CREATE TABLE task_history (
     id             BIGSERIAL    PRIMARY KEY,
     task_id        BIGINT       NOT NULL REFERENCES task(id)   ON DELETE CASCADE,
-    changed_by     BIGINT       NOT NULL REFERENCES "user"(id),
+    changed_by     BIGINT       NOT NULL REFERENCES users(id),
     field_changed  VARCHAR(100) NOT NULL,
     old_value      TEXT,
     new_value      TEXT,
@@ -133,7 +133,7 @@ CREATE TABLE task_history (
 -- 11. DASHBOARD_CONFIG
 CREATE TABLE dashboard_config (
     id             BIGSERIAL    PRIMARY KEY,
-    user_id        BIGINT       NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    user_id        BIGINT       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     layout_config  JSONB        NOT NULL DEFAULT '{}',
     created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW()
@@ -153,7 +153,7 @@ CREATE TABLE rank_config (
 -- 13. USER_RANK
 CREATE TABLE user_rank (
     id            BIGSERIAL    PRIMARY KEY,
-    user_id       BIGINT       NOT NULL UNIQUE REFERENCES "user"(id) ON DELETE CASCADE,
+    user_id       BIGINT       NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
     rank_level    SMALLINT     NOT NULL DEFAULT 1 CHECK (rank_level BETWEEN 1 AND 5),
     rank_name     VARCHAR(50)  NOT NULL,
     total_points  INT          NOT NULL DEFAULT 0,
@@ -163,7 +163,7 @@ CREATE TABLE user_rank (
 -- 14. USER_POINTS
 CREATE TABLE user_points (
     id           BIGSERIAL    PRIMARY KEY,
-    user_id      BIGINT       NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    user_id      BIGINT       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     task_id      BIGINT       NOT NULL REFERENCES task(id)   ON DELETE CASCADE,
     base_points  INT          NOT NULL,
     multiplier   NUMERIC(4,2) NOT NULL DEFAULT 1.0,  -- early_bonus | rank_mult
@@ -187,7 +187,7 @@ CREATE TABLE badge (
 -- 16. USER_BADGE
 CREATE TABLE user_badge (
     id         BIGSERIAL    PRIMARY KEY,
-    user_id    BIGINT       NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    user_id    BIGINT       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     badge_id   BIGINT       NOT NULL REFERENCES badge(id)  ON DELETE CASCADE,
     earned_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     UNIQUE (user_id, badge_id)
@@ -205,7 +205,7 @@ CREATE TABLE reward (
 -- 18. USER_REWARD
 CREATE TABLE user_reward (
     id           BIGSERIAL    PRIMARY KEY,
-    user_id      BIGINT       NOT NULL REFERENCES "user"(id)  ON DELETE CASCADE,
+    user_id      BIGINT       NOT NULL REFERENCES users(id)  ON DELETE CASCADE,
     reward_id    BIGINT       NOT NULL REFERENCES reward(id)  ON DELETE CASCADE,
     redeemed_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
@@ -283,8 +283,8 @@ CREATE TABLE project_analytic_snapshot (
 -- INDEXES
 
 -- User lookups
-CREATE INDEX idx_user_email              ON "user"(email);
-CREATE INDEX idx_user_status             ON "user"(status);
+CREATE INDEX idx_user_email              ON users(email);
+CREATE INDEX idx_user_status             ON users(status);
 
 -- Project
 CREATE INDEX idx_project_workspace       ON project(workspace_id);

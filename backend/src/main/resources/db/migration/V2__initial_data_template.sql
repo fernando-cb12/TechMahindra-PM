@@ -6,7 +6,7 @@
 -- Password for every seeded account: role123
 
 -- ---------------------------------------------------------------------------
--- 1) Roles (explicit IDs — demo user_role rows reference 1 / 2 / 3 / 6)
+-- 1) Roles (explicit IDs — demo user_role rows reference 1 / 2 / 3 / 4 / 5)
 -- ---------------------------------------------------------------------------
 INSERT INTO role (id, name, description) VALUES
     (1, 'ADMIN', 'Full access to workspace settings and programs'),
@@ -43,10 +43,10 @@ SELECT setval(pg_get_serial_sequence('rank_config', 'id'), (SELECT COALESCE(MAX(
 -- ---------------------------------------------------------------------------
 -- 2) Users (15) — five per division: administrator, lead, two engineers, one former colleague
 -- ---------------------------------------------------------------------------
-INSERT INTO "user" (name, email, password_hash, status) VALUES
-    ('Sarah Chen', 'admin@gmail.com', '$2b$10$l0uYOsRM4szdJD3MJrmNUOL2VCEgeSELuUsB5NwN6AiBb7cXSQzAe', 'active'),
-    ('Marcus Webb', 'lead@gmail.com', '$2b$10$l0uYOsRM4szdJD3MJrmNUOL2VCEgeSELuUsB5NwN6AiBb7cXSQzAe', 'active'),
-    ('Priya Nair', 'developer@gmail.com', '$2b$10$l0uYOsRM4szdJD3MJrmNUOL2VCEgeSELuUsB5NwN6AiBb7cXSQzAe', 'active'),
+INSERT INTO users (name, email, password_hash, status) VALUES
+    ('Sarah Chen', 'admin1@gmail.com', '$2b$10$l0uYOsRM4szdJD3MJrmNUOL2VCEgeSELuUsB5NwN6AiBb7cXSQzAe', 'active'),
+    ('Marcus Webb', 'lead1@gmail.com', '$2b$10$l0uYOsRM4szdJD3MJrmNUOL2VCEgeSELuUsB5NwN6AiBb7cXSQzAe', 'active'),
+    ('Priya Nair', 'developer1@gmail.com', '$2b$10$l0uYOsRM4szdJD3MJrmNUOL2VCEgeSELuUsB5NwN6AiBb7cXSQzAe', 'active'),
     ('Diego Ramos', 'developer2@gmail.com', '$2b$10$l0uYOsRM4szdJD3MJrmNUOL2VCEgeSELuUsB5NwN6AiBb7cXSQzAe', 'active'),
     ('Jordan Ellis', 'alumni1@gmail.com', '$2b$10$l0uYOsRM4szdJD3MJrmNUOL2VCEgeSELuUsB5NwN6AiBb7cXSQzAe', 'inactive'),
     ('Elena Vukovic', 'admin2@gmail.com', '$2b$10$l0uYOsRM4szdJD3MJrmNUOL2VCEgeSELuUsB5NwN6AiBb7cXSQzAe', 'active'),
@@ -64,31 +64,31 @@ INSERT INTO "user" (name, email, password_hash, status) VALUES
 -- 3) user_role — one global role per demo user (role_id 1 / 2 / 3 / 6)
 -- ---------------------------------------------------------------------------
 INSERT INTO user_role (user_id, role_id)
-SELECT u.id, 1 FROM "user" u WHERE u.email = 'admin1@gmail.com';
+SELECT u.id, 1 FROM users u WHERE u.email = 'admin1@gmail.com';
 INSERT INTO user_role (user_id, role_id)
-SELECT u.id, 2 FROM "user" u WHERE u.email = 'lead1@gmail.com';
+SELECT u.id, 2 FROM users u WHERE u.email = 'lead1@gmail.com';
 INSERT INTO user_role (user_id, role_id)
-SELECT u.id, 3 FROM "user" u WHERE u.email IN ('developer1@gmail.com', 'developer2@gmail.com');
+SELECT u.id, 3 FROM users u WHERE u.email IN ('developer1@gmail.com', 'developer2@gmail.com');
 INSERT INTO user_role (user_id, role_id)
-SELECT u.id, 6 FROM "user" u WHERE u.email = 'alumni1@gmail.com';
+SELECT u.id, 4 FROM users u WHERE u.email = 'alumni1@gmail.com';
 
 INSERT INTO user_role (user_id, role_id)
-SELECT u.id, 1 FROM "user" u WHERE u.email = 'admin2@gmail.com';
+SELECT u.id, 1 FROM users u WHERE u.email = 'admin2@gmail.com';
 INSERT INTO user_role (user_id, role_id)
-SELECT u.id, 2 FROM "user" u WHERE u.email = 'lead2@gmail.com';
+SELECT u.id, 2 FROM users u WHERE u.email = 'lead2@gmail.com';
 INSERT INTO user_role (user_id, role_id)
-SELECT u.id, 3 FROM "user" u WHERE u.email IN ('developer3@gmail.com', 'developer4@gmail.com');
+SELECT u.id, 3 FROM users u WHERE u.email IN ('developer3@gmail.com', 'developer4@gmail.com');
 INSERT INTO user_role (user_id, role_id)
-SELECT u.id, 6 FROM "user" u WHERE u.email = 'alumni2@gmail.com';
+SELECT u.id, 4 FROM users u WHERE u.email = 'alumni2@gmail.com';
 
 INSERT INTO user_role (user_id, role_id)
-SELECT u.id, 1 FROM "user" u WHERE u.email = 'admin3@gmail.com';
+SELECT u.id, 1 FROM users u WHERE u.email = 'admin3@gmail.com';
 INSERT INTO user_role (user_id, role_id)
-SELECT u.id, 2 FROM "user" u WHERE u.email = 'lead3@gmail.com';
+SELECT u.id, 2 FROM users u WHERE u.email = 'lead3@gmail.com';
 INSERT INTO user_role (user_id, role_id)
-SELECT u.id, 3 FROM "user" u WHERE u.email IN ('developer5@gmail.com', 'developer6@gmail.com');
+SELECT u.id, 3 FROM users u WHERE u.email IN ('developer5@gmail.com', 'developer6@gmail.com');
 INSERT INTO user_role (user_id, role_id)
-SELECT u.id, 6 FROM "user" u WHERE u.email = 'alumni3@gmail.com';
+SELECT u.id, 4 FROM users u WHERE u.email = 'alumni3@gmail.com';
 
 -- ---------------------------------------------------------------------------
 -- 4) Workspaces
@@ -104,19 +104,19 @@ INSERT INTO workspace (name) VALUES
 INSERT INTO project (name, description, status, created_by, workspace_id)
 SELECT 'Customer wayfinding & mobile ticketing', 'End-to-end release for station navigation, digital passes, and peak-load performance targets.', 'active', u.id, w.id
 FROM workspace w
-JOIN "user" u ON u.email = 'admin1@gmail.com'
+JOIN users u ON u.email = 'admin1@gmail.com'
 WHERE w.name = 'Stratos Mobility — Program Office';
 
 INSERT INTO project (name, description, status, created_by, workspace_id)
 SELECT 'Payments API hardening — wave 2', 'Resilience workstream: idempotency keys, circuit breakers, and observability for the settlement rail.', 'active', u.id, w.id
 FROM workspace w
-JOIN "user" u ON u.email = 'admin2@gmail.com'
+JOIN users u ON u.email = 'admin2@gmail.com'
 WHERE w.name = 'Meridian Capital — Core Engineering';
 
 INSERT INTO project (name, description, status, created_by, workspace_id)
 SELECT 'Care coordination pilot — Midwest', 'Pilot rollout for referral workflows, care-team messaging, and HIPAA-aligned audit trails.', 'active', u.id, w.id
 FROM workspace w
-JOIN "user" u ON u.email = 'admin3@gmail.com'
+JOIN users u ON u.email = 'admin3@gmail.com'
 WHERE w.name = 'Aegis Health — Connected Care';
 
 -- ---------------------------------------------------------------------------
@@ -126,84 +126,84 @@ INSERT INTO project_member (project_id, user_id, role_in_project)
 SELECT p.id, u.id, 'owner'
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" u ON u.email = 'admin1@gmail.com'
+JOIN users u ON u.email = 'admin1@gmail.com'
 WHERE w.name = 'Stratos Mobility — Program Office' AND p.name = 'Customer wayfinding & mobile ticketing';
 
 INSERT INTO project_member (project_id, user_id, role_in_project)
 SELECT p.id, u.id, 'collaborator'
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" u ON u.email = 'lead1@gmail.com'
+JOIN users u ON u.email = 'lead1@gmail.com'
 WHERE w.name = 'Stratos Mobility — Program Office' AND p.name = 'Customer wayfinding & mobile ticketing';
 
 INSERT INTO project_member (project_id, user_id, role_in_project)
 SELECT p.id, u.id, 'collaborator'
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" u ON u.email IN ('developer1@gmail.com', 'developer2@gmail.com')
+JOIN users u ON u.email IN ('developer1@gmail.com', 'developer2@gmail.com')
 WHERE w.name = 'Stratos Mobility — Program Office' AND p.name = 'Customer wayfinding & mobile ticketing';
 
 INSERT INTO project_member (project_id, user_id, role_in_project)
 SELECT p.id, u.id, 'viewer'
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" u ON u.email = 'alumni1@gmail.com'
+JOIN users u ON u.email = 'alumni1@gmail.com'
 WHERE w.name = 'Stratos Mobility — Program Office' AND p.name = 'Customer wayfinding & mobile ticketing';
 
 INSERT INTO project_member (project_id, user_id, role_in_project)
 SELECT p.id, u.id, 'owner'
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" u ON u.email = 'admin2@gmail.com'
+JOIN users u ON u.email = 'admin2@gmail.com'
 WHERE w.name = 'Meridian Capital — Core Engineering' AND p.name = 'Payments API hardening — wave 2';
 
 INSERT INTO project_member (project_id, user_id, role_in_project)
 SELECT p.id, u.id, 'collaborator'
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" u ON u.email = 'lead2@gmail.com'
+JOIN users u ON u.email = 'lead2@gmail.com'
 WHERE w.name = 'Meridian Capital — Core Engineering' AND p.name = 'Payments API hardening — wave 2';
 
 INSERT INTO project_member (project_id, user_id, role_in_project)
 SELECT p.id, u.id, 'collaborator'
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" u ON u.email IN ('developer3@gmail.com', 'developer4@gmail.com')
+JOIN users u ON u.email IN ('developer3@gmail.com', 'developer4@gmail.com')
 WHERE w.name = 'Meridian Capital — Core Engineering' AND p.name = 'Payments API hardening — wave 2';
 
 INSERT INTO project_member (project_id, user_id, role_in_project)
 SELECT p.id, u.id, 'viewer'
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" u ON u.email = 'alumni2@gmail.com'
+JOIN users u ON u.email = 'alumni2@gmail.com'
 WHERE w.name = 'Meridian Capital — Core Engineering' AND p.name = 'Payments API hardening — wave 2';
 
 INSERT INTO project_member (project_id, user_id, role_in_project)
 SELECT p.id, u.id, 'owner'
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" u ON u.email = 'admin3@gmail.com'
+JOIN users u ON u.email = 'admin3@gmail.com'
 WHERE w.name = 'Aegis Health — Connected Care' AND p.name = 'Care coordination pilot — Midwest';
 
 INSERT INTO project_member (project_id, user_id, role_in_project)
 SELECT p.id, u.id, 'collaborator'
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" u ON u.email = 'lead3@gmail.com'
+JOIN users u ON u.email = 'lead3@gmail.com'
 WHERE w.name = 'Aegis Health — Connected Care' AND p.name = 'Care coordination pilot — Midwest';
 
 INSERT INTO project_member (project_id, user_id, role_in_project)
 SELECT p.id, u.id, 'collaborator'
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" u ON u.email IN ('developer5@gmail.com', 'developer6@gmail.com')
+JOIN users u ON u.email IN ('developer5@gmail.com', 'developer6@gmail.com')
 WHERE w.name = 'Aegis Health — Connected Care' AND p.name = 'Care coordination pilot — Midwest';
 
 INSERT INTO project_member (project_id, user_id, role_in_project)
 SELECT p.id, u.id, 'viewer'
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" u ON u.email = 'alumni3@gmail.com'
+JOIN users u ON u.email = 'alumni3@gmail.com'
 WHERE w.name = 'Aegis Health — Connected Care' AND p.name = 'Care coordination pilot — Midwest';
 
 -- ---------------------------------------------------------------------------
@@ -213,21 +213,21 @@ INSERT INTO ai_session (user_id, project_id, session_type, status, created_at, c
 SELECT u.id, p.id, 'project_generation', 'completed', NOW() - INTERVAL '7 days', NOW() - INTERVAL '6 days'
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" u ON u.email = 'admin1@gmail.com'
+JOIN users u ON u.email = 'admin1@gmail.com'
 WHERE w.name = 'Stratos Mobility — Program Office' AND p.name = 'Customer wayfinding & mobile ticketing';
 
 INSERT INTO ai_session (user_id, project_id, session_type, status, created_at, completed_at)
 SELECT u.id, p.id, 'project_generation', 'completed', NOW() - INTERVAL '7 days', NOW() - INTERVAL '6 days'
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" u ON u.email = 'admin2@gmail.com'
+JOIN users u ON u.email = 'admin2@gmail.com'
 WHERE w.name = 'Meridian Capital — Core Engineering' AND p.name = 'Payments API hardening — wave 2';
 
 INSERT INTO ai_session (user_id, project_id, session_type, status, created_at, completed_at)
 SELECT u.id, p.id, 'project_generation', 'completed', NOW() - INTERVAL '7 days', NOW() - INTERVAL '6 days'
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" u ON u.email = 'admin3@gmail.com'
+JOIN users u ON u.email = 'admin3@gmail.com'
 WHERE w.name = 'Aegis Health — Connected Care' AND p.name = 'Care coordination pilot — Midwest';
 
 -- ---------------------------------------------------------------------------
@@ -280,8 +280,8 @@ SELECT 'Publish OpenAPI specification v2', 'Partner-facing contract for stations
        p.id, p.workspace_id, ua.id, d1.id, m.id
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" ua ON ua.email = 'admin1@gmail.com'
-JOIN "user" d1 ON d1.email = 'developer1@gmail.com'
+JOIN users ua ON ua.email = 'admin1@gmail.com'
+JOIN users d1 ON d1.email = 'developer1@gmail.com'
 JOIN milestone m ON m.project_id = p.id AND m.title LIKE 'Sprint 12%'
 WHERE w.name = 'Stratos Mobility — Program Office' AND p.name = 'Customer wayfinding & mobile ticketing';
 
@@ -290,8 +290,8 @@ SELECT 'Implement fare engine edge cache', 'TTL policies, stampede protection, a
        p.id, p.workspace_id, ua.id, d2.id, m.id
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" ua ON ua.email = 'admin1@gmail.com'
-JOIN "user" d2 ON d2.email = 'developer2@gmail.com'
+JOIN users ua ON ua.email = 'admin1@gmail.com'
+JOIN users d2 ON d2.email = 'developer2@gmail.com'
 JOIN milestone m ON m.project_id = p.id AND m.title LIKE 'Sprint 12%'
 WHERE w.name = 'Stratos Mobility — Program Office' AND p.name = 'Customer wayfinding & mobile ticketing';
 
@@ -300,8 +300,8 @@ SELECT 'Load test peak-hour scenarios', 'Synthetic journeys for morning rush and
        p.id, p.workspace_id, ul.id, d1.id, m.id
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" ul ON ul.email = 'lead1@gmail.com'
-JOIN "user" d1 ON d1.email = 'developer1@gmail.com'
+JOIN users ul ON ul.email = 'lead1@gmail.com'
+JOIN users d1 ON d1.email = 'developer1@gmail.com'
 JOIN milestone m ON m.project_id = p.id AND m.title LIKE 'Sprint 12%'
 WHERE w.name = 'Stratos Mobility — Program Office' AND p.name = 'Customer wayfinding & mobile ticketing';
 
@@ -310,7 +310,7 @@ SELECT 'Backlog refinement — pilot sites', 'Prioritize defects from Chicago fi
        p.id, p.workspace_id, ul.id, NULL, m2.id
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" ul ON ul.email = 'lead1@gmail.com'
+JOIN users ul ON ul.email = 'lead1@gmail.com'
 JOIN milestone m2 ON m2.project_id = p.id AND m2.title LIKE 'Release candidate%'
 WHERE w.name = 'Stratos Mobility — Program Office' AND p.name = 'Customer wayfinding & mobile ticketing';
 
@@ -319,8 +319,8 @@ SELECT 'Wire OAuth2 resource server', 'Token introspection, audience checks, and
        p.id, p.workspace_id, ua.id, d1.id, m.id
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" ua ON ua.email = 'admin2@gmail.com'
-JOIN "user" d1 ON d1.email = 'developer3@gmail.com'
+JOIN users ua ON ua.email = 'admin2@gmail.com'
+JOIN users d1 ON d1.email = 'developer3@gmail.com'
 JOIN milestone m ON m.project_id = p.id AND m.title LIKE 'Sprint 12%'
 WHERE w.name = 'Meridian Capital — Core Engineering' AND p.name = 'Payments API hardening — wave 2';
 
@@ -329,8 +329,8 @@ SELECT 'Idempotency replay harness', 'Automated replays for POST /transfers unde
        p.id, p.workspace_id, ua.id, d2.id, m.id
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" ua ON ua.email = 'admin2@gmail.com'
-JOIN "user" d2 ON d2.email = 'developer4@gmail.com'
+JOIN users ua ON ua.email = 'admin2@gmail.com'
+JOIN users d2 ON d2.email = 'developer4@gmail.com'
 JOIN milestone m ON m.project_id = p.id AND m.title LIKE 'Sprint 12%'
 WHERE w.name = 'Meridian Capital — Core Engineering' AND p.name = 'Payments API hardening — wave 2';
 
@@ -339,8 +339,8 @@ SELECT 'Golden signals dashboards', 'RED metrics, burn-rate alerts, and on-call 
        p.id, p.workspace_id, ul.id, d1.id, m.id
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" ul ON ul.email = 'lead2@gmail.com'
-JOIN "user" d1 ON d1.email = 'developer3@gmail.com'
+JOIN users ul ON ul.email = 'lead2@gmail.com'
+JOIN users d1 ON d1.email = 'developer3@gmail.com'
 JOIN milestone m ON m.project_id = p.id AND m.title LIKE 'Sprint 12%'
 WHERE w.name = 'Meridian Capital — Core Engineering' AND p.name = 'Payments API hardening — wave 2';
 
@@ -349,7 +349,7 @@ SELECT 'Partner certification dry run', 'Schedule and materials for clearinghous
        p.id, p.workspace_id, ul.id, NULL, m2.id
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" ul ON ul.email = 'lead2@gmail.com'
+JOIN users ul ON ul.email = 'lead2@gmail.com'
 JOIN milestone m2 ON m2.project_id = p.id AND m2.title LIKE 'Release candidate%'
 WHERE w.name = 'Meridian Capital — Core Engineering' AND p.name = 'Payments API hardening — wave 2';
 
@@ -358,8 +358,8 @@ SELECT 'Instrument distributed tracing', 'W3C trace context across scheduling, m
        p.id, p.workspace_id, ua.id, d1.id, m.id
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" ua ON ua.email = 'admin3@gmail.com'
-JOIN "user" d1 ON d1.email = 'developer5@gmail.com'
+JOIN users ua ON ua.email = 'admin3@gmail.com'
+JOIN users d1 ON d1.email = 'developer5@gmail.com'
 JOIN milestone m ON m.project_id = p.id AND m.title LIKE 'Sprint 12%'
 WHERE w.name = 'Aegis Health — Connected Care' AND p.name = 'Care coordination pilot — Midwest';
 
@@ -368,8 +368,8 @@ SELECT 'Referral workflow state machine', 'SLA timers, escalation paths, and aud
        p.id, p.workspace_id, ua.id, d2.id, m.id
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" ua ON ua.email = 'admin3@gmail.com'
-JOIN "user" d2 ON d2.email = 'developer6@gmail.com'
+JOIN users ua ON ua.email = 'admin3@gmail.com'
+JOIN users d2 ON d2.email = 'developer6@gmail.com'
 JOIN milestone m ON m.project_id = p.id AND m.title LIKE 'Sprint 12%'
 WHERE w.name = 'Aegis Health — Connected Care' AND p.name = 'Care coordination pilot — Midwest';
 
@@ -378,8 +378,8 @@ SELECT 'Clinician training dry run', 'Walkthrough with two pilot hospitals; capt
        p.id, p.workspace_id, ul.id, d1.id, m.id
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" ul ON ul.email = 'lead3@gmail.com'
-JOIN "user" d1 ON d1.email = 'developer5@gmail.com'
+JOIN users ul ON ul.email = 'lead3@gmail.com'
+JOIN users d1 ON d1.email = 'developer5@gmail.com'
 JOIN milestone m ON m.project_id = p.id AND m.title LIKE 'Sprint 12%'
 WHERE w.name = 'Aegis Health — Connected Care' AND p.name = 'Care coordination pilot — Midwest';
 
@@ -388,7 +388,7 @@ SELECT 'Patient communications pack', 'Plain-language notices for enrollment and
        p.id, p.workspace_id, ul.id, NULL, m2.id
 FROM project p
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" ul ON ul.email = 'lead3@gmail.com'
+JOIN users ul ON ul.email = 'lead3@gmail.com'
 JOIN milestone m2 ON m2.project_id = p.id AND m2.title LIKE 'Release candidate%'
 WHERE w.name = 'Aegis Health — Connected Care' AND p.name = 'Care coordination pilot — Midwest';
 
@@ -400,7 +400,7 @@ SELECT t.id, ul.id, 'status', 'in_progress', 'done', NOW() - INTERVAL '3 days'
 FROM task t
 JOIN project p ON p.id = t.project_id
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" ul ON ul.email = 'lead1@gmail.com'
+JOIN users ul ON ul.email = 'lead1@gmail.com'
 WHERE w.name = 'Stratos Mobility — Program Office' AND p.name = 'Customer wayfinding & mobile ticketing' AND t.title = 'Publish OpenAPI specification v2';
 
 INSERT INTO task_history (task_id, changed_by, field_changed, old_value, new_value, changed_at)
@@ -408,7 +408,7 @@ SELECT t.id, ul.id, 'status', 'in_progress', 'done', NOW() - INTERVAL '3 days'
 FROM task t
 JOIN project p ON p.id = t.project_id
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" ul ON ul.email = 'lead2@gmail.com'
+JOIN users ul ON ul.email = 'lead2@gmail.com'
 WHERE w.name = 'Meridian Capital — Core Engineering' AND p.name = 'Payments API hardening — wave 2' AND t.title = 'Wire OAuth2 resource server';
 
 INSERT INTO task_history (task_id, changed_by, field_changed, old_value, new_value, changed_at)
@@ -416,7 +416,7 @@ SELECT t.id, ul.id, 'status', 'in_progress', 'done', NOW() - INTERVAL '3 days'
 FROM task t
 JOIN project p ON p.id = t.project_id
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" ul ON ul.email = 'lead3@gmail.com'
+JOIN users ul ON ul.email = 'lead3@gmail.com'
 WHERE w.name = 'Aegis Health — Connected Care' AND p.name = 'Care coordination pilot — Midwest' AND t.title = 'Instrument distributed tracing';
 
 -- ---------------------------------------------------------------------------
@@ -424,7 +424,7 @@ WHERE w.name = 'Aegis Health — Connected Care' AND p.name = 'Care coordination
 -- ---------------------------------------------------------------------------
 INSERT INTO dashboard_config (user_id, layout_config)
 SELECT u.id, '{"version":2,"columns":3,"widgets":[{"id":"tasks-due","type":"tasks","title":"Work due this week"},{"id":"velocity","type":"velocity","title":"Team throughput"},{"id":"risks","type":"risks","title":"Open risks"}]}'::jsonb
-FROM "user" u
+FROM users u
 WHERE u.email IN (
     'admin1@gmail.com', 'lead1@gmail.com', 'developer1@gmail.com', 'developer2@gmail.com',
     'admin2@gmail.com', 'lead2@gmail.com', 'developer3@gmail.com', 'developer4@gmail.com',
@@ -437,7 +437,7 @@ WHERE u.email IN (
 -- ---------------------------------------------------------------------------
 INSERT INTO user_rank (user_id, rank_level, rank_name, total_points, updated_at)
 SELECT u.id, 2, 'Contributor', 820, NOW() - INTERVAL '1 day'
-FROM "user" u
+FROM users u
 WHERE u.email IN (
     'admin1@gmail.com', 'lead1@gmail.com', 'developer1@gmail.com', 'developer2@gmail.com', 'alumni1@gmail.com',
     'admin2@gmail.com', 'lead2@gmail.com', 'developer3@gmail.com', 'developer4@gmail.com', 'alumni2@gmail.com',
@@ -459,14 +459,14 @@ ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO user_badge (user_id, badge_id, earned_at)
 SELECT u.id, b.id, NOW() - INTERVAL '2 days'
-FROM "user" u
+FROM users u
 CROSS JOIN badge b
 WHERE u.email IN ('developer1@gmail.com', 'developer3@gmail.com', 'developer5@gmail.com')
   AND b.name = 'First delivery';
 
 INSERT INTO user_reward (user_id, reward_id, redeemed_at)
 SELECT u.id, r.id, NOW() - INTERVAL '30 days'
-FROM "user" u
+FROM users u
 CROSS JOIN reward r
 WHERE u.email IN ('admin1@gmail.com', 'admin2@gmail.com', 'admin3@gmail.com')
   AND r.name = 'Team dinner credit';
@@ -572,7 +572,7 @@ SELECT d1.id, t.id, 25, 1.10, 27, 'task_completed', NOW() - INTERVAL '3 days'
 FROM task t
 JOIN project p ON p.id = t.project_id
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" d1 ON d1.email = 'developer1@gmail.com'
+JOIN users d1 ON d1.email = 'developer1@gmail.com'
 WHERE w.name = 'Stratos Mobility — Program Office' AND p.name = 'Customer wayfinding & mobile ticketing' AND t.title = 'Publish OpenAPI specification v2';
 
 INSERT INTO user_points (user_id, task_id, base_points, multiplier, final_points, reason, earned_at)
@@ -580,7 +580,7 @@ SELECT d1.id, t.id, 25, 1.10, 27, 'task_completed', NOW() - INTERVAL '3 days'
 FROM task t
 JOIN project p ON p.id = t.project_id
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" d1 ON d1.email = 'developer3@gmail.com'
+JOIN users d1 ON d1.email = 'developer3@gmail.com'
 WHERE w.name = 'Meridian Capital — Core Engineering' AND p.name = 'Payments API hardening — wave 2' AND t.title = 'Wire OAuth2 resource server';
 
 INSERT INTO user_points (user_id, task_id, base_points, multiplier, final_points, reason, earned_at)
@@ -588,7 +588,7 @@ SELECT d1.id, t.id, 25, 1.10, 27, 'task_completed', NOW() - INTERVAL '3 days'
 FROM task t
 JOIN project p ON p.id = t.project_id
 JOIN workspace w ON w.id = p.workspace_id
-JOIN "user" d1 ON d1.email = 'developer5@gmail.com'
+JOIN users d1 ON d1.email = 'developer5@gmail.com'
 WHERE w.name = 'Aegis Health — Connected Care' AND p.name = 'Care coordination pilot — Midwest' AND t.title = 'Instrument distributed tracing';
 
 -- ---------------------------------------------------------------------------
