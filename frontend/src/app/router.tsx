@@ -7,18 +7,28 @@ import Issues from '../pages/Issues';
 import Workspaces from '../pages/Workspaces';
 import Metrics from '../pages/Metrics';
 import { ROUTES } from './routes';
+import PublicOnlyRoute from '../components/routes/PublicOnlyRoute';
+import ProtectedRoute from '../components/routes/ProtectedRoute';
 
 export const router = createBrowserRouter([
   { path: '/', element: <Navigate to={ROUTES.login} replace /> },
-  { path: ROUTES.login, element: <Login /> },
   {
-    element: <MainLayout />,
+    element: <PublicOnlyRoute />,
+    children: [{ path: ROUTES.login, element: <Login /> }],
+  },
+  {
+    element: <ProtectedRoute minimumRole="DEVELOPER" />,
     children: [
-      { path: ROUTES.dashboard, element: <Dashboard /> },
-      { path: ROUTES.workspaces, element: <Workspaces /> },
-      { path: ROUTES.issues, element: <Issues /> },
-      { path: ROUTES.metrics, element: <Metrics /> },
-      { path: ROUTES.settings, element: <Settings /> },
+      {
+        element: <MainLayout />,
+        children: [
+          { path: ROUTES.dashboard, element: <Dashboard /> },
+          { path: ROUTES.workspaces, element: <Workspaces /> },
+          { path: ROUTES.issues, element: <Issues /> },
+          { path: ROUTES.metrics, element: <Metrics /> },
+          { path: ROUTES.settings, element: <Settings /> },
+        ],
+      },
     ],
   },
 ]);

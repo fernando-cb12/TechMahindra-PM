@@ -1,16 +1,60 @@
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Box, AppBar, Toolbar } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
 import mahindraLogo from "../assets/mahindralogobk.png";
 import loginBg from "../assets/loginbg.png";
 import LoginForm from "../components/login/LoginForm";
 import { ROUTES } from "../app/routes";
+import { useAuth } from "../auth/AuthContext";
+import { hasMinimumRole } from "../auth/auth";
 
 function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { login, logout } = useAuth();
   const theme = useTheme();
   const fontFamily = theme.typography.fontFamily ?? '"Montserrat", sans-serif';
   const appBarBg = theme.palette.grey[800];
+  const [errorMessage, setErrorMessage] = useState<string | undefined>(
+    location.state &&
+      typeof location.state === "object" &&
+      "denied" in location.state
+      ? "Your account does not have enough permissions to access this app."
+      : undefined,
+  );
+
+  const handleLogin = async ({
+    email,
+    password,
+    stayLoggedIn,
+  }: {
+    email: string;
+    password: string;
+    stayLoggedIn: boolean;
+  }) => {
+    try {
+      const session = await login({
+        email,
+        password,
+        persistent: stayLoggedIn,
+      });
+      const canAccess = hasMinimumRole(session.roles, "DEVELOPER");
+      if (!canAccess) {
+        logout();
+        setErrorMessage(
+          "Your account does not have enough permissions to access this app.",
+        );
+        return;
+      }
+      setErrorMessage(undefined);
+      navigate(ROUTES.dashboard, { replace: true });
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Unable to sign in",
+      );
+    }
+  };
 
   return (
     <Box
@@ -62,7 +106,7 @@ function Login() {
         />
 
         {/* Login Form */}
-        <LoginForm onLogin={() => navigate(ROUTES.dashboard)} />
+        <LoginForm onLogin={handleLogin} errorMessage={errorMessage} />
       </Box>
     </Box>
   );
