@@ -34,4 +34,9 @@ public class GlobalExceptionHandler {
         body.put("fields", fields);
         return ResponseEntity.badRequest().body(body);
     }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<Map<String, String>> resourceNotFound(ResourceNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", ex.getMessage()));
+    }
 }
