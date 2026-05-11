@@ -3,6 +3,6 @@ export type IssueCardProps = {
   summary: string;
   assignee: string;
   assigneeAvatar?: string;
-  priority: string;
+  priority: 'high' | 'medium' | 'low';
   status: string;
 };
