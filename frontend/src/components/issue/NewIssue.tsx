@@ -12,7 +12,7 @@ import {
 
 type NewIssueProps = {
   onSubmit: (issue: {
-    key: string;
+    issueKey: string;
     summary: string;
     assignee: string;
     priority: 'high' | 'medium' | 'low';
@@ -38,7 +38,7 @@ const NewIssue: React.FC<NewIssueProps> = ({ onSubmit }) => {
 
     // Mock new issue
     const newIssue = {
-      key: `APP-${Math.floor(Math.random() * 900) + 100}`, // random key e.g APP-234
+      issueKey: `APP-${Math.floor(Math.random() * 900) + 100}`,
       summary: form.summary,
       assignee: form.assignee || 'Unassigned',
       priority: (form.priority || 'low') as 'high' | 'medium' | 'low',
@@ -60,9 +60,9 @@ const NewIssue: React.FC<NewIssueProps> = ({ onSubmit }) => {
             onChange={handleChange}
             label="Project"
           >
-            <MenuItem value="Project 1">Issue 1</MenuItem>
-            <MenuItem value="Project 2">Issue 2</MenuItem>
-            <MenuItem value="Project 3">Issue 3</MenuItem>
+            <MenuItem value="Project 1">Project 1</MenuItem>
+            <MenuItem value="Project 2">Project 2</MenuItem>
+            <MenuItem value="Project 3">Project 3</MenuItem>
           </Select>
         </FormControl>
 
