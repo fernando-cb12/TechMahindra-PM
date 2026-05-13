@@ -6,20 +6,13 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import profilePhoto from '../../assets/settings/profile-photo.png';
 import { SettingsCard } from './SettingsCard';
-
-export type ProfileFields = {
-  name: string;
-  email: string;
-  role: string;
-  timezone: string;
-};
+import type { UserProfile } from '../../services/userService';
 
 type SettingsProfileCardProps = {
-  profile: ProfileFields;
+  profile: UserProfile;
   onEdit?: () => void;
 };
 
@@ -47,7 +40,6 @@ function SettingsProfileCard({ profile, onEdit }: SettingsProfileCardProps) {
             variant="contained"
             disableElevation
             onClick={onEdit}
-            startIcon={<LockOutlinedIcon sx={{ fontSize: 17 }} />}
             sx={{
               bgcolor: 'primary.main',
               borderRadius: '5px',

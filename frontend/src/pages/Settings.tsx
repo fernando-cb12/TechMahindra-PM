@@ -1,27 +1,48 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import { ROUTES } from '../app/routes';
 import { SettingsAppearanceCard } from '../components/settings/SettingsAppearanceCard';
 import { SettingsNotificationsCard } from '../components/settings/SettingsNotificationsCard';
-import {
-  SettingsProfileCard,
-  type ProfileFields,
-} from '../components/settings/SettingsProfileCard';
+import { SettingsProfileEditModal } from '../components/settings/SettingsProfileEditModal';
+import { SettingsProfileCard } from '../components/settings/SettingsProfileCard';
+import { getUserProfile, updateUserProfile, type UserProfile } from '../services/userService';
 
-const defaultProfile: ProfileFields = {
+const defaultProfile: UserProfile = {
   name: 'Antonio Calderon',
   email: 'antioniocraft@gmail.com',
   role: 'Developer',
   timezone: 'GMT-6',
 };
 
-type SettingsProps = {
-  onProfileEdit?: () => void;
-  profile?: ProfileFields;
-};
-
-function Settings({ onProfileEdit, profile = defaultProfile }: SettingsProps) {
+function Settings() {
   const navigate = useNavigate();
+  const [profile, setProfile] = useState<UserProfile>(defaultProfile);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadProfile = async () => {
+      if (!mounted) return;
+      const userProfile = await getUserProfile();
+      if (mounted) {
+        setProfile(userProfile);
+      }
+    };
+
+    void loadProfile();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleSaveProfile = async (updatedProfile: UserProfile) => {
+    const savedProfile = await updateUserProfile(updatedProfile);
+    setProfile(savedProfile);
+    setIsEditOpen(false);
+  };
 
   return (
     <Box
@@ -55,9 +76,15 @@ function Settings({ onProfileEdit, profile = defaultProfile }: SettingsProps) {
           alignItems="flex-start"
         >
           <Stack spacing={3} sx={{ flex: 1, width: '100%', maxWidth: { lg: 720 } }}>
-            <SettingsProfileCard profile={profile} onEdit={onProfileEdit} />
+            <SettingsProfileCard profile={profile} onEdit={() => setIsEditOpen(true)} />
             <SettingsAppearanceCard />
           </Stack>
+          <SettingsProfileEditModal
+            open={isEditOpen}
+            profile={profile}
+            onClose={() => setIsEditOpen(false)}
+            onSave={handleSaveProfile}
+          />
 
           <Stack
             spacing={3}
