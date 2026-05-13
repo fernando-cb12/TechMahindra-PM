@@ -22,19 +22,24 @@ function MainLayout() {
   };
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      <Sidebar 
-        activeNavItem={activeNavItem}
-        activeProject={activeProject}
-        activeSubsection={activeSubsection}
-        onSubsectionClick={(projectId, subId) => {
-          navigate(`/workspaces/${projectId}/boards/${subId}`);
-        }}
-        onLogout={handleLogout}
-      />
+  <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+    <Sidebar
+      activeNavItem={activeNavItem}
+      activeProject={activeProject}
+      activeSubsection={activeSubsection}
+      onSubsectionClick={(projectId, subId) => {
+        navigate(`/workspaces/${projectId}/boards/${subId}`);
+      }}
+      onLogout={handleLogout}
+    />
+    <Box
+      component="main"
+      sx={{ flex: 1, ml: '220px', minHeight: '100vh', overflowX: 'hidden' }}
+    >
       <Outlet />
     </Box>
-  );
+  </Box>
+  );  
 }
 
 export default MainLayout;
