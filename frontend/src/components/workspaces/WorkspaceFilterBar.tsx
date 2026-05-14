@@ -1,8 +1,6 @@
 import { Box, Button, Stack, TextField, Select, MenuItem, OutlinedInput, useTheme } from '@mui/material';
 import type { WorkspaceProjectStatus } from './WorkspaceProjectCard';
 
-const AVAILABLE_MEMBERS = ['Luis Carlos', 'Camou Bejarano', 'Antonio Calderon', 'Marco Ibarra'];
-
 type WorkspaceFilters = {
   status: WorkspaceProjectStatus[];
   members: string[];
@@ -14,9 +12,11 @@ type WorkspaceFilters = {
 type WorkspaceFilterBarProps = {
   filters: WorkspaceFilters;
   onFiltersChange: (filters: WorkspaceFilters) => void;
+  /** Member names derived from loaded projects (and assignable roster when applicable). */
+  memberOptions: string[];
 };
 
-function WorkspaceFilterBar({ filters, onFiltersChange }: WorkspaceFilterBarProps) {
+function WorkspaceFilterBar({ filters, onFiltersChange, memberOptions }: WorkspaceFilterBarProps) {
   const theme = useTheme();
 
   const handleStatusChange = (value: string[]) => {
@@ -111,7 +111,7 @@ function WorkspaceFilterBar({ filters, onFiltersChange }: WorkspaceFilterBarProp
               }
               sx={{ fontFamily: 'Montserrat, sans-serif', fontSize: 14 }}
             >
-              {AVAILABLE_MEMBERS.map((member) => (
+              {memberOptions.map((member) => (
                 <MenuItem key={member} value={member}>
                   {member}
                 </MenuItem>
