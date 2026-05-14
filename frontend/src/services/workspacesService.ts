@@ -1,4 +1,5 @@
 import type { WorkspaceProjectCardData } from '../components/workspaces/WorkspaceProjectCard';
+import loginBg from '../assets/loginbg.png';
 
 const workspaceProjectsMock: WorkspaceProjectCardData[] = [
   {
@@ -6,11 +7,11 @@ const workspaceProjectsMock: WorkspaceProjectCardData[] = [
     title: 'Magenta',
     description: 'Development of new API endpoints and database optimization',
     imageUrl:
-      'https://www.figma.com/api/mcp/asset/1c1a46bf-f7f8-4fc7-b4ee-e7a5f4e41535',
-    members: ['C', 'A', 'M'],
+      'https://mikeelectronica.com/cdn/shop/articles/B-MK_02_2121x.progressive.jpg?v=1607535378',
+    members: ['Camou Bejarano', 'Antonio Calderon', 'Marco Ibarra'],
     currentProgress: 42,
     estimatedProgress: 40,
-    dueDate: 'Jun 15, 2026',
+    dueDate: '2026-06-15',
     budgetLabel: '30k',
     status: 'in-progress',
   },
@@ -19,11 +20,11 @@ const workspaceProjectsMock: WorkspaceProjectCardData[] = [
     title: 'Blue',
     description: 'Complete security review and vulnerability assessment',
     imageUrl:
-      'https://www.figma.com/api/mcp/asset/d5c182b2-7194-40ea-a267-d3cecb667a5e',
-    members: ['LC', 'A'],
+      'https://www.santanderopenacademy.com/content/dam/becasmicrosites/01-soa-blog/avances-en-la-tecnologia.jpg',
+    members: ['Luis Carlos', 'Antonio Calderon'],
     currentProgress: 15,
     estimatedProgress: 20,
-    dueDate: 'Jun 25, 2026',
+    dueDate: '2026-06-25',
     budgetLabel: '20k',
     status: 'planning',
   },
@@ -32,11 +33,11 @@ const workspaceProjectsMock: WorkspaceProjectCardData[] = [
     title: 'Green',
     description: 'Development of new API endpoints and database optimization',
     imageUrl:
-      'https://www.figma.com/api/mcp/asset/a962f8cc-0fd7-45d7-82cd-b2640e97bf6c',
-    members: ['C', 'M'],
+      'https://i.pinimg.com/564x/32/1e/77/321e771354614cab0985ea18983d4e82.jpg',
+    members: ['Camou Bejarano', 'Marco Ibarra'],
     currentProgress: 100,
     estimatedProgress: 100,
-    dueDate: 'Jun 15, 2026',
+    dueDate: '2026-06-15',
     budgetLabel: '30k',
     status: 'completed',
   },
@@ -46,10 +47,10 @@ const workspaceProjectsMock: WorkspaceProjectCardData[] = [
     description: 'Prueba1',
     imageUrl:
       'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTscILWZbpFWPfa5gBlr54NQqL8MFa1c_eEYw&s',
-    members: ['C', 'M'],
+    members: ['Camou Bejarano', 'Marco Ibarra'],
     currentProgress: 100,
     estimatedProgress: 100,
-    dueDate: 'Jun 15, 2026',
+    dueDate: '2026-06-15',
     budgetLabel: '30k',
     status: 'completed',
   },
@@ -59,10 +60,10 @@ const workspaceProjectsMock: WorkspaceProjectCardData[] = [
     description: 'Prueba2',
     imageUrl:
       'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQZzxFDqDUEmKb85BiPyvdtZEwI1mrx-LHK8w&s',
-    members: ['C', 'M'],
+    members: ['Camou Bejarano', 'Marco Ibarra'],
     currentProgress: 100,
     estimatedProgress: 100,
-    dueDate: 'Jun 15, 2026',
+    dueDate: '2026-06-15',
     budgetLabel: '30k',
     status: 'completed',
   },
@@ -71,5 +72,28 @@ const workspaceProjectsMock: WorkspaceProjectCardData[] = [
 export async function getWorkspaceProjects(): Promise<WorkspaceProjectCardData[]> {
   // TODO: Replace this mock response with API call once backend endpoint is available.
   // Example: return (await apiClient.get('/workspaces')).data;
-  return Promise.resolve(workspaceProjectsMock);
+  return Promise.resolve([...workspaceProjectsMock]);
 }
+
+export async function createWorkspaceProject(
+  workspace: Omit<WorkspaceProjectCardData, 'id' | 'currentProgress' | 'estimatedProgress'>
+): Promise<WorkspaceProjectCardData> {
+  // TODO: Replace with real API call when backend is available.
+  // Example: return (await apiClient.post('/workspaces', workspace)).data;
+  const newId = `workspace_${Date.now()}`;
+  const newProject: WorkspaceProjectCardData = {
+    id: newId,
+    title: workspace.title,
+    description: workspace.description,
+    imageUrl: workspace.imageUrl || loginBg,
+    members: workspace.members,
+    currentProgress: 0,
+    estimatedProgress: 0,
+    dueDate: workspace.dueDate,
+    budgetLabel: workspace.budgetLabel,
+    status: workspace.status,
+  };
+  workspaceProjectsMock.unshift(newProject);
+  return Promise.resolve(newProject);
+}
+
