@@ -17,30 +17,29 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import loginBg from '../../assets/loginbg.png';
-import type { WorkspaceProjectCardData } from './WorkspaceProjectCard';
+import type { AssignableUser, CreateWorkspaceProjectPayload } from '../../services/workspacesService';
 
 type CreateWorkspaceModalProps = {
   open: boolean;
   onClose: () => void;
-  onSave: (workspace: Omit<WorkspaceProjectCardData, 'id' | 'currentProgress' | 'estimatedProgress'>) => Promise<void>;
+  onSave: (payload: CreateWorkspaceProjectPayload) => Promise<void>;
+  assignableUsers: AssignableUser[];
 };
 
 type FormData = {
   title: string;
   description: string;
-  members: string[];
+  memberUserIds: number[];
   dueDate: string;
   budgetLabel: string;
   imageUrl: string;
 };
 
-const AVAILABLE_MEMBERS = ['Luis Carlos', 'Camou Bejarano', 'Antonio Calderon', 'Marco Ibarra'];
-
-function CreateWorkspaceModal({ open, onClose, onSave }: CreateWorkspaceModalProps) {
+function CreateWorkspaceModal({ open, onClose, onSave, assignableUsers }: CreateWorkspaceModalProps) {
   const [values, setValues] = useState<FormData>({
     title: '',
     description: '',
-    members: [],
+    memberUserIds: [],
     dueDate: '',
     budgetLabel: '',
     imageUrl: '',
@@ -53,7 +52,7 @@ function CreateWorkspaceModal({ open, onClose, onSave }: CreateWorkspaceModalPro
       setValues({
         title: '',
         description: '',
-        members: [],
+        memberUserIds: [],
         dueDate: '',
         budgetLabel: '',
         imageUrl: '',
@@ -62,13 +61,13 @@ function CreateWorkspaceModal({ open, onClose, onSave }: CreateWorkspaceModalPro
     }
   }, [open]);
 
-  const handleFieldChange = (field: keyof FormData, value: string | string[]) => {
+  const handleFieldChange = <K extends keyof FormData>(field: K, value: FormData[K]) => {
     setValues((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
+    if (errors[field as string]) {
       setErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors[field];
-        return newErrors;
+        const next = { ...prev };
+        delete next[field as string];
+        return next;
       });
     }
   };
@@ -77,21 +76,21 @@ function CreateWorkspaceModal({ open, onClose, onSave }: CreateWorkspaceModalPro
     const newErrors: Record<string, string> = {};
     if (!values.title.trim()) newErrors.title = 'Nombre del proyecto es requerido';
     if (!values.description.trim()) newErrors.description = 'Descripción es requerida';
-    if (values.members.length === 0) newErrors.members = 'Al menos un miembro es requerido';
+    if (values.memberUserIds.length === 0) newErrors.memberUserIds = 'Al menos un miembro es requerido';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSave = async () => {
     if (!validateForm()) return;
-    if (isSaving) return; // Prevent multiple saves
+    if (isSaving) return;
 
     setIsSaving(true);
     try {
       await onSave({
         title: values.title,
         description: values.description,
-        members: values.members,
+        memberUserIds: values.memberUserIds,
         dueDate: values.dueDate || 'No date',
         budgetLabel: values.budgetLabel || '0k',
         imageUrl: values.imageUrl || loginBg,
@@ -101,6 +100,8 @@ function CreateWorkspaceModal({ open, onClose, onSave }: CreateWorkspaceModalPro
       setIsSaving(false);
     }
   };
+
+  const nameById = (id: number) => assignableUsers.find((u) => u.id === id)?.name ?? `#${id}`;
 
   return (
     <Dialog
@@ -143,7 +144,6 @@ function CreateWorkspaceModal({ open, onClose, onSave }: CreateWorkspaceModalPro
           </Typography>
 
           <Stack spacing={2}>
-            {/* Title */}
             <TextField
               fullWidth
               label="Project Name"
@@ -164,7 +164,6 @@ function CreateWorkspaceModal({ open, onClose, onSave }: CreateWorkspaceModalPro
               inputProps={{ sx: { fontFamily: 'Montserrat, sans-serif' } }}
             />
 
-            {/* Description */}
             <TextField
               fullWidth
               label="Description"
@@ -187,7 +186,6 @@ function CreateWorkspaceModal({ open, onClose, onSave }: CreateWorkspaceModalPro
               inputProps={{ sx: { fontFamily: 'Montserrat, sans-serif' } }}
             />
 
-            {/* Members - Select with multiple */}
             <Box>
               <Typography
                 sx={{
@@ -206,15 +204,22 @@ function CreateWorkspaceModal({ open, onClose, onSave }: CreateWorkspaceModalPro
               <Select
                 multiple
                 fullWidth
-                value={values.members}
-                onChange={(e) => handleFieldChange('members', e.target.value as string[])}
+                value={values.memberUserIds}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  const asArray = Array.isArray(raw) ? raw : String(raw).split(',');
+                  handleFieldChange(
+                    'memberUserIds',
+                    asArray.filter((v) => v !== '').map((v) => Number(v)),
+                  );
+                }}
                 input={<OutlinedInput />}
                 renderValue={(selected) => (
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {selected.map((value) => (
+                    {(selected as number[]).map((id) => (
                       <Chip
-                        key={value}
-                        label={value}
+                        key={id}
+                        label={nameById(id)}
                         sx={{
                           fontFamily: 'Montserrat, sans-serif',
                           height: 24,
@@ -225,20 +230,19 @@ function CreateWorkspaceModal({ open, onClose, onSave }: CreateWorkspaceModalPro
                 )}
                 sx={{ fontFamily: 'Montserrat, sans-serif' }}
               >
-                {AVAILABLE_MEMBERS.map((member) => (
-                  <MenuItem key={member} value={member} sx={{ fontFamily: 'Montserrat, sans-serif' }}>
-                    {member}
+                {assignableUsers.map((user) => (
+                  <MenuItem key={user.id} value={user.id} sx={{ fontFamily: 'Montserrat, sans-serif' }}>
+                    {user.name}
                   </MenuItem>
                 ))}
               </Select>
-              {errors.members && (
+              {errors.memberUserIds && (
                 <Typography sx={{ color: 'error.main', fontSize: 12, fontFamily: 'Montserrat, sans-serif', mt: 0.5 }}>
-                  {errors.members}
+                  {errors.memberUserIds}
                 </Typography>
               )}
             </Box>
 
-            {/* Due Date - Optional */}
             <TextField
               fullWidth
               label="Due Date"
@@ -255,7 +259,6 @@ function CreateWorkspaceModal({ open, onClose, onSave }: CreateWorkspaceModalPro
               }}
             />
 
-            {/* Budget - Optional */}
             <TextField
               fullWidth
               label="Development Budget"
@@ -266,7 +269,6 @@ function CreateWorkspaceModal({ open, onClose, onSave }: CreateWorkspaceModalPro
               inputProps={{ sx: { fontFamily: 'Montserrat, sans-serif' } }}
             />
 
-            {/* Image URL - Optional */}
             <TextField
               fullWidth
               label="Banner Image URL"
@@ -293,7 +295,7 @@ function CreateWorkspaceModal({ open, onClose, onSave }: CreateWorkspaceModalPro
         <Button
           variant="contained"
           onClick={handleSave}
-          disabled={isSaving}
+          disabled={isSaving || assignableUsers.length === 0}
           sx={{
             bgcolor: 'primary.main',
             '&:hover': { bgcolor: 'primary.dark' },
@@ -310,4 +312,3 @@ function CreateWorkspaceModal({ open, onClose, onSave }: CreateWorkspaceModalPro
 }
 
 export { CreateWorkspaceModal };
-

@@ -1,12 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
-import { Box, Button, CircularProgress, Typography, useTheme } from '@mui/material';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Box, Button, CircularProgress, Typography, useTheme } from '@mui/material';
 import FilterListOutlinedIcon from '@mui/icons-material/FilterListOutlined';
 import WorkspaceProjectCard, {
   type WorkspaceProjectCardData,
 } from '../components/workspaces/WorkspaceProjectCard';
 import { CreateWorkspaceModal } from '../components/workspaces/CreateWorkspaceModal';
 import { WorkspaceFilterBar, type WorkspaceFilters } from '../components/workspaces/WorkspaceFilterBar';
-import { getWorkspaceProjects, createWorkspaceProject } from '../services/workspacesService';
+import {
+  createWorkspaceProject,
+  getAssignableWorkspaceUsers,
+  getWorkspaceProjects,
+  type AssignableUser,
+  type CreateWorkspaceProjectPayload,
+} from '../services/workspacesService';
+import { hasMinimumRole, loadSession } from '../auth/auth';
 
 function Workspaces() {
   const [projects, setProjects] = useState<WorkspaceProjectCardData[]>([]);
@@ -14,6 +21,9 @@ function Workspaces() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [assignableUsers, setAssignableUsers] = useState<AssignableUser[]>([]);
   const theme = useTheme();
   const [filters, setFilters] = useState<WorkspaceFilters>({
     status: [],
@@ -24,23 +34,52 @@ function Workspaces() {
   });
   const isCreatingRef = useRef(false);
 
-  useEffect(() => {
-    let mounted = true;
+  const canCreateWorkspaces = useMemo(() => {
+    const session = loadSession();
+    return session ? hasMinimumRole(session.roles, 'TEAM_LEAD') : false;
+  }, []);
 
-    const loadProjects = async () => {
+  const memberFilterOptions = useMemo(() => {
+    const names = projects.flatMap((p) => p.members);
+    return [...new Set(names)].sort((a, b) => a.localeCompare(b));
+  }, [projects]);
+
+  const loadProjects = useCallback(async () => {
+    setLoadError(null);
+    try {
+      const data = await getWorkspaceProjects();
+      setProjects(data);
+    } catch (e) {
+      setProjects([]);
+      setLoadError(e instanceof Error ? e.message : 'Failed to load workspaces');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadProjects();
+  }, [loadProjects]);
+
+  useEffect(() => {
+    if (!canCreateWorkspaces) {
+      setAssignableUsers([]);
+      return;
+    }
+    let cancelled = false;
+    const run = async () => {
       try {
-        const data = await getWorkspaceProjects();
-        if (mounted) setProjects(data);
-      } finally {
-        if (mounted) setIsLoading(false);
+        const users = await getAssignableWorkspaceUsers();
+        if (!cancelled) setAssignableUsers(users);
+      } catch {
+        if (!cancelled) setAssignableUsers([]);
       }
     };
-
-    void loadProjects();
+    void run();
     return () => {
-      mounted = false;
+      cancelled = true;
     };
-  }, []);
+  }, [canCreateWorkspaces]);
 
   const parseDateString = (value: string): Date | null => {
     const mmddyyyy = /^(\d{2})\/(\d{2})\/(\d{4})$/;
@@ -59,18 +98,15 @@ function Workspaces() {
 
   const filterProjects = (allProjects: WorkspaceProjectCardData[]): WorkspaceProjectCardData[] => {
     return allProjects.filter((project) => {
-      // Filter by status
       if (filters.status.length > 0 && !filters.status.includes(project.status)) {
         return false;
       }
 
-      // Filter by members
       if (filters.members.length > 0) {
         const hasAllMembers = filters.members.every((member) => project.members.includes(member));
         if (!hasAllMembers) return false;
       }
 
-      // Filter by date range
       if (filters.dateFrom || filters.dateTo) {
         const projectDate = parseDateString(project.dueDate);
         if (!projectDate) return false;
@@ -84,7 +120,6 @@ function Workspaces() {
         }
       }
 
-      // Filter by progress comparison
       if (filters.progressComparison !== 'all') {
         if (filters.progressComparison === 'greater' && project.currentProgress <= project.estimatedProgress) {
           return false;
@@ -103,22 +138,22 @@ function Workspaces() {
 
   const filteredProjects = filterProjects(projects);
 
-  const handleCreateWorkspace = async (
-    workspace: Omit<WorkspaceProjectCardData, 'id' | 'currentProgress' | 'estimatedProgress'>
-  ) => {
+  const handleCreateWorkspace = async (payload: CreateWorkspaceProjectPayload) => {
     if (isCreatingRef.current || isSaving) return;
+    setActionError(null);
     isCreatingRef.current = true;
     setIsSaving(true);
     try {
-      const newProject = await createWorkspaceProject(workspace);
+      const newProject = await createWorkspaceProject(payload);
       setProjects((prev) => [newProject, ...prev]);
       setIsCreateOpen(false);
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'Create failed');
     } finally {
       isCreatingRef.current = false;
       setIsSaving(false);
     }
   };
-
 
   return (
     <Box
@@ -193,35 +228,54 @@ function Workspaces() {
           >
             Filter
           </Button>
-          <Button
-            variant="contained"
-            disableElevation
-            disabled={isSaving}
-            onClick={() => setIsCreateOpen(true)}
-            sx={{
-              bgcolor: 'primary.main',
-              borderRadius: '5px',
-              minWidth: 169,
-              minHeight: 28,
-              textTransform: 'none',
-              fontSize: 14,
-              fontWeight: 700,
-              '&:hover': { bgcolor: 'primary.dark' },
-              '&:disabled': { opacity: 0.6 },
-            }}
-          >
-            {isSaving ? 'Creating...' : '+ Create Workspace'}
-          </Button>
+          {canCreateWorkspaces ? (
+            <Button
+              variant="contained"
+              disableElevation
+              disabled={isSaving}
+              onClick={() => {
+                setActionError(null);
+                setIsCreateOpen(true);
+              }}
+              sx={{
+                bgcolor: 'primary.main',
+                borderRadius: '5px',
+                minWidth: 169,
+                minHeight: 28,
+                textTransform: 'none',
+                fontSize: 14,
+                fontWeight: 700,
+                '&:hover': { bgcolor: 'primary.dark' },
+                '&:disabled': { opacity: 0.6 },
+              }}
+            >
+              {isSaving ? 'Creating...' : '+ Create Workspace'}
+            </Button>
+          ) : null}
         </Box>
       </Box>
+
+      {loadError ? (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          {loadError}
+        </Alert>
+      ) : null}
+      {actionError ? (
+        <Alert severity="error" sx={{ mt: 2 }} onClose={() => setActionError(null)}>
+          {actionError}
+        </Alert>
+      ) : null}
 
       <CreateWorkspaceModal
         open={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         onSave={handleCreateWorkspace}
+        assignableUsers={assignableUsers}
       />
 
-      {isFilterOpen && <WorkspaceFilterBar filters={filters} onFiltersChange={setFilters} />}
+      {isFilterOpen && (
+        <WorkspaceFilterBar filters={filters} onFiltersChange={setFilters} memberOptions={memberFilterOptions} />
+      )}
 
       {isLoading ? (
         <Box sx={{ py: 8, display: 'flex', justifyContent: 'center' }}>
@@ -253,7 +307,9 @@ function Workspaces() {
                 py: 4,
               }}
             >
-              No workspaces match the selected filters
+              {projects.length === 0
+                ? 'No workspaces yet'
+                : 'No workspaces match the selected filters'}
             </Typography>
           )}
         </Box>
