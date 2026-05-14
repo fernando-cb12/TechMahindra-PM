@@ -35,6 +35,30 @@ function WorkspaceProjectCard({ project }: WorkspaceProjectCardProps) {
   };
   const status = statusConfig[project.status];
 
+  const parseProjectDate = (value: string): Date | null => {
+    const mmddyyyy = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+    const mmddMatch = mmddyyyy.exec(value);
+    if (mmddMatch) {
+      const [, month, day, year] = mmddMatch;
+      return new Date(`${year}-${month}-${day}T00:00:00`);
+    }
+    const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (isoMatch) {
+      return new Date(`${value}T00:00:00`);
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
+  const projectDueDate = parseProjectDate(project.dueDate);
+  const dueDateLabel = projectDueDate
+    ? new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      }).format(projectDueDate)
+    : project.dueDate;
+
   return (
     <Paper
       elevation={0}
@@ -107,29 +131,36 @@ function WorkspaceProjectCard({ project }: WorkspaceProjectCardProps) {
       </Typography>
 
       <Box sx={{ display: 'flex', alignItems: 'center', mt: 1.25 }}>
-        {project.members.map((member, index) => (
-          <Avatar
-            key={`${project.id}-${member}-${index}`}
-            sx={{
-              width: 18,
-              height: 18,
-              fontSize: '9px',
-              fontWeight: 700,
-              bgcolor: 'primary.main',
-              color: (theme) =>
-                theme.palette.mode === 'dark' ? '#F5F5F5' : undefined,
-              border: (theme) =>
-                `1px solid ${
-                  theme.palette.mode === 'dark'
-                    ? theme.palette.background.paper
-                    : theme.palette.common.white
-                }`,
-              ml: index === 0 ? 0 : -0.45,
-            }}
-          >
-            {member}
-          </Avatar>
-        ))}
+        {project.members.map((member, index) => {
+          const initials = member
+            .split(' ')
+            .map((word) => word[0])
+            .join('')
+            .toUpperCase();
+          return (
+            <Avatar
+              key={`${project.id}-${member}-${index}`}
+              sx={{
+                width: 18,
+                height: 18,
+                fontSize: '9px',
+                fontWeight: 700,
+                bgcolor: 'primary.main',
+                color: (theme) =>
+                  theme.palette.mode === 'dark' ? '#F5F5F5' : undefined,
+                border: (theme) =>
+                  `1px solid ${
+                    theme.palette.mode === 'dark'
+                      ? theme.palette.background.paper
+                      : theme.palette.common.white
+                  }`,
+                ml: index === 0 ? 0 : -0.45,
+              }}
+            >
+              {initials}
+            </Avatar>
+          );
+        })}
       </Box>
 
       <Box sx={{ mt: 1 }}>
@@ -151,7 +182,7 @@ function WorkspaceProjectCard({ project }: WorkspaceProjectCardProps) {
       <Box sx={{ mt: 0.6, borderTop: (t) => `1px solid ${alpha(t.palette.primary.main, 0.5)}`, pt: 0.7 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
           <CalendarMonthOutlinedIcon sx={{ fontSize: 9, color: 'primary.main' }} />
-          <Typography sx={{ color: 'text.primary', fontSize: '8px' }}>Due: {project.dueDate}</Typography>
+          <Typography sx={{ color: 'text.primary', fontSize: '8px' }}>Due: {dueDateLabel}</Typography>
         </Box>
         <Typography sx={{ mt: 0.7, color: 'text.primary', fontSize: '8px' }}>
           Development Budget: {project.budgetLabel}
