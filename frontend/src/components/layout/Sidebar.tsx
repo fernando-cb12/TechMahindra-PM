@@ -26,6 +26,7 @@ const defaultNavItems: NavItem[] = [
   { label: 'Workspaces', value: 'workspaces' },
   { label: 'Issues', value: 'issues' },
   { label: 'Metrics', value: 'metrics' },
+  { label: 'Career', value: 'career' },
   { label: 'Settings', value: 'settings' },
 ];
 
@@ -138,7 +139,8 @@ function Sidebar({
                   backgroundColor: 'secondary.main',
                 },
                 '&:hover': {
-                  backgroundColor: (theme) => alpha(theme.palette.common.white, 0.1),
+                  backgroundColor: (theme) =>
+                    alpha(theme.palette.common.white, 0.1),
                 },
               }}
             >
@@ -186,7 +188,8 @@ function Sidebar({
                     backgroundColor: 'secondary.main',
                   },
                   '&:hover': {
-                    backgroundColor: (theme) => alpha(theme.palette.common.white, 0.15),
+                    backgroundColor: (theme) =>
+                      alpha(theme.palette.common.white, 0.15),
                   },
                 }}
               >
@@ -195,8 +198,12 @@ function Sidebar({
                     width: 12,
                     height: 12,
                     borderRadius: '50%',
-                    backgroundColor: project.id === activeProject ? 'common.white' : 'transparent',
-                    border: (theme) => `2px solid ${theme.palette.common.white}`,
+                    backgroundColor:
+                      project.id === activeProject
+                        ? 'common.white'
+                        : 'transparent',
+                    border: (theme) =>
+                      `2px solid ${theme.palette.common.white}`,
                     mr: 1.5,
                     flexShrink: 0,
                   }}
@@ -217,14 +224,21 @@ function Sidebar({
               </ListItemButton>
 
               {/* Project Subsections */}
-              <Collapse in={expandedProjects[project.id]} timeout="auto" unmountOnExit>
+              <Collapse
+                in={expandedProjects[project.id]}
+                timeout="auto"
+                unmountOnExit
+              >
                 <List disablePadding>
                   {project.subsections.map((subsection) => (
                     <ListItemButton
                       key={subsection.id}
-                      onClick={() => onSubsectionClick?.(project.id, subsection.id)}
+                      onClick={() =>
+                        onSubsectionClick?.(project.id, subsection.id)
+                      }
                       selected={
-                        project.id === activeProject && subsection.id === activeSubsection
+                        project.id === activeProject &&
+                        subsection.id === activeSubsection
                       }
                       sx={{
                         borderRadius: 1,
@@ -233,11 +247,13 @@ function Sidebar({
                         px: 2,
                         py: 0.8,
                         backgroundColor:
-                          project.id === activeProject && subsection.id === activeSubsection
+                          project.id === activeProject &&
+                          subsection.id === activeSubsection
                             ? 'secondary.main'
                             : 'transparent',
                         '&:hover': {
-                          backgroundColor: (theme) => alpha(theme.palette.common.white, 0.1),
+                          backgroundColor: (theme) =>
+                            alpha(theme.palette.common.white, 0.1),
                         },
                       }}
                     >
@@ -247,9 +263,11 @@ function Sidebar({
                           height: 6,
                           borderRadius: '50%',
                           backgroundColor:
-                            project.id === activeProject && subsection.id === activeSubsection
+                            project.id === activeProject &&
+                            subsection.id === activeSubsection
                               ? 'common.white'
-                              : (theme) => alpha(theme.palette.common.white, 0.5),
+                              : (theme) =>
+                                  alpha(theme.palette.common.white, 0.5),
                           mr: 1.5,
                           flexShrink: 0,
                         }}
@@ -259,7 +277,8 @@ function Sidebar({
                         primaryTypographyProps={{
                           fontSize: 10,
                           fontWeight:
-                            project.id === activeProject && subsection.id === activeSubsection
+                            project.id === activeProject &&
+                            subsection.id === activeSubsection
                               ? 600
                               : 400,
                           color: 'common.white',
@@ -275,7 +294,12 @@ function Sidebar({
       </Box>
 
       {/* User Section */}
-      <Divider sx={{ borderColor: (theme) => alpha(theme.palette.common.white, 0.2), mb: 2 }} />
+      <Divider
+        sx={{
+          borderColor: (theme) => alpha(theme.palette.common.white, 0.2),
+          mb: 2,
+        }}
+      />
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
         <Avatar
@@ -328,7 +352,8 @@ function Sidebar({
               flexShrink: 0,
               '&:hover': {
                 color: 'common.white',
-                backgroundColor: (theme) => alpha(theme.palette.common.white, 0.12),
+                backgroundColor: (theme) =>
+                  alpha(theme.palette.common.white, 0.12),
               },
               transition: 'color 0.2s, background-color 0.2s',
             }}
