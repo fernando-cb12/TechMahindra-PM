@@ -5,7 +5,16 @@ import CheckIcon from '@mui/icons-material/Check';
 import { useDashboard } from './DashboardContext';
 
 function DashboardHeader() {
-  const { isEditMode, toggleEditMode, confirmEdit, openAddModal } = useDashboard();
+  const { isEditMode, hasUnsavedChanges, toggleEditMode, confirmEdit, openAddModal } =
+    useDashboard();
+
+  const handleEditButtonClick = () => {
+    if (isEditMode && !hasUnsavedChanges) {
+      confirmEdit();
+    } else if (!isEditMode) {
+      toggleEditMode();
+    }
+  };
 
   return (
     <Box
@@ -65,7 +74,7 @@ function DashboardHeader() {
           variant={isEditMode ? 'contained' : 'outlined'}
           size="small"
           startIcon={isEditMode ? <CheckIcon /> : <EditIcon />}
-          onClick={isEditMode ? confirmEdit : toggleEditMode}
+          onClick={handleEditButtonClick}
           sx={{
             textTransform: 'none',
             fontWeight: 500,
@@ -83,6 +92,19 @@ function DashboardHeader() {
                         ? theme.palette.grey[500]
                         : theme.palette.primary.dark,
                   },
+                  ...(hasUnsavedChanges && {
+                    position: 'relative',
+                    '&::after': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 6,
+                      right: 6,
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      backgroundColor: '#FF9500',
+                    },
+                  }),
                 }
               : {
                   borderColor: (theme) =>
