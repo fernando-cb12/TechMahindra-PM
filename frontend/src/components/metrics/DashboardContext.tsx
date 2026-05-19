@@ -32,6 +32,7 @@ function saveLayout(cards: Card[]) {
 // ── Context value shape ─────────────────────────────────────────────
 interface DashboardContextValue extends DashboardState {
   metrics: Metric[];
+  hasUnsavedChanges: boolean;
   toggleEditMode: () => void;
   openAddModal: () => void;
   closeAddModal: () => void;
@@ -39,6 +40,7 @@ interface DashboardContextValue extends DashboardState {
   removeCard: (cardId: string) => void;
   updateLayouts: (updated: Card[]) => void;
   confirmEdit: () => void;
+  discardChanges: () => void;
 }
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
@@ -47,6 +49,7 @@ const DashboardContext = createContext<DashboardContextValue | null>(null);
 export function DashboardProvider({ children }: { children: ReactNode }) {
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [cards, setCards] = useState<Card[]>(() => loadLayout());
+  const [originalCards, setOriginalCards] = useState<Card[]>(() => loadLayout());
   const [isEditMode, setIsEditMode] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
@@ -85,6 +88,9 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  // ── detect changes ──────────────────────────────────────────────
+  const hasUnsavedChanges = JSON.stringify(cards) !== JSON.stringify(originalCards);
+
   // ── actions ─────────────────────────────────────────────────────
   const toggleEditMode = useCallback(() => setIsEditMode((prev) => !prev), []);
   const openAddModal = useCallback(() => setIsAddModalOpen(true), []);
@@ -121,7 +127,13 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const confirmEdit = useCallback(() => {
     setIsEditMode(false);
     saveLayout(cards);
+    setOriginalCards(cards);
   }, [cards]);
+
+  const discardChanges = useCallback(() => {
+    setCards(originalCards);
+    setIsEditMode(false);
+  }, [originalCards]);
 
   // ── memoised value ─────────────────────────────────────────────
   const value = useMemo<DashboardContextValue>(
@@ -130,6 +142,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       cards,
       isEditMode,
       isAddModalOpen,
+      hasUnsavedChanges,
       toggleEditMode,
       openAddModal,
       closeAddModal,
@@ -137,12 +150,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       removeCard,
       updateLayouts,
       confirmEdit,
+      discardChanges,
     }),
     [
       metrics,
       cards,
       isEditMode,
       isAddModalOpen,
+      hasUnsavedChanges,
       toggleEditMode,
       openAddModal,
       closeAddModal,
@@ -150,6 +165,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       removeCard,
       updateLayouts,
       confirmEdit,
+      discardChanges,
     ],
   );
 

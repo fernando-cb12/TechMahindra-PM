@@ -3,10 +3,11 @@ import { DashboardProvider } from './DashboardContext';
 import DashboardHeader from './DashboardHeader';
 import DashboardGrid from './DashboardGrid';
 import AddMetricModal from './AddMetricModal';
+import MetricsUnsavedDialog from './MetricsUnsavedDialog';
 
-function MetricDashboard() {
+function MetricDashboardContent() {
   return (
-    <DashboardProvider>
+    <>
       <Box
         component="main"
         sx={{
@@ -21,6 +22,15 @@ function MetricDashboard() {
         <DashboardGrid />
         <AddMetricModal />
       </Box>
+      <MetricsUnsavedDialog />
+    </>
+  );
+}
+
+function MetricDashboard() {
+  return (
+    <DashboardProvider>
+      <MetricDashboardContent />
     </DashboardProvider>
   );
 }
