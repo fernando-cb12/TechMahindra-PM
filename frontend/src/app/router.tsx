@@ -11,6 +11,7 @@ import { ROUTES } from "./routes";
 import PublicOnlyRoute from "../components/routes/PublicOnlyRoute";
 import ProtectedRoute from "../components/routes/ProtectedRoute";
 import Career from '../pages/Career'; 
+import RewardsPage from "../pages/RewardsPage";
 
 export const router = createBrowserRouter([
   { path: "/", element: <Navigate to={ROUTES.login} replace /> },
@@ -31,6 +32,7 @@ export const router = createBrowserRouter([
           { path: ROUTES.metrics, element: <Metrics /> },
           { path: ROUTES.settings, element: <Settings /> },
           { path: ROUTES.career, element: <Career /> },
+          { path: ROUTES.rewards, element: <RewardsPage /> },
         ],
       },
     ],
