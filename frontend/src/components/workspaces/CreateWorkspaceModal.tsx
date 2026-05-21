@@ -24,6 +24,7 @@ type CreateWorkspaceModalProps = {
   onClose: () => void;
   onSave: (payload: CreateWorkspaceProjectPayload) => Promise<void>;
   assignableUsers: AssignableUser[];
+  aiImportFileName?: string;
 };
 
 type FormData = {
@@ -35,7 +36,7 @@ type FormData = {
   imageUrl: string;
 };
 
-function CreateWorkspaceModal({ open, onClose, onSave, assignableUsers }: CreateWorkspaceModalProps) {
+function CreateWorkspaceModal({ open, onClose, onSave, assignableUsers, aiImportFileName }: CreateWorkspaceModalProps) {
   const [values, setValues] = useState<FormData>({
     title: '',
     description: '',
@@ -74,9 +75,9 @@ function CreateWorkspaceModal({ open, onClose, onSave, assignableUsers }: Create
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-    if (!values.title.trim()) newErrors.title = 'Nombre del proyecto es requerido';
-    if (!values.description.trim()) newErrors.description = 'Descripción es requerida';
-    if (values.memberUserIds.length === 0) newErrors.memberUserIds = 'Al menos un miembro es requerido';
+    if (!values.title.trim()) newErrors.title = 'Project name is required';
+    if (!values.description.trim()) newErrors.description = 'Description is required';
+    if (values.memberUserIds.length === 0) newErrors.memberUserIds = 'At least one member is required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -142,6 +143,17 @@ function CreateWorkspaceModal({ open, onClose, onSave, assignableUsers }: Create
           >
             Create a new workspace to organize your projects and collaborate with team members.
           </Typography>
+
+          {aiImportFileName ? (
+            <Box sx={{ mb: 2, p: 2, borderRadius: 2, bgcolor: 'action.hover' }}>
+              <Typography sx={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: 14, color: 'text.primary' }}>
+                AI File Loaded
+              </Typography>
+              <Typography sx={{ fontFamily: 'Montserrat, sans-serif', fontSize: 13, color: 'text.secondary' }}>
+                {aiImportFileName}. Review the fields and create your workspace.
+              </Typography>
+            </Box>
+          ) : null}
 
           <Stack spacing={2}>
             <TextField
