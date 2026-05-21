@@ -1,6 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Box, Button, CircularProgress, Typography, useTheme } from '@mui/material';
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Stack,
+  Typography,
+  useTheme,
+} from '@mui/material';
+import AddCircleOutlinedIcon from '@mui/icons-material/AddCircleOutlined';
 import FilterListOutlinedIcon from '@mui/icons-material/FilterListOutlined';
+import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
 import WorkspaceProjectCard, {
   type WorkspaceProjectCardData,
 } from '../components/workspaces/WorkspaceProjectCard';
@@ -19,6 +33,9 @@ function Workspaces() {
   const [projects, setProjects] = useState<WorkspaceProjectCardData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isCreateChoiceOpen, setIsCreateChoiceOpen] = useState(false);
+  const [isAIUploadOpen, setIsAIUploadOpen] = useState(false);
+  const [aiSelectedFileName, setAISelectedFileName] = useState<string | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -147,12 +164,38 @@ function Workspaces() {
       const newProject = await createWorkspaceProject(payload);
       setProjects((prev) => [newProject, ...prev]);
       setIsCreateOpen(false);
+      setAISelectedFileName(null);
     } catch (e) {
       setActionError(e instanceof Error ? e.message : 'Create failed');
     } finally {
       isCreatingRef.current = false;
       setIsSaving(false);
     }
+  };
+
+  const handleManualCreate = () => {
+    setIsCreateChoiceOpen(false);
+    setIsCreateOpen(true);
+  };
+
+  const handleAISelect = () => {
+    setIsCreateChoiceOpen(false);
+    setIsAIUploadOpen(true);
+  };
+
+  const handleAIFileChange = (file: File | null) => {
+    setAISelectedFileName(file?.name ?? null);
+  };
+
+  const handleAIContinue = () => {
+    if (!aiSelectedFileName) return;
+    setIsAIUploadOpen(false);
+    setIsCreateOpen(true);
+  };
+
+  const handleAIUploadClose = () => {
+    setIsAIUploadOpen(false);
+    setAISelectedFileName(null);
   };
 
   return (
@@ -235,7 +278,7 @@ function Workspaces() {
               disabled={isSaving}
               onClick={() => {
                 setActionError(null);
-                setIsCreateOpen(true);
+                setIsCreateChoiceOpen(true);
               }}
               sx={{
                 bgcolor: 'primary.main',
@@ -268,10 +311,168 @@ function Workspaces() {
 
       <CreateWorkspaceModal
         open={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
+        onClose={() => {
+          setIsCreateOpen(false);
+          setAISelectedFileName(null);
+        }}
         onSave={handleCreateWorkspace}
         assignableUsers={assignableUsers}
+        aiImportFileName={aiSelectedFileName ?? undefined}
       />
+
+      <Dialog
+        open={isCreateChoiceOpen}
+        onClose={() => setIsCreateChoiceOpen(false)}
+        fullWidth
+        maxWidth="sm"
+        BackdropProps={{ sx: { backgroundColor: 'rgba(0, 0, 0, 0.55)' } }}
+      >
+        <DialogTitle
+          sx={{
+            fontFamily: 'Montserrat, sans-serif',
+            fontWeight: 700,
+            fontSize: 20,
+          }}
+        >
+          How do you want to create your workspace?
+        </DialogTitle>
+        <DialogContent sx={{ pt: 0, pb: 0 }}>
+          <Box sx={{ pt: 1, pb: 2 }}>
+            <Typography sx={{ fontFamily: 'Montserrat, sans-serif', color: 'text.secondary', mb: 2 }}>
+              Choose whether you want to upload a document to generate your project with AI or create one from scratch.
+            </Typography>
+            <Stack spacing={2}>
+              <Button
+                variant="outlined"
+                onClick={handleAISelect}
+                startIcon={<UploadFileOutlinedIcon />}
+                sx={{
+                  textTransform: 'none',
+                  justifyContent: 'flex-start',
+                  p: 2,
+                  borderRadius: 2,
+                  borderColor: 'primary.main',
+                  color: 'text.primary',
+                  fontFamily: 'Montserrat, sans-serif',
+                  fontWeight: 700,
+                }}
+              >
+                Create with AI
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handleManualCreate}
+                startIcon={<AddCircleOutlinedIcon />}
+                sx={{
+                  textTransform: 'none',
+                  p: 2,
+                  borderRadius: 2,
+                  bgcolor: 'primary.main',
+                  '&:hover': { bgcolor: 'primary.dark' },
+                  color: 'common.white',
+                  fontFamily: 'Montserrat, sans-serif',
+                  fontWeight: 700,
+                }}
+              >
+                Create from Scratch
+              </Button>
+            </Stack>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3, pt: 1 }}>
+          <Button
+            onClick={() => setIsCreateChoiceOpen(false)}
+            sx={{
+              fontFamily: 'Montserrat, sans-serif',
+              textTransform: 'none',
+              color: 'text.primary',
+            }}
+          >
+            Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={isAIUploadOpen}
+        onClose={handleAIUploadClose}
+        fullWidth
+        maxWidth="sm"
+        BackdropProps={{ sx: { backgroundColor: 'rgba(0, 0, 0, 0.55)' } }}
+      >
+        <DialogTitle
+          sx={{
+            fontFamily: 'Montserrat, sans-serif',
+            fontWeight: 700,
+            fontSize: 20,
+          }}
+        >
+          Create Workspace with AI
+        </DialogTitle>
+        <DialogContent sx={{ pt: 0, pb: 0 }}>
+          <Box sx={{ pt: 1, pb: 2 }}>
+            <Typography sx={{ fontFamily: 'Montserrat, sans-serif', color: 'text.secondary', mb: 2 }}>
+              Upload a requirements file so the AI can help you generate the project structure.
+            </Typography>
+            <Button
+              component="label"
+              variant="outlined"
+              fullWidth
+              sx={{
+                textTransform: 'none',
+                borderRadius: 2,
+                p: 2,
+                justifyContent: 'space-between',
+                borderColor: 'primary.main',
+                color: 'text.primary',
+                fontFamily: 'Montserrat, sans-serif',
+                fontWeight: 700,
+              }}
+            >
+              {aiSelectedFileName ? aiSelectedFileName : 'Select file (PDF, DOCX, TXT, MD)'}
+              <UploadFileOutlinedIcon />
+              <input
+                type="file"
+                hidden
+                accept=".pdf,.doc,.docx,.txt,.md"
+                onChange={(event) => {
+                  const file = event.target.files?.[0] ?? null;
+                  handleAIFileChange(file);
+                }}
+              />
+            </Button>
+            <Typography sx={{ mt: 1, fontFamily: 'Montserrat, sans-serif', fontSize: 13, color: 'text.secondary' }}>
+              If you upload a file, you can continue creating the workspace in the next step.
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3, pt: 1 }}>
+          <Button
+            onClick={handleAIUploadClose}
+            sx={{
+              fontFamily: 'Montserrat, sans-serif',
+              textTransform: 'none',
+              color: 'text.primary',
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleAIContinue}
+            disabled={!aiSelectedFileName}
+            sx={{
+              bgcolor: 'primary.main',
+              '&:hover': { bgcolor: 'primary.dark' },
+              textTransform: 'none',
+              fontFamily: 'Montserrat, sans-serif',
+              fontWeight: 700,
+            }}
+          >
+            Continue
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {isFilterOpen && (
         <WorkspaceFilterBar filters={filters} onFiltersChange={setFilters} memberOptions={memberFilterOptions} />
