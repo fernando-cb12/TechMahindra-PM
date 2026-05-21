@@ -9,9 +9,9 @@ function DashboardHeader() {
     useDashboard();
 
   const handleEditButtonClick = () => {
-    if (isEditMode && !hasUnsavedChanges) {
+    if (isEditMode) {
       confirmEdit();
-    } else if (!isEditMode) {
+    } else {
       toggleEditMode();
     }
   };
