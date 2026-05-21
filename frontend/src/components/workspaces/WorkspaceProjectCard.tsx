@@ -19,9 +19,10 @@ export interface WorkspaceProjectCardData {
 
 interface WorkspaceProjectCardProps {
   project: WorkspaceProjectCardData;
+  onSelect?: (projectId: string) => void;
 }
 
-function WorkspaceProjectCard({ project }: WorkspaceProjectCardProps) {
+function WorkspaceProjectCard({ project, onSelect }: WorkspaceProjectCardProps) {
   const theme = useTheme();
   const statusConfig: Record<WorkspaceProjectStatus, { label: string; bg: string; color: string }> = {
     active: { label: 'Active', bg: theme.palette.grey[800], color: theme.palette.common.white },
@@ -62,6 +63,7 @@ function WorkspaceProjectCard({ project }: WorkspaceProjectCardProps) {
   return (
     <Paper
       elevation={0}
+      onClick={() => onSelect?.(project.id)}
       sx={{
         width: '100%',
         maxWidth: 300,
@@ -70,6 +72,12 @@ function WorkspaceProjectCard({ project }: WorkspaceProjectCardProps) {
         bgcolor: 'background.paper',
         px: 2,
         py: 2.5,
+        cursor: onSelect ? 'pointer' : 'default',
+        transition: 'all 0.3s ease',
+        '&:hover': onSelect ? {
+          transform: 'translateY(-4px)',
+          boxShadow: (theme) => theme.shadows[8],
+        } : {},
       }}
     >
       <Box

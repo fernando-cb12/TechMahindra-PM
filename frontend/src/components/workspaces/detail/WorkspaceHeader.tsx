@@ -1,0 +1,124 @@
+import { Box, Paper, Typography, Chip, useTheme } from '@mui/material';
+import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
+import type { WorkspaceProjectCardData } from '../WorkspaceProjectCard';
+
+interface WorkspaceHeaderProps {
+  workspace: WorkspaceProjectCardData;
+}
+
+function WorkspaceHeader({ workspace }: WorkspaceHeaderProps) {
+  const theme = useTheme();
+
+  const statusConfig: Record<string, { label: string; bg: string; color: string }> = {
+    active: { label: 'Active', bg: theme.palette.grey[800], color: theme.palette.common.white },
+    'in-progress': {
+      label: 'In Progress',
+      bg: theme.palette.warning.main,
+      color: theme.palette.grey[900],
+    },
+    planning: { label: 'Planning', bg: theme.palette.grey[400], color: theme.palette.common.white },
+    completed: { label: 'Completed', bg: theme.palette.success.main, color: theme.palette.common.white },
+  };
+
+  const status = statusConfig[workspace.status] || statusConfig.active;
+
+  const parseProjectDate = (value: string): Date | null => {
+    const mmddyyyy = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+    const mmddMatch = mmddyyyy.exec(value);
+    if (mmddMatch) {
+      const [, month, day, year] = mmddMatch;
+      return new Date(`${year}-${month}-${day}T00:00:00`);
+    }
+    const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (isoMatch) {
+      return new Date(`${value}T00:00:00`);
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
+  const projectDueDate = parseProjectDate(workspace.dueDate);
+  const dueDateLabel = projectDueDate
+    ? new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      }).format(projectDueDate)
+    : workspace.dueDate;
+
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        bgcolor: 'background.paper',
+        borderRadius: 2,
+        overflow: 'hidden',
+      }}
+    >
+      <Box
+        sx={{
+          width: '100%',
+          height: 120,
+          background:
+            workspace.imageUrl ??
+            'linear-gradient(135deg, rgba(95,2,41,0.95) 0%, rgba(163,51,77,0.95) 100%)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      >
+        {workspace.imageUrl ? (
+          <Box
+            component="img"
+            src={workspace.imageUrl}
+            alt={workspace.title}
+            sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        ) : null}
+      </Box>
+
+      <Box sx={{ px: 3, py: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+          <Box>
+            <Typography
+              variant="h4"
+              sx={{
+                fontWeight: 700,
+                color: (theme) =>
+                  theme.palette.mode === 'dark'
+                    ? theme.palette.text.primary
+                    : theme.palette.primary.main,
+                mb: 0.5,
+              }}
+            >
+              {workspace.title}
+            </Typography>
+            <Typography sx={{ color: 'text.secondary', fontSize: 14 }}>
+              {workspace.description}
+            </Typography>
+          </Box>
+          <Chip
+            label={status.label}
+            sx={{
+              height: 24,
+              borderRadius: 1,
+              bgcolor: status.bg,
+              color: status.color,
+              fontWeight: 700,
+              fontSize: 12,
+              '& .MuiChip-label': { px: 1.5 },
+            }}
+          />
+        </Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <CalendarMonthOutlinedIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+          <Typography sx={{ color: 'text.primary', fontSize: 14, fontWeight: 600 }}>
+            Due: {dueDateLabel}
+          </Typography>
+        </Box>
+      </Box>
+    </Paper>
+  );
+}
+
+export default WorkspaceHeader;
