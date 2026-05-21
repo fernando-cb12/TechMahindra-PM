@@ -107,7 +107,7 @@ function WorkspaceFilterBar({ filters, onFiltersChange, memberOptions }: Workspa
               onChange={(e) => handleMembersChange(e.target.value as string[])}
               input={<OutlinedInput />}
               renderValue={(selected) =>
-                selected.length === 0 ? 'All states' : `Members (${selected.length})`
+                selected.length === 0 ? 'All Members' : `Members (${selected.length})`
               }
               sx={{ fontFamily: 'Montserrat, sans-serif', fontSize: 14 }}
             >
