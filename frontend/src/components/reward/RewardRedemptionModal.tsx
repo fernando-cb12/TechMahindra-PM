@@ -32,7 +32,7 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import CloseIcon from "@mui/icons-material/Close";
 import IconButton from "@mui/material/IconButton";
 import { useTheme, alpha } from "@mui/material/styles";
-import { useState, useEffect, type ReactNode, forwardRef } from "react";
+import { useState, type ReactNode, forwardRef } from "react";
 import type { TransitionProps } from "@mui/material/transitions";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -102,12 +102,8 @@ export default function RewardRedemptionModal({
   const isDark = theme.palette.mode === "dark";
   const [redeemed, setRedeemed] = useState(false);
 
-  // Reset confirmation state whenever the modal opens or a new reward is loaded.
-  useEffect(() => {
-    if (open) {
-      setRedeemed(false);
-    }
-  }, [open, reward?.id]);
+
+if (!reward) return null;
 
   if (!reward) return null;
 

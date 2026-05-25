@@ -9,11 +9,30 @@ interface RewardsActivityZoneProps {
 export default function RewardsActivityZone({ onSeeAll }: RewardsActivityZoneProps) {
   return (
     <Box sx={{ display: "flex", flexDirection: "column" }}>
-      <Typography
-        sx={{ fontSize: 13, fontWeight: 700, color: "text.primary", letterSpacing: "-0.01em", mb: 1 }}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 1.5,
+          mb: 2,
+          flexWrap: "wrap",
+        }}
       >
-        Recent activity
-      </Typography>
+        <Typography
+          sx={{
+            fontFamily: "'Montserrat', sans-serif",
+            fontSize: 15,
+            fontWeight: 700,
+            color: "text.primary",
+            letterSpacing: "-0.02em",
+            lineHeight: 1.2,
+          }}
+        >
+          Recent activity
+        </Typography>
+      </Box>
+
       <RecentActivity onSeeAll={onSeeAll} />
     </Box>
   );
