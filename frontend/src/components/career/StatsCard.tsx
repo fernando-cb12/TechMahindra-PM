@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Typography, Paper, Stack } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 
 export type StatCardData = {
   id: string;
@@ -29,19 +30,19 @@ export const StatCard: React.FC<StatCardProps> = ({ card }) => {
         border: dark ? 'none' : '1px solid',
 
         borderColor:
-          theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'grey.100',
+          theme.palette.mode === 'dark' ? alpha(theme.palette.grey[50], 0.08) : 'grey.100',
 
         bgcolor: dark ? 'transparent' : 'background.paper',
 
         background: dark
-          ? 'linear-gradient(145deg, #6b1f3a 0%, #4a1028 100%)'
+          ? `linear-gradient(145deg, ${theme.palette.primary.light} 0%, ${theme.palette.primary.dark} 100%)`
           : undefined,
 
         boxShadow: dark
-          ? '0 8px 32px rgba(0,0,0,0.45)'
+          ? `0 8px 32px ${alpha(theme.palette.grey[900], 0.45)}`
           : theme.palette.mode === 'dark'
-            ? '0 4px 18px rgba(0,0,0,0.30)'
-            : '0 2px 12px rgba(0,0,0,0.05)',
+            ? `0 4px 18px ${alpha(theme.palette.grey[900], 0.3)}`
+            : `0 2px 12px ${alpha(theme.palette.grey[900], 0.05)}`,
 
         display: 'flex',
         flexDirection: 'column',
@@ -59,25 +60,25 @@ export const StatCard: React.FC<StatCardProps> = ({ card }) => {
           transform: 'translateY(-4px)',
 
           boxShadow: dark
-            ? '0 16px 40px rgba(0,0,0,0.55)'
+            ? `0 16px 40px ${alpha(theme.palette.grey[900], 0.55)}`
             : theme.palette.mode === 'dark'
-              ? '0 8px 28px rgba(0,0,0,0.40)'
-              : '0 8px 24px rgba(0,0,0,0.10)',
+              ? `0 8px 28px ${alpha(theme.palette.grey[900], 0.4)}`
+              : `0 8px 24px ${alpha(theme.palette.grey[900], 0.1)}`,
         },
       })}
     >
       {dark && (
         <Box
-          sx={{
+          sx={(theme) => ({
             position: 'absolute',
             top: -30,
             right: -30,
             width: 100,
             height: 100,
             borderRadius: '50%',
-            bgcolor: 'rgba(255,255,255,0.06)',
+            bgcolor: alpha(theme.palette.primary.contrastText, 0.06),
             pointerEvents: 'none',
-          }}
+          })}
         />
       )}
 
@@ -89,16 +90,20 @@ export const StatCard: React.FC<StatCardProps> = ({ card }) => {
           borderRadius: '13px',
 
           bgcolor: dark
-            ? 'rgba(255,255,255,0.15)'
-            : (card.iconBg ??
-              (theme.palette.mode === 'dark'
-                ? 'rgba(255,255,255,0.06)'
-                : '#f0eeff')),
+            ? alpha(theme.palette.primary.contrastText, 0.15)
+            : theme.palette.mode === 'dark'
+              ? alpha(theme.palette.grey[50], 0.06)
+              : alpha(theme.palette.primary.light, 0.12),
 
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: '22px',
+          color: dark ? 'primary.contrastText' : 'primary.main',
+
+          '& .MuiSvgIcon-root': {
+            fontSize: '22px',
+          },
         })}
       >
         {card.icon}
@@ -106,26 +111,26 @@ export const StatCard: React.FC<StatCardProps> = ({ card }) => {
 
       {/* Label */}
       <Typography
-        sx={{
+        sx={(theme) => ({
           fontWeight: 600,
           fontSize: '11px',
           letterSpacing: '0.08em',
           textTransform: 'uppercase',
-          color: dark ? 'rgba(255,255,255,0.60)' : 'text.secondary',
-        }}
+          color: dark ? alpha(theme.palette.primary.contrastText, 0.6) : 'text.secondary',
+        })}
       >
         {card.label}
       </Typography>
 
       {/* Value */}
       <Typography
-        sx={{
+        sx={(theme) => ({
           fontWeight: 800,
           fontSize: '26px',
           letterSpacing: '-0.5px',
-          color: dark ? '#fff' : 'text.primary',
+          color: dark ? theme.palette.primary.contrastText : 'text.primary',
           lineHeight: 1,
-        }}
+        })}
       >
         {card.value}
       </Typography>
