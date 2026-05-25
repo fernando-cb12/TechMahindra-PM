@@ -1,4 +1,4 @@
-// ─── Task Board TypeScript Interfaces (Section 3 of spec) ───
+// ─── Task Board TypeScript Interfaces (Section 3/16 of spec) ───
 
 // Supported column types
 export type ColumnType =
@@ -9,7 +9,34 @@ export type ColumnType =
   | 'date'
   | 'progress'
   | 'budget'
-  | 'files';
+  | 'files'
+  // Custom field types
+  | 'shortText'
+  | 'longText'
+  | 'number'
+  | 'currency'
+  | 'percentage'
+  | 'time'
+  | 'timeline'
+  | 'singleSelect'
+  | 'multiSelect'
+  | 'person'
+  | 'file'
+  | 'checkbox'
+  | 'url'
+  | 'email'
+  | 'phone'
+  | 'formula';
+
+// Status and priority options / custom select options
+export interface SelectOption {
+  id: string;
+  label: string;
+  color: string;       // hex from theme tokens or preset colors
+}
+
+export type StatusOption = SelectOption;
+export type PriorityOption = SelectOption;
 
 // A column definition — user-configurable per workspace
 export interface ColumnDefinition {
@@ -19,19 +46,8 @@ export interface ColumnDefinition {
   width?: number;      // px, optional override
   isVisible: boolean;
   order: number;       // determines left-to-right render order
-}
-
-// Status and priority are workspace-level, user-configurable
-export interface StatusOption {
-  id: string;
-  label: string;
-  color: string;       // hex from theme tokens only
-}
-
-export interface PriorityOption {
-  id: string;
-  label: string;
-  color: string;
+  options?: SelectOption[]; // custom select options for this column
+  isSystemColumn?: boolean;
 }
 
 // File attachment
@@ -40,6 +56,9 @@ export interface FileAttachment {
   name: string;
   url: string;
   uploadedAt: string;  // ISO date string
+  type: string;        // MIME type or extension
+  size: number;        // size in bytes
+  uploadedBy: User;    // who uploaded it
 }
 
 // Task update (for UpdatesTab)
@@ -49,6 +68,9 @@ export interface TaskUpdate {
   authorId: string;
   content: string;
   createdAt: string;
+  updatedAt?: string;  // ISO date string if edited
+  attachments: FileAttachment[];
+  mentions: string[];  // User.id array
 }
 
 // A single task
@@ -57,16 +79,18 @@ export interface Task {
   name: string;
   groupId: string;
   workspaceId: string;
-  assigneeId: string | null;
-  status: string;          // StatusOption.id
-  priority: string;        // PriorityOption.id
-  dueDate: string | null;  // ISO date string — used by CalendarView
-  progress: number;        // 0–100 — used by ChartView
+  assigneeId: string | null;  // For single-assignee legacy support
+  assigneeIds: string[];      // Support multiple assignees (new specification)
+  status: string;             // StatusOption.id or custom option id
+  priority: string;           // PriorityOption.id or custom option id
+  dueDate: string | null;     // ISO date string — used by CalendarView
+  progress: number;           // 0–100 — used by ChartView
   budget: number | null;
   files: FileAttachment[];
   updates: TaskUpdate[];
   createdAt: string;
   updatedAt: string;
+  values?: Record<string, unknown>; // Custom column values e.g. { columnId: value }
 }
 
 // A group of tasks (phase / stage)
@@ -88,12 +112,13 @@ export interface BoardConfig {
   priorityOptions: PriorityOption[];
 }
 
-// User
+// User / Member
 export interface User {
   id: string;
   name: string;
   avatarUrl: string | null;
   initials: string;
+  email?: string;
 }
 
 // Task detail panel state
@@ -115,4 +140,6 @@ export interface TaskBoardState {
   panel: PanelState;
   activeView: BoardView;
   collapsedGroups: Set<string>;  // local UI state, not persisted
+  manualGroupOrder: string[];    // Stores user's custom group order
 }
+
