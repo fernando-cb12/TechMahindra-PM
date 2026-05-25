@@ -140,7 +140,9 @@ function WorkspaceDetail() {
         </Box>
       </Box>
 
-      <WorkspaceStats workspace={workspace} />
+      <Box sx={{ mt: 3 }}>
+        <WorkspaceStats workspace={workspace} />
+      </Box>
     </Box>
   );
 }

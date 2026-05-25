@@ -107,6 +107,11 @@ function WorkspaceIssuesSection({ workspace }: WorkspaceIssuesSectionProps) {
         bgcolor: 'background.paper',
         borderRadius: 2,
         p: 3,
+        minHeight: 340,
+        maxHeight: 460,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
       }}
     >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -127,7 +132,25 @@ function WorkspaceIssuesSection({ workspace }: WorkspaceIssuesSectionProps) {
         </Typography>
       </Box>
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1.5,
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          pr: 0.5,
+          '&::-webkit-scrollbar': {
+            width: 8,
+            backgroundColor: theme.palette.mode === 'dark' ? alpha(theme.palette.common.white, 0.06) : alpha(theme.palette.grey[300], 0.35),
+          },
+          '&::-webkit-scrollbar-thumb': {
+            borderRadius: 8,
+            backgroundColor: theme.palette.mode === 'dark' ? alpha(theme.palette.grey[600], 0.75) : alpha(theme.palette.grey[500], 0.75),
+          },
+        }}
+      >
         {issues.map((issue) => {
           const priority = priorityConfig[issue.priority];
           const status = statusConfig[issue.status];

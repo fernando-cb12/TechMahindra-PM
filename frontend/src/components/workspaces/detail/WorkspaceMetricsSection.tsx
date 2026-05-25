@@ -38,6 +38,9 @@ function WorkspaceMetricsSection(): React.ReactNode {
         bgcolor: 'background.paper',
         borderRadius: 2,
         p: 3,
+        minHeight: 340,
+        maxHeight: 460,
+        overflow: 'hidden',
       }}
     >
       <Typography

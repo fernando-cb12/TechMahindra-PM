@@ -15,6 +15,9 @@ function WorkspaceStats({ workspace }: WorkspaceStatsProps) {
         bgcolor: 'background.paper',
         borderRadius: 2,
         p: 3,
+        minHeight: 240,
+        maxHeight: 320,
+        overflow: 'hidden',
       }}
     >
       <Box sx={{ mb: 2.5 }}>
@@ -83,78 +86,25 @@ function WorkspaceStats({ workspace }: WorkspaceStatsProps) {
         />
       </Box>
 
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Box>
-          <Typography
-            sx={{
-              fontSize: 12,
-              color: 'text.secondary',
-              mb: 0.5,
-            }}
-          >
-            Development Budget
-          </Typography>
-          <Typography
-            sx={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: theme.palette.mode === 'dark' ? theme.palette.text.primary : 'text.primary',
-            }}
-          >
-            {workspace.budgetLabel}
-          </Typography>
-        </Box>
-        <Box>
-          <Typography
-            sx={{
-              fontSize: 12,
-              color: 'text.secondary',
-              mb: 0.5,
-            }}
-          >
-            Team Members ({workspace.members.length})
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            {workspace.members.slice(0, 4).map((member, index) => {
-              const initials = member
-                .split(' ')
-                .map((word) => word[0])
-                .join('')
-                .toUpperCase();
-              return (
-                <Avatar
-                  key={`${workspace.id}-${member}-${index}`}
-                  sx={{
-                    width: 32,
-                    height: 32,
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    bgcolor: 'primary.main',
-                    color: theme.palette.mode === 'dark' ? '#F5F5F5' : undefined,
-                  }}
-                  title={member}
-                >
-                  {initials}
-                </Avatar>
-              );
-            })}
-            {workspace.members.length > 4 && (
-              <Avatar
-                sx={{
-                  width: 32,
-                  height: 32,
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  bgcolor: 'grey.500',
-                  color: '#fff',
-                }}
-                title={`+${workspace.members.length - 4} more`}
-              >
-                +{workspace.members.length - 4}
-              </Avatar>
-            )}
-          </Box>
-        </Box>
+      <Box>
+        <Typography
+          sx={{
+            fontSize: 12,
+            color: 'text.secondary',
+            mb: 0.5,
+          }}
+        >
+          Development Budget
+        </Typography>
+        <Typography
+          sx={{
+            fontSize: 14,
+            fontWeight: 600,
+            color: theme.palette.mode === 'dark' ? theme.palette.text.primary : 'text.primary',
+          }}
+        >
+          {workspace.budgetLabel}
+        </Typography>
       </Box>
     </Paper>
   );
