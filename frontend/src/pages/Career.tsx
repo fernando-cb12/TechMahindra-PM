@@ -1,34 +1,46 @@
 import React from "react";
 import { Box, Typography } from "@mui/material";
+import ArchitectureIcon from '@mui/icons-material/Architecture';
+import BoltIcon from '@mui/icons-material/Bolt';
+import BugReportIcon from '@mui/icons-material/BugReport';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import DiamondIcon from '@mui/icons-material/Diamond';
+import DirectionsRunIcon from '@mui/icons-material/DirectionsRun';
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import GroupsIcon from '@mui/icons-material/Groups';
+import MilitaryTechIcon from '@mui/icons-material/MilitaryTech';
+import PaidIcon from '@mui/icons-material/Paid';
+import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
 import RankTimeline, { type RankStep } from '../components/career/RankTimeline';
 import StatCards, { type StatCardData } from '../components/career/StatsCard';
 import BadgeGallery, { type BadgeData } from '../components/career/Badges';
 import GoToRewardsButton from '../components/reward/GoToRewardButton';
 
 const rankSteps: RankStep[] = [
-  { id: "rookie",      label: "Rookie",      isUnlocked: true,  icon: "🥉" },
-  { id: "contributor", label: "Contributor", isUnlocked: true,  icon: "🥈" },
-  { id: "performant",  label: "Performant",  isCurrent: true,   icon: "👑" },
-  { id: "expert",      label: "Expert",      pointsRequired: 3500, icon: "💎" },
-  { id: "legend",      label: "Legend",      pointsRequired: 7500, icon: "🔷" },
+  { id: "rookie",      label: "Rookie",      isUnlocked: true,  icon: <MilitaryTechIcon /> },
+  { id: "contributor", label: "Contributor", isUnlocked: true,  icon: <WorkspacePremiumIcon /> },
+  { id: "performant",  label: "Performant",  isCurrent: true,   icon: <EmojiEventsIcon /> },
+  { id: "expert",      label: "Expert",      pointsRequired: 3500, icon: <DiamondIcon /> },
+  { id: "legend",      label: "Legend",      pointsRequired: 7500, icon: <WorkspacePremiumIcon /> },
 ];
 
 const statCards: StatCardData[] = [
-  { id: 'points',     label: 'Total Points', value: '12,450', icon: '🪙', iconBg: '#e8f4ff' },
-  { id: 'tasks',      label: 'Tasks Done',   value: 156,      icon: '✅', iconBg: '#eafaf1' },
-  { id: 'streak',     label: 'Weekly Task',  value: 23,       icon: '✅', iconBg: '#fff4e6' },
-  { id: 'multiplier', label: 'Multiplier',   value: 'x1.5',   icon: '⚡', highlight: true   },
+  { id: 'points',     label: 'Total Points', value: '12,450', icon: <PaidIcon /> },
+  { id: 'tasks',      label: 'Tasks Done',   value: 156,      icon: <CheckCircleIcon /> },
+  { id: 'streak',     label: 'Weekly Task',  value: 23,       icon: <CheckCircleIcon /> },
+  { id: 'multiplier', label: 'Multiplier',   value: 'x1.5',   icon: <BoltIcon />, highlight: true   },
 ];
 
 const badges: BadgeData[] = [
-  { id: "primero",     name: "Primero",     subtitle: "First Solve",    icon: "🏆", status: "earned", color: "#ffe8cc", accentColor: "#e07b00" },
-  { id: "preciso",     name: "Preciso",     subtitle: "99% Accuracy",   icon: "🎯", status: "earned", color: "#cce8ff", accentColor: "#0072e5" },
-  { id: "rapido",      name: "Rápido",      subtitle: "Speed King",     icon: "⚡", status: "earned", color: "#e8e4ff", accentColor: "#7c3aed" },
-  { id: "mentor",      name: "Mentor",      subtitle: "Team Player",    icon: "💖", status: "earned", color: "#ffd6d6", accentColor: "#d63384" },
-  { id: "bug-hunter",  name: "Bug Hunter",  subtitle: "Find 50 bugs",   icon: "🐛", status: "locked" },
-  { id: "sprint-king", name: "Sprint King", subtitle: "Win a sprint",   icon: "🏃", status: "locked" },
-  { id: "architect",   name: "Architect",   subtitle: "Design a system",icon: "🏗️", status: "locked" },
-  { id: "lead-spirit", name: "Lead Spirit", subtitle: "Lead a team",    icon: "🌟", status: "locked" },
+  { id: "primero",     name: "Primero",     subtitle: "First Solve",    icon: <EmojiEventsIcon />, status: "earned", color: "warning", accentColor: "warning" },
+  { id: "preciso",     name: "Preciso",     subtitle: "99% Accuracy",   icon: <WorkspacePremiumIcon />, status: "earned", color: "info", accentColor: "info" },
+  { id: "rapido",      name: "Rápido",      subtitle: "Speed King",     icon: <BoltIcon />, status: "earned", color: "primary", accentColor: "primary" },
+  { id: "mentor",      name: "Mentor",      subtitle: "Team Player",    icon: <FavoriteIcon />, status: "earned", color: "error", accentColor: "error" },
+  { id: "bug-hunter",  name: "Bug Hunter",  subtitle: "Find 50 bugs",   icon: <BugReportIcon />, status: "locked" },
+  { id: "sprint-king", name: "Sprint King", subtitle: "Win a sprint",   icon: <DirectionsRunIcon />, status: "locked" },
+  { id: "architect",   name: "Architect",   subtitle: "Design a system",icon: <ArchitectureIcon />, status: "locked" },
+  { id: "lead-spirit", name: "Lead Spirit", subtitle: "Lead a team",    icon: <GroupsIcon />, status: "locked" },
 ];
 
 // ── Page ──────────────────────────────────────────────────────────

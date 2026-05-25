@@ -1,5 +1,7 @@
 import React from 'react';
 import { Box, Typography, Paper, LinearProgress } from '@mui/material';
+import { alpha } from '@mui/material/styles';
+import StarIcon from '@mui/icons-material/Star';
 
 export type RankStep = {
   id: string;
@@ -30,7 +32,7 @@ const RankTimeline: React.FC<RankTimelineProps> = ({
         p: '28px 32px 32px',
         border: '1px solid',
         borderColor:
-          theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'grey.100',
+          theme.palette.mode === 'dark' ? alpha(theme.palette.grey[50], 0.08) : 'grey.100',
         bgcolor: 'background.paper',
       })}
     >
@@ -74,13 +76,12 @@ const RankTimeline: React.FC<RankTimelineProps> = ({
             borderRadius: 99,
             bgcolor:
               theme.palette.mode === 'dark'
-                ? 'rgba(255,255,255,0.08)'
+                ? alpha(theme.palette.grey[50], 0.08)
                 : 'grey.100',
 
             '& .MuiLinearProgress-bar': {
               borderRadius: 99,
-              background:
-                'linear-gradient(90deg, #6ec6ff 0%, #a78bfa 50%, #7c3aed 100%)',
+              background: `linear-gradient(90deg, ${theme.palette.info.main} 0%, ${theme.palette.primary.light} 50%, ${theme.palette.primary.main} 100%)`,
             },
           })}
         />
@@ -98,7 +99,7 @@ const RankTimeline: React.FC<RankTimelineProps> = ({
 
             bgcolor:
               theme.palette.mode === 'dark'
-                ? 'rgba(255,255,255,0.08)'
+                ? alpha(theme.palette.grey[50], 0.08)
                 : 'grey.100',
 
             zIndex: 0,
@@ -134,32 +135,41 @@ const RankTimeline: React.FC<RankTimelineProps> = ({
                     ? 'transparent'
                     : unlocked
                       ? theme.palette.mode === 'dark'
-                        ? 'rgba(167,139,250,0.12)'
-                        : '#f5f0ff'
+                        ? alpha(theme.palette.primary.light, 0.16)
+                        : alpha(theme.palette.primary.light, 0.12)
                       : theme.palette.mode === 'dark'
-                        ? 'rgba(255,255,255,0.04)'
+                        ? alpha(theme.palette.grey[50], 0.04)
                         : 'grey.100',
 
                   background: step.isCurrent
-                    ? 'linear-gradient(135deg, #a78bfa, #7c3aed)'
+                    ? `linear-gradient(135deg, ${theme.palette.primary.light}, ${theme.palette.primary.main})`
                     : undefined,
 
                   border: '2px solid',
 
                   borderColor: step.isCurrent
-                    ? '#7c3aed'
+                    ? 'primary.main'
                     : unlocked
                       ? theme.palette.mode === 'dark'
-                        ? 'rgba(196,181,253,0.4)'
-                        : '#c4b5fd'
+                        ? alpha(theme.palette.primary.light, 0.4)
+                        : alpha(theme.palette.primary.light, 0.5)
                       : theme.palette.mode === 'dark'
-                        ? 'rgba(255,255,255,0.08)'
+                        ? alpha(theme.palette.grey[50], 0.08)
                         : 'grey.200',
 
+                  color: step.isCurrent
+                    ? 'primary.contrastText'
+                    : unlocked
+                      ? 'primary.main'
+                      : 'text.disabled',
                   filter: !unlocked ? 'grayscale(1) opacity(0.5)' : 'none',
+
+                  '& .MuiSvgIcon-root': {
+                    fontSize: '22px',
+                  },
                 })}
               >
-                {step.icon ?? '⭐'}
+                {step.icon ?? <StarIcon />}
               </Box>
 
               <Box sx={{ textAlign: 'center' }}>
@@ -169,7 +179,7 @@ const RankTimeline: React.FC<RankTimelineProps> = ({
                     fontSize: '12px',
                     textTransform: 'uppercase',
                     color: step.isCurrent
-                      ? '#7c3aed'
+                      ? 'primary.main'
                       : unlocked
                         ? 'text.primary'
                         : 'text.disabled',
