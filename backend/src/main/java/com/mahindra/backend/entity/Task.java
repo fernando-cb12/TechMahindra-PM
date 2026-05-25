@@ -25,8 +25,8 @@ public class Task {
     private Long id;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    @JoinColumn(name = "project_id", nullable = false)
-    private Project project;
+    @JoinColumn(name = "board_id", nullable = false)
+    private Board board;
 
     @Column(nullable = false, length = 20)
     private String status;

@@ -17,6 +17,13 @@ export type CreateWorkspaceProjectPayload = {
   status: WorkspaceProjectStatus;
 };
 
+export type WorkspaceBoard = {
+  id: string;
+  name: string;
+  description: string;
+  color: string;
+};
+
 type WorkspaceProjectCardApi = {
   id: string;
   title: string;
@@ -61,8 +68,26 @@ function getErrorMessage(err: unknown): string {
 
 export async function getWorkspaceProjects(): Promise<WorkspaceProjectCardData[]> {
   try {
-    const { data } = await apiClient.get<WorkspaceProjectCardApi[]>('/api/workspace-projects');
+    const { data } = await apiClient.get<WorkspaceProjectCardApi[]>('/api/workspaces');
     return data.map(mapCard);
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
+export async function getWorkspace(workspaceId: string): Promise<WorkspaceProjectCardData> {
+  try {
+    const { data } = await apiClient.get<WorkspaceProjectCardApi>(`/api/workspaces/${workspaceId}`);
+    return mapCard(data);
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
+export async function getWorkspaceBoards(workspaceId: string): Promise<WorkspaceBoard[]> {
+  try {
+    const { data } = await apiClient.get<WorkspaceBoard[]>(`/api/workspaces/${workspaceId}/boards`);
+    return data;
   } catch (e) {
     throw new Error(getErrorMessage(e));
   }
@@ -70,7 +95,7 @@ export async function getWorkspaceProjects(): Promise<WorkspaceProjectCardData[]
 
 export async function getAssignableWorkspaceUsers(): Promise<AssignableUser[]> {
   try {
-    const { data } = await apiClient.get<AssignableUser[]>('/api/workspace-projects/assignable-users');
+    const { data } = await apiClient.get<AssignableUser[]>('/api/workspaces/assignable-users');
     return data;
   } catch (e) {
     throw new Error(getErrorMessage(e));
@@ -90,7 +115,7 @@ export async function createWorkspaceProject(
       imageUrl: payload.imageUrl?.trim() || undefined,
       status: payload.status,
     };
-    const { data } = await apiClient.post<WorkspaceProjectCardApi>('/api/workspace-projects', body);
+    const { data } = await apiClient.post<WorkspaceProjectCardApi>('/api/workspaces', body);
     return mapCard(data);
   } catch (e) {
     throw new Error(getErrorMessage(e));

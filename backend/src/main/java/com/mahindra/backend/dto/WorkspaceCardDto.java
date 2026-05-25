@@ -5,7 +5,7 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record WorkspaceProjectCardDto(
+public record WorkspaceCardDto(
         String id,
         String title,
         String description,
