@@ -1,5 +1,6 @@
 import type { WorkspaceProjectCardData, WorkspaceProjectStatus } from '../components/workspaces/WorkspaceProjectCard';
 import { apiClient } from './apiClient';
+import { uploadWorkspaceBanner } from './uploadsService';
 
 export type AssignableUser = {
   id: number;
@@ -14,6 +15,7 @@ export type CreateWorkspaceProjectPayload = {
   dueDate: string;
   budgetLabel: string;
   imageUrl?: string;
+  bannerFile?: File | null;
   status: WorkspaceProjectStatus;
 };
 
@@ -106,13 +108,14 @@ export async function createWorkspaceProject(
   payload: CreateWorkspaceProjectPayload
 ): Promise<WorkspaceProjectCardData> {
   try {
+    const uploadedImageUrl = payload.bannerFile ? await uploadWorkspaceBanner(payload.bannerFile) : undefined;
     const body = {
       title: payload.title.trim(),
       description: payload.description.trim(),
       memberUserIds: payload.memberUserIds,
       dueDate: payload.dueDate?.trim() || undefined,
       budgetLabel: payload.budgetLabel?.trim() || undefined,
-      imageUrl: payload.imageUrl?.trim() || undefined,
+      imageUrl: uploadedImageUrl ?? payload.imageUrl?.trim() ?? undefined,
       status: payload.status,
     };
     const { data } = await apiClient.post<WorkspaceProjectCardApi>('/api/workspaces', body);

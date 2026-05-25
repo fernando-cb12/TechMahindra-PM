@@ -259,15 +259,26 @@ public class WorkspaceService {
         if (s.isEmpty() || "No date".equalsIgnoreCase(s)) {
             return null;
         }
+        LocalDate parsed;
         try {
-            return LocalDate.parse(s, ISO);
+            parsed = LocalDate.parse(s, ISO);
+            validateFutureDueDate(parsed);
+            return parsed;
         } catch (DateTimeParseException ignored) {
         }
         var us = DateTimeFormatter.ofPattern("MM/dd/uuuu");
         try {
-            return LocalDate.parse(s, us);
+            parsed = LocalDate.parse(s, us);
+            validateFutureDueDate(parsed);
+            return parsed;
         } catch (DateTimeParseException e) {
             throw new IllegalArgumentException("Invalid due date; use yyyy-MM-dd or MM/dd/yyyy", e);
+        }
+    }
+
+    private static void validateFutureDueDate(LocalDate dueDate) {
+        if (!dueDate.isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("Due date must be in the future");
         }
     }
 
