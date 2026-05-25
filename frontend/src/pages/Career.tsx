@@ -3,9 +3,7 @@ import { Box, Typography } from "@mui/material";
 import RankTimeline, { type RankStep } from '../components/career/RankTimeline';
 import StatCards, { type StatCardData } from '../components/career/StatsCard';
 import BadgeGallery, { type BadgeData } from '../components/career/Badges';
-import GoToRewardsButton from '../components/reward/GoToRewardsButton';
-
-// ── Sample data ───────────────────────────────────────────────────
+import GoToRewardsButton from '../components/reward/GoToRewardButton';
 
 const rankSteps: RankStep[] = [
   { id: "rookie",      label: "Rookie",      isUnlocked: true,  icon: "🥉" },
@@ -60,10 +58,16 @@ const CareerPage: React.FC = () => {
       >
         <Box>
           <Typography
-            variant="h5"
-            fontWeight={700}
-            color="text.primary"
-            letterSpacing="-0.5px"
+            sx={{
+              fontFamily: 'Montserrat, sans-serif',
+              fontWeight: 700,
+              fontSize: 21.5,
+              color: (theme) =>
+                theme.palette.mode === 'dark'
+                  ? theme.palette.text.primary
+                  : theme.palette.primary.main,
+              mb: 3,
+            }}
           >
             Career
           </Typography>

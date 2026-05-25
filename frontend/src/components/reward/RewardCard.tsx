@@ -1,210 +1,275 @@
-import React from "react";
-import {
-  Box,
-  Paper,
-  Typography,
-  Button,
-  Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-} from "@mui/material";
-import { alpha } from "@mui/material/styles";
-import StarIcon from "@mui/icons-material/Star";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import BoltIcon from "@mui/icons-material/Bolt";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import { useTheme } from "@mui/material/styles";
+import type { ReactNode } from "react";
 
-export interface RewardCardData {
-  id: string;
-  title: string;
-  description: string;
-  points: number;
-  tag?: "Popular" | "Exclusive" | "Trending" | "Plus";
-  tagColor?: string;
-  icon: React.ReactNode;
-  iconBg: string;
-}
+// ─── Badge ────────────────────────────────────────────────────────────────────
 
-const TAG_COLORS: Record<string, string> = {
-  Popular: "#4CAF50",
-  Exclusive: "#9C27B0",
-  Trending: "#FF9800",
-  Plus: "#2196F3",
+export type BadgeVariant = "popular" | "new" | "limited";
+
+const badgeMeta: Record<
+  BadgeVariant,
+  { label: string; bg: string; darkBg: string; color: string }
+> = {
+  popular: { label: "Popular", bg: "#EAF3DE", darkBg: "rgba(39,80,10,0.18)",  color: "#27500A" },
+  new:     { label: "New",     bg: "#FBF0F3", darkBg: "rgba(95,2,41,0.18)",   color: "#5F0229" },
+  limited: { label: "Limited", bg: "#FAEEDA", darkBg: "rgba(99,56,6,0.18)",   color: "#633806" },
 };
 
-interface RewardCardProps {
-  reward: RewardCardData;
-  onSelect?: (reward: RewardCardData) => void;
+// ─── Icon variant ─────────────────────────────────────────────────────────────
+
+export type IconVariant = "crimson" | "green" | "amber" | "blue" | "purple" | "grey";
+
+const iconMeta: Record<IconVariant, { bg: string; darkBg: string; color: string }> = {
+  crimson: { bg: "#FBF0F3", darkBg: "rgba(163,51,77,0.16)",   color: "#5F0229" },
+  green:   { bg: "#EAF3DE", darkBg: "rgba(39,80,10,0.16)",    color: "#27500A" },
+  amber:   { bg: "#FAEEDA", darkBg: "rgba(99,56,6,0.16)",     color: "#633806" },
+  blue:    { bg: "#E6F1FB", darkBg: "rgba(12,68,124,0.16)",   color: "#0C447C" },
+  purple:  { bg: "#EEEDFE", darkBg: "rgba(60,52,137,0.16)",   color: "#3C3489" },
+  grey:    { bg: "#F2F3F5", darkBg: "rgba(179,179,179,0.1)",  color: "#9F9F9F" },
+};
+
+// ─── Props ────────────────────────────────────────────────────────────────────
+
+export interface RewardCardProps {
+  /** The icon rendered inside the coloured chip. */
+  icon: ReactNode;
+  iconVariant: IconVariant;
+  name: string;
+  description: string;
+  /** Small secondary label shown below the description (e.g. "Routed to HR"). */
+  meta?: string;
+  cost?: number;
+  badge?: BadgeVariant;
+  /** Renders a crimson left-accent stripe and subtly tinted hover state. */
+  featured?: boolean;
+  /** Called when the card is clicked or activated via keyboard. */
+  onRedeem?: () => void;
 }
 
-const RewardCard: React.FC<RewardCardProps> = ({ reward, onSelect }) => {
-  const [dialogOpen, setDialogOpen] = React.useState(false);
-  const tagColor = reward.tagColor ?? (reward.tag ? TAG_COLORS[reward.tag] : undefined);
+// ─── Component ────────────────────────────────────────────────────────────────
 
-  const handleConfirm = () => {
-    setDialogOpen(false);
-    onSelect?.(reward);
-  };
+export default function RewardCard({
+  icon,
+  iconVariant,
+  name,
+  description,
+  meta,
+  cost,
+  badge,
+  featured = false,
+  onRedeem,
+}: RewardCardProps) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const ico = iconMeta[iconVariant];
 
   return (
-    <>
-      <Paper
-        elevation={0}
-        sx={{
-          borderRadius: "16px",
-          border: "1px solid",
-          borderColor: "grey.200",
-          p: 2.5,
-          display: "flex",
-          flexDirection: "column",
-          gap: 1.5,
-          minWidth: 200,
-          position: "relative",
-          transition: "transform 0.18s ease, box-shadow 0.18s ease",
-          "&:hover": {
-            transform: "translateY(-3px)",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.10)",
+    <Box
+      component="article"
+      role="button"
+      tabIndex={0}
+      aria-label={`${name}, ${cost?.toLocaleString()} points`}
+      onClick={onRedeem}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onRedeem?.();
+        }
+      }}
+      sx={{
+        bgcolor: "background.paper",
+        border: "0.5px solid",
+        borderColor: featured
+          ? isDark ? "rgba(95,2,41,0.35)" : "rgba(95,2,41,0.15)"
+          : "divider",
+        borderRadius: "10px",
+        p: "13px 13px 11px",
+        display: "flex",
+        flexDirection: "column",
+        position: "relative",
+        overflow: "hidden",
+        cursor: "pointer",
+        outline: "none",
+        transition: "border-color 0.15s ease, background 0.15s ease, transform 0.1s ease",
+        userSelect: "none",
+
+        // Focus-visible ring (keyboard navigation)
+        "&:focus-visible": {
+          boxShadow: "0 0 0 2px",
+          boxShadowColor: "primary.main",
+        },
+
+        // Featured left accent stripe
+        ...(featured && {
+          "&::before": {
+            content: '""',
+            position: "absolute",
+            top: 0, left: 0, bottom: 0,
+            width: "2.5px",
+            bgcolor: "primary.main",
+            borderRadius: "10px 0 0 10px",
           },
+        }),
+
+        // Hover
+        "&:hover": {
+          borderColor: featured
+            ? isDark ? "rgba(95,2,41,0.55)" : "rgba(95,2,41,0.3)"
+            : isDark ? "rgba(255,255,255,0.18)" : "#C8C8C8",
+          bgcolor: isDark
+            ? "rgba(255,255,255,0.025)"
+            : featured ? "#FEF9FB" : "#FAFAFA",
+          "& .redeem-arrow": { opacity: 1, transform: "translateX(0)" },
+        },
+
+        // Press
+        "&:active": { transform: "scale(0.985)" },
+      }}
+    >
+      {/* Row 1 — icon + badge */}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          mb: 1.375,
         }}
       >
-        {/* Tag */}
-        {reward.tag && (
-          <Chip
-            label={reward.tag}
-            size="small"
-            sx={{
-              position: "absolute",
-              top: 12,
-              right: 12,
-              bgcolor: alpha(tagColor!, 0.12),
-              color: tagColor,
-              fontWeight: 700,
-              fontSize: "10px",
-              height: 22,
-              borderRadius: "6px",
-            }}
-          />
-        )}
-
-        {/* Icon */}
         <Box
           sx={{
-            width: 56,
-            height: 56,
-            borderRadius: "14px",
-            bgcolor: reward.iconBg,
+            width: 30,
+            height: 30,
+            borderRadius: "8px",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: "28px",
+            bgcolor: isDark ? ico.darkBg : ico.bg,
+            color: ico.color,
+            flexShrink: 0,
+            "& svg": { fontSize: "15px !important" },
           }}
         >
-          {reward.icon}
+          {icon}
         </Box>
 
-        {/* Title & description */}
-        <Box>
-          <Typography fontWeight={700} fontSize="15px" color="text.primary" lineHeight={1.3}>
-            {reward.title}
-          </Typography>
-          <Typography variant="caption" color="text.secondary" mt={0.5} display="block">
-            {reward.description}
-          </Typography>
-        </Box>
-
-        {/* Footer: points + button */}
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: "auto" }}>
-          <Typography fontWeight={800} fontSize="15px" color="text.primary">
-            {reward.points} pts
-          </Typography>
-          <Button
-            variant="contained"
-            size="small"
-            onClick={() => setDialogOpen(true)}
-            sx={{
-              bgcolor: "primary.main",
-              borderRadius: "8px",
-              fontWeight: 700,
-              fontSize: "13px",
-              px: 2,
-              "&:hover": { bgcolor: "primary.dark" },
-            }}
-          >
-            Select
-          </Button>
-        </Box>
-      </Paper>
-
-      {/* Confirmation Dialog */}
-      <Dialog
-        open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
-        PaperProps={{ sx: { borderRadius: "16px", p: 1, minWidth: 340 } }}
-      >
-        <DialogTitle sx={{ fontWeight: 700, fontSize: "18px" }}>
-          Confirm Redemption
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: "flex", gap: 2, alignItems: "center", mb: 2 }}>
-            <Box
-              sx={{
-                width: 48,
-                height: 48,
-                borderRadius: "12px",
-                bgcolor: reward.iconBg,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "24px",
-                flexShrink: 0,
-              }}
-            >
-              {reward.icon}
-            </Box>
-            <Box>
-              <Typography fontWeight={700}>{reward.title}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                {reward.description}
-              </Typography>
-            </Box>
-          </Box>
+        {badge && (
           <Box
             sx={{
-              bgcolor: "grey.50",
-              borderRadius: "10px",
-              p: 1.5,
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
+              fontSize: 10,
+              fontWeight: 700,
+              px: 0.875,
+              py: "2px",
+              borderRadius: "5px",
+              letterSpacing: "0.02em",
+              lineHeight: 1.6,
+              bgcolor: isDark ? badgeMeta[badge].darkBg : badgeMeta[badge].bg,
+              color: badge === "new" ? "primary.main" : badgeMeta[badge].color,
             }}
           >
-            <StarIcon sx={{ color: "warning.main", fontSize: 20 }} />
-            <Typography fontWeight={700} fontSize="15px">
-              {reward.points} pts
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              will be deducted from your balance
-            </Typography>
+            {badgeMeta[badge].label}
           </Box>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
-          <Button
-            onClick={() => setDialogOpen(false)}
-            variant="outlined"
-            sx={{ borderRadius: "8px", flex: 1, borderColor: "grey.300", color: "text.primary" }}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleConfirm}
-            variant="contained"
-            sx={{ borderRadius: "8px", flex: 1, bgcolor: "primary.main", "&:hover": { bgcolor: "primary.dark" } }}
-          >
-            Confirm
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </>
-  );
-};
+        )}
+      </Box>
 
-export default RewardCard;
+      {/* Row 2 — name */}
+      <Typography
+        sx={{
+          fontSize: 12.5,
+          fontWeight: 700,
+          color: "text.primary",
+          lineHeight: 1.2,
+          letterSpacing: "-0.015em",
+          mb: 0.375,
+        }}
+      >
+        {name}
+      </Typography>
+
+      {/* Row 3 — description */}
+      <Typography
+        sx={{
+          fontSize: 11,
+          color: "text.secondary",
+          lineHeight: 1.55,
+          mb: meta ? 0.5 : 0,
+        }}
+      >
+        {description}
+      </Typography>
+
+      {/* Optional meta tag */}
+      {meta && (
+        <Typography
+          sx={{
+            fontSize: 10.5,
+            fontWeight: 600,
+            color: isDark ? "rgba(255,255,255,0.28)" : "#B3B3B3",
+            letterSpacing: "0.01em",
+          }}
+        >
+          {meta}
+        </Typography>
+      )}
+
+      {/* Footer — cost + hover arrow */}
+      <Box
+        sx={{
+          mt: "auto",
+          pt: 1.25,
+          borderTop: "0.5px solid",
+          borderColor: isDark ? "divider" : "#EBEBEB",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.25 }}>
+          <BoltIcon sx={{ fontSize: 12, color: "primary.light", mb: "-1px" }} />
+          <Typography
+            component="span"
+            sx={{
+              fontSize: 13.5,
+              fontWeight: 800,
+              color: "text.primary",
+              letterSpacing: "-0.025em",
+              fontVariantNumeric: "tabular-nums",
+              lineHeight: 1,
+            }}
+          >
+            {cost?.toLocaleString()}
+          </Typography>
+          <Typography
+            component="span"
+            sx={{ fontSize: 10.5, color: "text.secondary", fontWeight: 500, ml: "2px" }}
+          >
+            pts
+          </Typography>
+        </Box>
+
+        <Box
+          className="redeem-arrow"
+          aria-hidden="true"
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 22,
+            height: 22,
+            borderRadius: "50%",
+            bgcolor: isDark ? "rgba(95,2,41,0.18)" : "#FBF0F3",
+            color: "primary.main",
+            opacity: 0,
+            transform: "translateX(-4px)",
+            transition: "opacity 0.15s ease, transform 0.15s ease",
+            flexShrink: 0,
+          }}
+        >
+          <ArrowForwardIcon sx={{ fontSize: 12 }} />
+        </Box>
+      </Box>
+    </Box>
+  );
+}

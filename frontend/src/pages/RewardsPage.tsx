@@ -1,124 +1,108 @@
-import React, { useState } from "react";
-import { Box, Typography, ToggleButton, ToggleButtonGroup } from "@mui/material";
-import { alpha } from "@mui/material/styles";
-import BalanceCard from "../components/reward/BalanceCard";
-import FeaturedRewards from "../components/reward/FeaturedRewards";
-import RecentCashouts from "../components/reward/RecentCashouts";
-import MoreRewards from "../components/reward/MoreRewards";
-import type { RewardCardData } from "../components/reward/RewardCard";
+import { useState } from "react";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import RewardsHero from '../components/reward/RewardsHero';
+import RewardsBrowseZone from '../components/reward/RewardsBrowseZone';
+import RewardsActivityZone from '../components/reward/RewardsActivityZone';
+import ActivityHistoryPage from "../components/reward/ActivityHistoryPage";
+import RewardRedemptionModal from "../components/reward/RewardRedemptionModal";
+import type { RewardModalItem } from "../components/reward/RewardRedemptionModal";
 
-type TabValue = "all" | "benefits" | "giftcards";
+type View = "rewards" | "history";
 
-const RewardsPage: React.FC = () => {
-  const [tab, setTab] = useState<TabValue>("all");
+export default function RewardsPage() {
+  const [view, setView] = useState<View>("rewards");
+  const [userBalance, setUserBalance] = useState(2340);
+  const [selectedReward, setSelectedReward] = useState<RewardModalItem | null>(null);
 
-  const handleSelect = (reward: RewardCardData) => {
-    console.log("Redeemed:", reward);
-    // hook up to your API here
+  const handleRedeem = (reward: RewardModalItem) => {
+    setUserBalance((current) => Math.max(0, current - reward.cost));
   };
+
+  if (view === "history") {
+    return (
+      <ActivityHistoryPage
+        onBack={() => setView("rewards")}
+        userBalance={2340}
+      />
+    );
+  }
 
   return (
     <Box
       sx={{
-        display: 'flex',
-        gap: 3,
-        p: 3,
         bgcolor: 'background.default',
+        fontFamily: "'Montserrat', 'Roboto', sans-serif",
+        fontSize: 13,
+        color: 'text.primary',
+        display: 'flex',
+        flexDirection: 'column',
         minHeight: '100vh',
       }}
     >
-      {/* ── Left / Main column ── */}
       <Box
         sx={{
           flex: 1,
-          minWidth: 0,
+          overflowY: 'auto',
+          px: 2.5,
+          pt: 2,
+          pb: 3.5,
           display: 'flex',
           flexDirection: 'column',
-          gap: 3,
+          '&::-webkit-scrollbar': { width: '3px' },
+          '&::-webkit-scrollbar-thumb': {
+            bgcolor: 'divider',
+            borderRadius: '2px',
+          },
         }}
       >
-        {/* Page header + tabs */}
         <Box
           sx={{
             display: 'flex',
             alignItems: 'flex-start',
             justifyContent: 'space-between',
-            flexWrap: 'wrap',
             gap: 2,
+            mb: 3,
+            flexWrap: 'wrap',
           }}
         >
           <Box>
             <Typography
-              variant="h4"
-              fontWeight={700}
-              color="text.primary"
-              letterSpacing="-0.5px"
+              sx={{
+                fontFamily: 'Montserrat, sans-serif',
+                fontWeight: 700,
+                fontSize: 21.5,
+                color: (theme) =>
+                  theme.palette.mode === 'dark'
+                    ? theme.palette.text.primary
+                    : theme.palette.primary.main,
+                mb: 3,
+              }}
             >
-              Cashout Options
+              Rewards
             </Typography>
           </Box>
-
-          <ToggleButtonGroup
-            value={tab}
-            exclusive
-            onChange={(_, v) => v && setTab(v)}
-            sx={{
-              bgcolor: 'background.paper',
-              border: '1px solid',
-              borderColor: 'grey.200',
-              borderRadius: '12px',
-              p: '4px',
-              gap: '4px',
-              '& .MuiToggleButtonGroup-grouped': {
-                border: 'none !important',
-                borderRadius: '8px !important',
-              },
-              '& .MuiToggleButton-root': {
-                px: 2.5,
-                py: 0.75,
-                fontSize: '13px',
-                fontWeight: 600,
-                color: 'text.secondary',
-                textTransform: 'none',
-                '&.Mui-selected': {
-                  bgcolor: 'primary.main',
-                  color: '#fff',
-                  '&:hover': { bgcolor: 'primary.dark' },
-                },
-                '&:hover': { bgcolor: alpha('#5F0229', 0.06) },
-              },
-            }}
-          >
-            <ToggleButton value="all">All</ToggleButton>
-            <ToggleButton value="benefits">Benefits</ToggleButton>
-            <ToggleButton value="giftcards">Gift Cards</ToggleButton>
-          </ToggleButtonGroup>
         </Box>
 
-        {/* Balance banner */}
-        <BalanceCard
-          points={250}
-          pointsToNextTier={750}
-          tierMax={1000}
-          onViewBenefits={() => setTab('benefits')}
+        <RewardsHero
+          balance={userBalance}
+          earnedThisMonth={840}
+          redeemedTotal={1200}
+          teamRank={2}
         />
 
-        {/* Featured rewards */}
-        <FeaturedRewards onSelect={handleSelect} />
+        <RewardsBrowseZone onRedeem={setSelectedReward} />
 
-        {/* More rewards grid */}
-        <MoreRewards onSelect={handleSelect} />
+        <RewardsActivityZone onSeeAll={() => setView('history')} />
       </Box>
 
-      {/* ── Right column ── */}
-      <Box sx={{ width: 300, flexShrink: 0 }}>
-        <RecentCashouts
-          onViewAll={() => console.log('view all')}
-          onViewAllHistory={() => console.log('view all history')}
-        />
-      </Box>
+      <RewardRedemptionModal
+        open={Boolean(selectedReward)}
+        reward={selectedReward}
+        userBalance={userBalance}
+        onClose={() => setSelectedReward(null)}
+        onRedeem={handleRedeem}
+      />
     </Box>
   );
-};
-
-export default RewardsPage;
+}
