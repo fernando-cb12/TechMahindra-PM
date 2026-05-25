@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Box, Button, Stack, Typography } from '@mui/material';
-import { ROUTES } from '../app/routes';
+import { Box, Stack, Typography } from '@mui/material';
 import { SettingsAppearanceCard } from '../components/settings/SettingsAppearanceCard';
 import { SettingsNotificationsCard } from '../components/settings/SettingsNotificationsCard';
 import { SettingsProfileEditModal } from '../components/settings/SettingsProfileEditModal';
@@ -16,7 +14,6 @@ const defaultProfile: UserProfile = {
 };
 
 function Settings() {
-  const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile>(defaultProfile);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
@@ -95,27 +92,6 @@ function Settings() {
             }}
           >
             <SettingsNotificationsCard />
-            <Box sx={{ flexGrow: 1, minHeight: { lg: 24 } }} />
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <Button
-                variant="contained"
-                disableElevation
-                onClick={() => navigate(ROUTES.login)}
-                sx={{
-                  bgcolor: 'primary.main',
-                  borderRadius: '5px',
-                  minWidth: 129,
-                  minHeight: 30,
-                  fontFamily: 'Montserrat, sans-serif',
-                  fontWeight: 700,
-                  fontSize: 14,
-                  textTransform: 'none',
-                  '&:hover': { bgcolor: 'primary.dark' },
-                }}
-              >
-                Log Out
-              </Button>
-            </Box>
           </Stack>
         </Stack>
     </Box>

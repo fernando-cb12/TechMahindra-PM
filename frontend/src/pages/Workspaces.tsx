@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -30,6 +31,7 @@ import {
 import { hasMinimumRole, loadSession } from '../auth/auth';
 
 function Workspaces() {
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<WorkspaceProjectCardData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -197,6 +199,10 @@ function Workspaces() {
     setIsAIUploadOpen(false);
     setAISelectedFileName(null);
   };
+
+  const handleSelectWorkspace = useCallback((workspaceId: string) => {
+    navigate(`/workspaces/${workspaceId}`);
+  }, [navigate]);
 
   return (
     <Box
@@ -496,7 +502,13 @@ function Workspaces() {
           }}
         >
           {filteredProjects.length > 0 ? (
-            filteredProjects.map((project) => <WorkspaceProjectCard key={project.id} project={project} />)
+            filteredProjects.map((project) => (
+              <WorkspaceProjectCard
+                key={project.id}
+                project={project}
+                onSelect={handleSelectWorkspace}
+              />
+            ))
           ) : (
             <Typography
               sx={{
