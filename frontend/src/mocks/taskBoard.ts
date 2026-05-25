@@ -63,6 +63,8 @@ function makeUpdates(taskId: string, authorIds: string[]): TaskUpdate[] {
       ? 'Started working on this component. PR should be up by tomorrow.'
       : 'Review comments addressed. Ready for final QA.',
     createdAt: new Date(2026, 3, 10 + i * 2).toISOString(),
+    attachments: [],
+    mentions: [],
   }));
 }
 
@@ -82,48 +84,56 @@ const frontendTasks: Record<string, Task> = {
   f1: {
     id: 'f1', name: 'Establish Component Architecture', groupId: 'fg1', workspaceId: 'magenta_frontend',
     assigneeId: 'u1', status: 'done', priority: 'high', dueDate: '2026-05-02',
+    assigneeIds: ['u1'],
     progress: 100, budget: null, files: [], updates: makeUpdates('f1', ['u1']),
     createdAt: '2026-04-01T10:00:00Z', updatedAt: '2026-04-20T14:00:00Z',
   },
   f2: {
     id: 'f2', name: 'Implement React Router logic', groupId: 'fg1', workspaceId: 'magenta_frontend',
     assigneeId: 'u2', status: 'done', priority: 'critical', dueDate: '2026-05-04',
+    assigneeIds: ['u2'],
     progress: 100, budget: null, files: [], updates: [],
     createdAt: '2026-04-02T10:00:00Z', updatedAt: '2026-04-22T09:00:00Z',
   },
   f3: {
     id: 'f3', name: 'Setup global state management', groupId: 'fg1', workspaceId: 'magenta_frontend',
     assigneeId: 'u4', status: 'review', priority: 'medium', dueDate: '2026-05-06',
+    assigneeIds: ['u4'],
     progress: 90, budget: null, files: [], updates: makeUpdates('f3', ['u4', 'u1']),
     createdAt: '2026-04-03T10:00:00Z', updatedAt: '2026-04-03T10:00:00Z',
   },
   f4: {
     id: 'f4', name: 'Build Task Board main grid', groupId: 'fg2', workspaceId: 'magenta_frontend',
     assigneeId: 'u1', status: 'in_progress', priority: 'high', dueDate: '2026-05-10',
+    assigneeIds: ['u1'],
     progress: 60, budget: null, files: [], updates: makeUpdates('f4', ['u1', 'u3']),
     createdAt: '2026-04-05T10:00:00Z', updatedAt: '2026-04-21T16:00:00Z',
   },
   f5: {
     id: 'f5', name: 'Integrate DnD for columns', groupId: 'fg2', workspaceId: 'magenta_frontend',
     assigneeId: 'u1', status: 'in_progress', priority: 'medium', dueDate: '2026-05-12',
+    assigneeIds: ['u1'],
     progress: 40, budget: null, files: [], updates: [],
     createdAt: '2026-04-06T10:00:00Z', updatedAt: '2026-04-23T11:00:00Z',
   },
   f6: {
     id: 'f6', name: 'Create Recharts dashboard view', groupId: 'fg2', workspaceId: 'magenta_frontend',
     assigneeId: 'u4', status: 'todo', priority: 'low', dueDate: '2026-05-18',
+    assigneeIds: ['u4'],
     progress: 0, budget: null, files: [], updates: [],
     createdAt: '2026-04-07T10:00:00Z', updatedAt: '2026-04-18T13:00:00Z',
   },
   f7: {
     id: 'f7', name: 'Write Cypress E2E test suite', groupId: 'fg3', workspaceId: 'magenta_frontend',
     assigneeId: 'u2', status: 'blocked', priority: 'critical', dueDate: '2026-05-20',
+    assigneeIds: ['u2'],
     progress: 10, budget: null, files: [], updates: makeUpdates('f7', ['u2', 'u1']),
     createdAt: '2026-04-08T10:00:00Z', updatedAt: '2026-04-24T10:00:00Z',
   },
   f8: {
     id: 'f8', name: 'Audit accessibility (a11y)', groupId: 'fg3', workspaceId: 'magenta_frontend',
     assigneeId: 'u4', status: 'todo', priority: 'medium', dueDate: '2026-05-25',
+    assigneeIds: ['u4'],
     progress: 0, budget: null, files: [], updates: [],
     createdAt: '2026-04-09T10:00:00Z', updatedAt: '2026-04-09T10:00:00Z',
   },
@@ -152,42 +162,49 @@ const backendTasks: Record<string, Task> = {
   b1: {
     id: 'b1', name: 'Define PostgreSQL schema', groupId: 'bg1', workspaceId: 'magenta_backend',
     assigneeId: 'u3', status: 'done', priority: 'critical', dueDate: '2026-05-01',
+    assigneeIds: ['u3'],
     progress: 100, budget: 1200, files: [], updates: makeUpdates('b1', ['u3']),
     createdAt: '2026-04-01T10:00:00Z', updatedAt: '2026-04-19T15:00:00Z',
   },
   b2: {
     id: 'b2', name: 'Write Flyway database migrations', groupId: 'bg1', workspaceId: 'magenta_backend',
     assigneeId: 'u3', status: 'done', priority: 'high', dueDate: '2026-05-03',
+    assigneeIds: ['u3'],
     progress: 100, budget: 800, files: [], updates: [],
     createdAt: '2026-04-02T10:00:00Z', updatedAt: '2026-04-23T14:00:00Z',
   },
   b3: {
     id: 'b3', name: 'Implement JWT Auth flow', groupId: 'bg2', workspaceId: 'magenta_backend',
     assigneeId: 'u2', status: 'review', priority: 'critical', dueDate: '2026-05-05',
+    assigneeIds: ['u2'],
     progress: 95, budget: 2500, files: [], updates: makeUpdates('b3', ['u2', 'u3']),
     createdAt: '2026-04-04T10:00:00Z', updatedAt: '2026-04-04T10:00:00Z',
   },
   b4: {
     id: 'b4', name: 'REST endpoints for Tasks & Groups', groupId: 'bg2', workspaceId: 'magenta_backend',
     assigneeId: 'u3', status: 'in_progress', priority: 'high', dueDate: '2026-05-09',
+    assigneeIds: ['u3'],
     progress: 65, budget: 3000, files: [], updates: makeUpdates('b4', ['u3']),
     createdAt: '2026-04-05T10:00:00Z', updatedAt: '2026-04-22T11:00:00Z',
   },
   b5: {
     id: 'b5', name: 'WebSocket connection for live updates', groupId: 'bg2', workspaceId: 'magenta_backend',
     assigneeId: 'u2', status: 'todo', priority: 'medium', dueDate: '2026-05-15',
+    assigneeIds: ['u2'],
     progress: 0, budget: 4000, files: [], updates: [],
     createdAt: '2026-04-06T10:00:00Z', updatedAt: '2026-04-24T09:00:00Z',
   },
   b6: {
     id: 'b6', name: 'Setup Docker compose for local dev', groupId: 'bg3', workspaceId: 'magenta_backend',
     assigneeId: 'u1', status: 'done', priority: 'low', dueDate: '2026-05-02',
+    assigneeIds: ['u1'],
     progress: 100, budget: 500, files: [], updates: [],
     createdAt: '2026-04-07T10:00:00Z', updatedAt: '2026-04-20T10:00:00Z',
   },
   b7: {
     id: 'b7', name: 'Configure Github Actions CI/CD', groupId: 'bg3', workspaceId: 'magenta_backend',
     assigneeId: 'u4', status: 'in_progress', priority: 'high', dueDate: '2026-05-12',
+    assigneeIds: ['u4'],
     progress: 40, budget: 1500, files: [], updates: makeUpdates('b7', ['u4', 'u3']),
     createdAt: '2026-04-08T10:00:00Z', updatedAt: '2026-04-25T12:00:00Z',
   },
@@ -208,6 +225,12 @@ export interface WorkspaceMockData {
   tasks: Record<string, Task>;
 }
 
+export interface WorkspaceMockBoardSummary {
+  id: string;
+  name: string;
+  groups: TaskGroup[];
+}
+
 const MOCK_DATA: Record<string, WorkspaceMockData> = {
   magenta_frontend: { config: MAGENTA_FRONTEND_CONFIG, groups: frontendGroups, tasks: frontendTasks },
   magenta_backend: { config: MAGENTA_BACKEND_CONFIG, groups: backendGroups, tasks: backendTasks },
@@ -215,6 +238,17 @@ const MOCK_DATA: Record<string, WorkspaceMockData> = {
 
 export function getMockWorkspaceData(workspaceBoardId: string): WorkspaceMockData | null {
   return MOCK_DATA[workspaceBoardId] ?? null;
+}
+
+export function getMockWorkspaceBoards(workspaceId: string): WorkspaceMockBoardSummary[] {
+  const prefix = `${workspaceId}_`;
+  return Object.entries(MOCK_DATA)
+    .filter(([id]) => id.startsWith(prefix))
+    .map(([id, data]) => ({
+      id,
+      name: data.config.boardName ?? id.slice(prefix.length),
+      groups: data.groups,
+    }));
 }
 
 export function getMockUsers(): Record<string, User> {

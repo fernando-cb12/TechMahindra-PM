@@ -1,10 +1,11 @@
 // ─── TaskBoardPage — top level layout connecting everything ───
 
-import { Box, Typography, Button, Tabs, Tab } from '@mui/material';
+import { Box, Typography, Button, Tabs, Tab, IconButton, Popover } from '@mui/material';
 import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1';
 import TableChartIcon from '@mui/icons-material/TableChart';
 import InsertChartIcon from '@mui/icons-material/InsertChart';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import AddIcon from '@mui/icons-material/Add';
 import { useParams } from 'react-router-dom';
 
 import { TaskBoardProvider, useTaskBoard } from './TaskBoardContext';
@@ -13,10 +14,12 @@ import ChartView from './chart/ChartView';
 import CalendarView from './calendar/CalendarView';
 import TaskDetailPanel from './panel/TaskDetailPanel';
 import type { BoardView } from './types';
+import { useState } from 'react';
 
 // The actual content inside the provider
 function TaskBoardContent() {
   const { boardConfig, activeView, setActiveView } = useTaskBoard();
+  const [addViewAnchor, setAddViewAnchor] = useState<HTMLButtonElement | null>(null);
   
   // Format the board title (e.g., frontend -> Frontend Design)
   const boardTitle = boardConfig.boardName || 'Task Board';
@@ -43,34 +46,70 @@ function TaskBoardContent() {
           </Box>
         </Box>
 
-        <Tabs
-          value={activeView}
-          onChange={(_, val: BoardView) => setActiveView(val)}
-          sx={{ minHeight: 40 }}
-        >
-          <Tab 
-            icon={<TableChartIcon sx={{ fontSize: 18 }} />} 
-            iconPosition="start" 
-            label="Main Table" 
-            value="table" 
-            sx={{ textTransform: 'none', minHeight: 40, py: 0, fontWeight: 600 }} 
-          />
-          <Tab 
-            icon={<InsertChartIcon sx={{ fontSize: 18 }} />} 
-            iconPosition="start" 
-            label="Charts" 
-            value="chart" 
-            sx={{ textTransform: 'none', minHeight: 40, py: 0, fontWeight: 600 }} 
-          />
-          <Tab 
-            icon={<CalendarMonthIcon sx={{ fontSize: 18 }} />} 
-            iconPosition="start" 
-            label="Calendar" 
-            value="calendar" 
-            sx={{ textTransform: 'none', minHeight: 40, py: 0, fontWeight: 600 }} 
-          />
-        </Tabs>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Tabs
+            value={activeView}
+            onChange={(_, val: BoardView) => setActiveView(val)}
+            sx={{ minHeight: 40 }}
+          >
+            <Tab 
+              icon={<TableChartIcon sx={{ fontSize: 18 }} />} 
+              iconPosition="start" 
+              label="Main Table" 
+              value="table" 
+              sx={{ textTransform: 'none', minHeight: 40, py: 0, fontWeight: 600 }} 
+            />
+            <Tab 
+              icon={<InsertChartIcon sx={{ fontSize: 18 }} />} 
+              iconPosition="start" 
+              label="Charts" 
+              value="chart" 
+              sx={{ textTransform: 'none', minHeight: 40, py: 0, fontWeight: 600 }} 
+            />
+            <Tab 
+              icon={<CalendarMonthIcon sx={{ fontSize: 18 }} />} 
+              iconPosition="start" 
+              label="Calendar" 
+              value="calendar" 
+              sx={{ textTransform: 'none', minHeight: 40, py: 0, fontWeight: 600 }} 
+            />
+          </Tabs>
+
+          <IconButton
+            size="small"
+            onClick={(e) => setAddViewAnchor(e.currentTarget)}
+            sx={{
+              ml: 1,
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 1,
+              width: 32,
+              height: 32,
+              bgcolor: 'background.paper',
+            }}
+            title="Add New View"
+          >
+            <AddIcon fontSize="small" />
+          </IconButton>
+
+          <Popover
+            open={Boolean(addViewAnchor)}
+            anchorEl={addViewAnchor}
+            onClose={() => setAddViewAnchor(null)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+            slotProps={{ paper: { sx: { mt: 0.5, p: 2, borderRadius: 2, minWidth: 200 } } }}
+          >
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: 14 }}>
+              Add New View
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: 12, mt: 0.5 }}>
+              Custom view templates coming soon.
+            </Typography>
+          </Popover>
+        </Box>
       </Box>
+
 
       {/* Main Content Area */}
       <Box sx={{ flex: 1, overflowY: 'auto', px: activeView === 'table' ? 4 : 2, py: activeView === 'table' ? 0 : 2 }}>

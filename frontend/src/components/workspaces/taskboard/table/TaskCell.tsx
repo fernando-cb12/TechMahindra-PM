@@ -1,8 +1,9 @@
-// ─── TaskCell — generic cell renderer per ColumnType (Section 7.5) ───
+// ─── TaskCell — generic cell renderer per ColumnType (Section 5/7/8/6.2 of spec) ───
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Avatar,
+  AvatarGroup,
   Box,
   Chip,
   LinearProgress,
@@ -10,45 +11,132 @@ import {
   Popover,
   TextField,
   Typography,
+  Tooltip,
+  Checkbox,
+  Button,
+  Slider,
+  IconButton,
+  Divider,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import type { ColumnType, StatusOption, PriorityOption, User } from '../types';
+import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
+import CheckIcon from '@mui/icons-material/Check';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import type { ColumnDefinition, SelectOption } from '../types';
 import { useTaskBoard } from '../TaskBoardContext';
 
 interface TaskCellProps {
   taskId: string;
-  columnType: ColumnType;
-  value: string | number | null;
+  column: ColumnDefinition;
+  renameSignal?: number;
 }
 
-export default function TaskCell({ taskId, columnType, value }: TaskCellProps) {
-  const { boardConfig, users, updateTask } = useTaskBoard();
+const PRESET_COLORS = [
+  '#B3B3B3', // Gray
+  '#EAC24F', // Yellow
+  '#A3334D', // Burgundy
+  '#4CAF50', // Green
+  '#FB485B', // Red
+  '#2196F3', // Blue
+  '#9C27B0', // Purple
+  '#FF9800', // Orange
+];
+
+export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellProps) {
+  const {
+    boardConfig,
+    users,
+    tasks,
+    updateTask,
+    updateColumns,
+    updateStatusOptions,
+    updatePriorityOptions,
+  } = useTaskBoard();
+  const task = tasks[taskId];
+
   const [editing, setEditing] = useState(false);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const [draft, setDraft] = useState(String(value ?? ''));
-  const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Custom states for editors
+  const [assigneeSearch, setAssigneeSearch] = useState('');
+  
+  // Select Option states
+  const [isEditingOptions, setIsEditingOptions] = useState(false);
+  const [isCreatingOption, setIsCreatingOption] = useState(false);
+  const [newOptionLabel, setNewOptionLabel] = useState('');
+  const [newOptionColor, setNewOptionColor] = useState(PRESET_COLORS[0]);
+
+  // Color picker for a specific option
+  const [optionColorAnchor, setOptionColorAnchor] = useState<HTMLElement | null>(null);
+  const [activeColorOptionId, setActiveColorOptionId] = useState<string | null>(null);
+
+  // Extract cell value
+  const cellValue = useMemo(() => {
+    if (!task) return null;
+    if (column.id === 'col_name') return task.name;
+    if (column.id === 'col_assignee') return task.assigneeIds;
+    if (column.id === 'col_status') return task.status;
+    if (column.id === 'col_priority') return task.priority;
+    if (column.id === 'col_date') return task.dueDate;
+    if (column.id === 'col_progress') return task.progress;
+    if (column.id === 'col_budget') return task.budget;
+    
+    // Custom columns
+    return task.values?.[column.id] ?? null;
+  }, [task, column]);
+
+  const [draftText, setDraftText] = useState(String(cellValue ?? ''));
 
   useEffect(() => {
-    setDraft(String(value ?? ''));
-  }, [value]);
+    setDraftText(String(cellValue ?? ''));
+  }, [cellValue]);
 
   useEffect(() => {
-    if (editing && inputRef.current) inputRef.current.focus();
-  }, [editing]);
+    if (column.id === 'col_name' && renameSignal > 0) {
+      setEditing(true);
+    }
+  }, [column.id, renameSignal]);
 
-  const commit = (newValue: string | number | null) => {
-    const patchKey = columnTypeToPatchKey(columnType);
-    if (patchKey) {
-      updateTask(taskId, { [patchKey]: newValue });
+  if (!task) return null;
+
+  const commitValue = (val: any) => {
+    if (column.id === 'col_name') {
+      updateTask(taskId, { name: String(val) });
+    } else if (column.id === 'col_date') {
+      updateTask(taskId, { dueDate: val ? String(val) : null });
+    } else if (column.id === 'col_progress') {
+      updateTask(taskId, { progress: Math.min(100, Math.max(0, Number(val) || 0)) });
+    } else if (column.id === 'col_budget') {
+      updateTask(taskId, { budget: val != null && val !== '' ? Number(val) : null });
+    } else if (column.id === 'col_status') {
+      updateTask(taskId, { status: String(val) });
+    } else if (column.id === 'col_priority') {
+      updateTask(taskId, { priority: String(val) });
+    } else if (column.id === 'col_assignee' || column.type === 'person') {
+      const assigneeIds = Array.isArray(val) ? val.map(String) : [];
+      updateTask(taskId, {
+        assigneeIds,
+        assigneeId: assigneeIds[0] ?? null,
+      });
+    } else {
+      // Custom columns
+      const updatedValues = { ...(task.values || {}), [column.id]: val };
+      updateTask(taskId, { values: updatedValues });
     }
     setEditing(false);
     setAnchorEl(null);
   };
 
-  const handleClick = (e: React.MouseEvent<HTMLElement>) => {
-    if (columnType === 'files') return; // placeholder
-    if (['status', 'priority', 'assignee'].includes(columnType)) {
+  const handleCellClick = (e: React.MouseEvent<HTMLElement>) => {
+    if (['status', 'priority', 'assignee', 'singleSelect', 'multiSelect', 'progress'].includes(column.type) || 
+        ['col_status', 'col_priority', 'col_assignee', 'col_progress'].includes(column.id)) {
       setAnchorEl(e.currentTarget);
+      setIsEditingOptions(false);
+      setIsCreatingOption(false);
+      setAssigneeSearch('');
     } else {
       setEditing(true);
     }
@@ -56,218 +144,458 @@ export default function TaskCell({ taskId, columnType, value }: TaskCellProps) {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      if (columnType === 'progress') {
-        commit(Math.min(100, Math.max(0, Number(draft) || 0)));
-      } else if (columnType === 'budget') {
-        commit(Number(draft) || 0);
-      } else {
-        commit(draft);
-      }
+      commitValue(draftText);
     }
     if (e.key === 'Escape') {
       setEditing(false);
-      setDraft(String(value ?? ''));
+      setDraftText(String(cellValue ?? ''));
     }
   };
 
-  const handleBlur = () => {
-    if (editing) {
-      if (columnType === 'progress') {
-        commit(Math.min(100, Math.max(0, Number(draft) || 0)));
-      } else if (columnType === 'budget') {
-        commit(Number(draft) || 0);
-      } else {
-        commit(draft);
-      }
-    }
-  };
+  // ─── 1. ASSIGNEE CELL EDITOR (Section 5.1/5.2 of spec) ───
+  if (column.id === 'col_assignee' || column.type === 'person') {
+    const assignedIds = (cellValue as string[]) || [];
+    const assignedUsers = assignedIds.map((uid) => users[uid]).filter(Boolean);
+    const userList = Object.values(users);
+    
+    const filteredUsers = userList.filter((u) =>
+      u.name.toLowerCase().includes(assigneeSearch.toLowerCase())
+    );
 
-  // ── Render by type ──
-  switch (columnType) {
-    case 'text':
-      return editing ? (
-        <TextField
-          inputRef={inputRef}
-          size="small"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onBlur={handleBlur}
-          variant="standard"
-          sx={{ width: '100%', '& input': { fontSize: 13, py: 0.25 } }}
-        />
-      ) : (
-        <Typography
-          onClick={handleClick}
-          sx={{
-            fontSize: 13,
-            fontWeight: 500,
-            cursor: 'text',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            '&:hover': { bgcolor: (t) => alpha(t.palette.primary.main, 0.04) },
-            px: 0.5,
-            py: 0.25,
-            borderRadius: 0.5,
-          }}
-        >
-          {String(value ?? '')}
-        </Typography>
-      );
+    const toggleAssignee = (userId: string) => {
+      const nextIds = assignedIds.includes(userId)
+        ? assignedIds.filter((id) => id !== userId)
+        : [...assignedIds, userId];
+      commitValue(nextIds);
+    };
 
-    case 'status':
-      return (
-        <>
-          <StatusChip
-            options={boardConfig.statusOptions}
-            value={String(value ?? '')}
-            onClick={handleClick}
-          />
-          <DropdownPopover
-            anchorEl={anchorEl}
-            onClose={() => setAnchorEl(null)}
-            items={boardConfig.statusOptions}
-            onSelect={(id) => commit(id)}
-            renderItem={(opt: StatusOption) => (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: opt.color }} />
-                <Typography sx={{ fontSize: 13 }}>{opt.label}</Typography>
-              </Box>
-            )}
-          />
-        </>
-      );
+    // Tooltip names list
+    const tooltipTitle = assignedUsers.map((u) => u.name).join(', ') || 'Unassigned';
 
-    case 'priority':
-      return (
-        <>
-          <PriorityChip
-            options={boardConfig.priorityOptions}
-            value={String(value ?? '')}
-            onClick={handleClick}
-          />
-          <DropdownPopover
-            anchorEl={anchorEl}
-            onClose={() => setAnchorEl(null)}
-            items={boardConfig.priorityOptions}
-            onSelect={(id) => commit(id)}
-            renderItem={(opt: PriorityOption) => (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: opt.color }} />
-                <Typography sx={{ fontSize: 13 }}>{opt.label}</Typography>
-              </Box>
-            )}
-          />
-        </>
-      );
-
-    case 'assignee': {
-      const userList = Object.values(users);
-      const assigned = value ? users[String(value)] : null;
-      return (
-        <>
-          <Box
-            onClick={handleClick}
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 0.75,
-              cursor: 'pointer',
-              px: 0.5,
-              py: 0.25,
-              borderRadius: 0.5,
-              '&:hover': { bgcolor: (t) => alpha(t.palette.primary.main, 0.04) },
-            }}
-          >
-            {assigned ? (
-              <>
-                <Avatar sx={{ width: 22, height: 22, fontSize: 10, bgcolor: 'primary.main' }}>
-                  {assigned.initials}
-                </Avatar>
-                <Typography sx={{ fontSize: 13 }}>{assigned.name}</Typography>
-              </>
-            ) : (
-              <Typography sx={{ fontSize: 13, color: 'text.disabled' }}>—</Typography>
-            )}
-          </Box>
-          <DropdownPopover
-            anchorEl={anchorEl}
-            onClose={() => setAnchorEl(null)}
-            items={[{ id: '', name: 'Unassigned', initials: '—', avatarUrl: null } as User, ...userList]}
-            onSelect={(id) => commit(id || null)}
-            renderItem={(user: User) => (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Avatar sx={{ width: 20, height: 20, fontSize: 9, bgcolor: 'primary.main' }}>
-                  {user.initials}
-                </Avatar>
-                <Typography sx={{ fontSize: 13 }}>{user.name}</Typography>
-              </Box>
-            )}
-          />
-        </>
-      );
-    }
-
-    case 'date':
-      return editing ? (
-        <TextField
-          inputRef={inputRef}
-          type="date"
-          size="small"
-          value={draft}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            commit(e.target.value || null);
-          }}
-          onBlur={() => setEditing(false)}
-          variant="standard"
-          sx={{ width: '100%', '& input': { fontSize: 13, py: 0.25 } }}
-        />
-      ) : (
-        <Typography
-          onClick={handleClick}
-          sx={{
-            fontSize: 13,
-            cursor: 'pointer',
-            px: 0.5,
-            py: 0.25,
-            borderRadius: 0.5,
-            color: value ? 'text.primary' : 'text.disabled',
-            '&:hover': { bgcolor: (t) => alpha(t.palette.primary.main, 0.04) },
-          }}
-        >
-          {value ? formatDate(String(value)) : '—'}
-        </Typography>
-      );
-
-    case 'progress': {
-      const pVal = Number(value ?? 0);
-      return editing ? (
-        <TextField
-          inputRef={inputRef}
-          type="number"
-          size="small"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onBlur={handleBlur}
-          inputProps={{ min: 0, max: 100 }}
-          variant="standard"
-          sx={{ width: 60, '& input': { fontSize: 13, py: 0.25 } }}
-        />
-      ) : (
+    return (
+      <>
         <Box
-          onClick={handleClick}
+          onClick={handleCellClick}
           sx={{
             display: 'flex',
             alignItems: 'center',
             gap: 1,
             cursor: 'pointer',
+            minHeight: 30,
+            width: '100%',
             px: 0.5,
-            py: 0.25,
-            borderRadius: 0.5,
-            '&:hover': { bgcolor: (t) => alpha(t.palette.primary.main, 0.04) },
+            borderRadius: 1,
+            '&:hover': { bgcolor: 'action.hover' },
+          }}
+        >
+          {assignedUsers.length > 0 ? (
+            <Tooltip title={tooltipTitle} arrow>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                <AvatarGroup
+                  max={3}
+                  spacing="small"
+                  sx={{
+                    '& .MuiAvatar-root': {
+                      width: 24,
+                      height: 24,
+                      fontSize: 10,
+                      bgcolor: 'primary.main',
+                      border: '1.5px solid white',
+                    },
+                  }}
+                >
+                  {assignedUsers.map((u) => (
+                    <Avatar key={u.id}>{u.initials}</Avatar>
+                  ))}
+                </AvatarGroup>
+                
+                {/* If exactly 1 assignee, show full name */}
+                {assignedUsers.length === 1 && (
+                  <Typography sx={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {assignedUsers[0].name}
+                  </Typography>
+                )}
+              </Box>
+            </Tooltip>
+          ) : (
+            <Typography sx={{ fontSize: 13, color: 'text.disabled', fontStyle: 'italic' }}>—</Typography>
+          )}
+        </Box>
+
+        <Popover
+          open={Boolean(anchorEl)}
+          anchorEl={anchorEl}
+          onClose={() => setAnchorEl(null)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+          slotProps={{ paper: { sx: { mt: 0.5, width: 220, p: 1.5, borderRadius: 2, display: 'flex', flexDirection: 'column', gap: 1 } } }}
+        >
+          <TextField
+            size="small"
+            placeholder="Search members..."
+            value={assigneeSearch}
+            onChange={(e) => setAssigneeSearch(e.target.value)}
+            fullWidth
+            InputProps={{ sx: { fontSize: 12, borderRadius: 1.5 } }}
+            autoFocus
+          />
+          <Divider />
+          <Box sx={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+            {filteredUsers.length > 0 ? (
+              filteredUsers.map((user) => {
+                const isChecked = assignedIds.includes(user.id);
+                return (
+                  <Box
+                    key={user.id}
+                    onClick={() => toggleAssignee(user.id)}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      px: 1,
+                      py: 0.5,
+                      borderRadius: 1.5,
+                      cursor: 'pointer',
+                      '&:hover': { bgcolor: 'action.hover' },
+                    }}
+                  >
+                    <Checkbox checked={isChecked} size="small" sx={{ p: 0.5, mr: 0.5 }} />
+                    <Avatar sx={{ width: 22, height: 22, fontSize: 10, bgcolor: 'primary.light', mr: 1 }}>
+                      {user.initials}
+                    </Avatar>
+                    <Typography sx={{ fontSize: 12.5 }}>{user.name}</Typography>
+                  </Box>
+                );
+              })
+            ) : (
+              <Typography sx={{ fontSize: 12, color: 'text.disabled', py: 1, textAlign: 'center' }}>
+                No members found
+              </Typography>
+            )}
+          </Box>
+        </Popover>
+      </>
+    );
+  }
+
+  // ─── 2. SELECT CELLS EDITORS (Status, Priority, custom single/multiSelect) (Section 7.1/7.2 of spec) ───
+  const isStatus = column.id === 'col_status' || column.type === 'status';
+  const isPriority = column.id === 'col_priority' || column.type === 'priority';
+  const isSelect = isStatus || isPriority || column.type === 'singleSelect' || column.type === 'multiSelect';
+
+  if (isSelect) {
+    // Determine the options list
+    let options: SelectOption[] = [];
+    if (isStatus) options = boardConfig.statusOptions;
+    else if (isPriority) options = boardConfig.priorityOptions;
+    else options = column.options || [];
+
+    const activeOptionId = String(cellValue || '');
+    const activeOption = options.find((o) => o.id === activeOptionId);
+
+    // Save select options list globally
+    const saveOptions = (newOptions: SelectOption[]) => {
+      if (isStatus) {
+        updateStatusOptions(newOptions);
+      } else if (isPriority) {
+        updatePriorityOptions(newOptions);
+      } else {
+        const updatedCols = boardConfig.columns.map((c) =>
+          c.id === column.id ? { ...c, options: newOptions } : c
+        );
+        updateColumns(updatedCols);
+      }
+    };
+
+    // Option modifications
+    const handleAddOption = () => {
+      if (!newOptionLabel.trim()) return;
+      const optId = `opt_${Date.now()}`;
+      const newOpt: SelectOption = {
+        id: optId,
+        label: newOptionLabel,
+        color: newOptionColor,
+      };
+      saveOptions([...options, newOpt]);
+      setNewOptionLabel('');
+      setIsCreatingOption(false);
+    };
+
+    const handleUpdateOptionLabel = (optId: string, label: string) => {
+      const updated = options.map((o) => (o.id === optId ? { ...o, label } : o));
+      saveOptions(updated);
+    };
+
+    const handleUpdateOptionColor = (optId: string, color: string) => {
+      const updated = options.map((o) => (o.id === optId ? { ...o, color } : o));
+      saveOptions(updated);
+      setOptionColorAnchor(null);
+    };
+
+    const handleDeleteOption = (optId: string) => {
+      const updated = options.filter((o) => o.id !== optId);
+      saveOptions(updated);
+    };
+
+    return (
+      <>
+        {activeOption ? (
+          <Chip
+            label={activeOption.label}
+            size="small"
+            onClick={handleCellClick}
+            sx={{
+              height: 24,
+              borderRadius: '4px',
+              bgcolor: activeOption.color,
+              color: '#fff',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              '& .MuiChip-label': { px: 1 },
+              '&:hover': { opacity: 0.9 },
+            }}
+          />
+        ) : (
+          <Typography
+            onClick={handleCellClick}
+            sx={{
+              fontSize: 13,
+              color: 'text.disabled',
+              cursor: 'pointer',
+              minHeight: 24,
+              display: 'flex',
+              alignItems: 'center',
+              px: 0.5,
+              borderRadius: 1,
+              '&:hover': { bgcolor: 'action.hover' },
+            }}
+          >
+            —
+          </Typography>
+        )}
+
+        <Popover
+          open={Boolean(anchorEl)}
+          anchorEl={anchorEl}
+          onClose={() => setAnchorEl(null)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+          slotProps={{ paper: { sx: { mt: 0.5, width: 220, p: 1.5, borderRadius: 2, display: 'flex', flexDirection: 'column', gap: 1 } } }}
+        >
+          {isEditingOptions ? (
+            // OPTIONS EDITOR MODE
+            <>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                <IconButton size="small" onClick={() => setIsEditingOptions(false)}>
+                  <ArrowBackIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+                <Typography sx={{ fontSize: 13, fontWeight: 700 }}>Edit Options</Typography>
+              </Box>
+
+              <Divider />
+
+              <Box sx={{ maxHeight: 180, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {options.map((opt) => (
+                  <Box key={opt.id} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                    {/* Circle Color Button */}
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        setActiveColorOptionId(opt.id);
+                        setOptionColorAnchor(e.currentTarget);
+                      }}
+                      sx={{
+                        width: 14,
+                        height: 14,
+                        bgcolor: opt.color,
+                        p: 0,
+                        border: '1px solid rgba(0,0,0,0.1)',
+                        '&:hover': { bgcolor: opt.color },
+                      }}
+                    />
+
+                    {/* Option Text Input */}
+                    <input
+                      value={opt.label}
+                      onChange={(e) => handleUpdateOptionLabel(opt.id, e.target.value)}
+                      style={{
+                        flex: 1,
+                        fontSize: 12,
+                        border: 'none',
+                        outline: 'none',
+                        borderBottom: '1px solid transparent',
+                        padding: '2px',
+                      }}
+                      onFocus={(e) => (e.target.style.borderBottom = '1px solid gray')}
+                      onBlur={(e) => (e.target.style.borderBottom = '1px solid transparent')}
+                    />
+
+                    {/* Delete Option Icon */}
+                    <IconButton size="small" onClick={() => handleDeleteOption(opt.id)} sx={{ p: 0.25 }}>
+                      <DeleteIcon sx={{ fontSize: 15 }} />
+                    </IconButton>
+                  </Box>
+                ))}
+              </Box>
+
+              {/* Sub-Popover color picker */}
+              <Popover
+                open={Boolean(optionColorAnchor)}
+                anchorEl={optionColorAnchor}
+                onClose={() => setOptionColorAnchor(null)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'center' }}
+                slotProps={{ paper: { sx: { p: 1, mt: 0.5, borderRadius: 1.5 } } }}
+              >
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0.75 }}>
+                  {PRESET_COLORS.map((color) => (
+                    <IconButton
+                      key={color}
+                      size="small"
+                      onClick={() => activeColorOptionId && handleUpdateOptionColor(activeColorOptionId, color)}
+                      sx={{
+                        width: 20,
+                        height: 20,
+                        bgcolor: color,
+                        '&:hover': { bgcolor: color },
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Popover>
+            </>
+          ) : isCreatingOption ? (
+            // OPTION CREATION MODE
+            <>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                <IconButton size="small" onClick={() => setIsCreatingOption(false)}>
+                  <ArrowBackIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+                <Typography sx={{ fontSize: 13, fontWeight: 700 }}>New Option</Typography>
+              </Box>
+
+              <Divider />
+
+              <TextField
+                size="small"
+                label="Option Name"
+                value={newOptionLabel}
+                onChange={(e) => setNewOptionLabel(e.target.value)}
+                placeholder="e.g. In Review"
+                fullWidth
+                autoFocus
+                InputProps={{ sx: { fontSize: 12, borderRadius: 1.5 } }}
+                InputLabelProps={{ sx: { fontSize: 12 } }}
+              />
+
+              <Box sx={{ my: 1 }}>
+                <Typography sx={{ fontSize: 11, fontWeight: 700, color: 'text.secondary', mb: 0.5 }}>
+                  Color Accent
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+                  {PRESET_COLORS.map((color) => {
+                    const isSelected = newOptionColor === color;
+                    return (
+                      <IconButton
+                        key={color}
+                        size="small"
+                        onClick={() => setNewOptionColor(color)}
+                        sx={{
+                          width: 20,
+                          height: 20,
+                          bgcolor: color,
+                          border: isSelected ? '1.5px solid black' : 'none',
+                          '&:hover': { bgcolor: color },
+                        }}
+                      />
+                    );
+                  })}
+                </Box>
+              </Box>
+
+              <Button
+                size="small"
+                variant="contained"
+                onClick={handleAddOption}
+                disabled={!newOptionLabel.trim()}
+                sx={{ textTransform: 'none', borderRadius: 1.5, fontWeight: 600 }}
+              >
+                Add Option
+              </Button>
+            </>
+          ) : (
+            // SELECT OPTION PICKER MODE
+            <>
+              <Box sx={{ maxHeight: 180, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+                {options.map((opt) => (
+                  <MenuItem
+                    key={opt.id}
+                    onClick={() => commitValue(opt.id)}
+                    selected={opt.id === activeOptionId}
+                    sx={{
+                      py: 0.75,
+                      px: 1,
+                      borderRadius: 1.5,
+                      mb: 0.25,
+                      '&.Mui-selected': { bgcolor: alpha(opt.color, 0.15), '&:hover': { bgcolor: alpha(opt.color, 0.25) } },
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                      <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: opt.color }} />
+                      <Typography sx={{ fontSize: 12.5, fontWeight: 500 }}>{opt.label}</Typography>
+                    </Box>
+                  </MenuItem>
+                ))}
+              </Box>
+
+              <Divider />
+
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                <Button
+                  size="small"
+                  startIcon={<AddIcon />}
+                  onClick={() => setIsCreatingOption(true)}
+                  sx={{ textTransform: 'none', fontSize: 11.5, py: 0.25 }}
+                >
+                  New Option
+                </Button>
+                <Button
+                  size="small"
+                  startIcon={<EditIcon />}
+                  onClick={() => setIsEditingOptions(true)}
+                  sx={{ textTransform: 'none', fontSize: 11.5, py: 0.25, color: 'text.secondary' }}
+                >
+                  Edit
+                </Button>
+              </Box>
+            </>
+          )}
+        </Popover>
+      </>
+    );
+  }
+
+  // ─── 3. PROGRESS CELL EDITOR (Section 8.1 of spec) ───
+  if (column.id === 'col_progress' || column.type === 'percentage' || column.type === 'progress') {
+    const pVal = Number(cellValue ?? 0);
+    const progressColor = pVal === 100 ? 'success.main' : 'primary.main';
+
+    const QUICK_PROGRESS_BUTTONS = [0, 25, 50, 75, 100];
+
+    return (
+      <>
+        <Box
+          onClick={handleCellClick}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            cursor: 'pointer',
+            minHeight: 30,
+            width: '100%',
+            px: 0.5,
+            borderRadius: 1,
+            '&:hover': { bgcolor: 'action.hover' },
           }}
         >
           <LinearProgress
@@ -275,173 +603,245 @@ export default function TaskCell({ taskId, columnType, value }: TaskCellProps) {
             value={pVal}
             sx={{
               flex: 1,
-              height: 6,
+              height: 7,
               borderRadius: 3,
               bgcolor: 'grey.200',
               '& .MuiLinearProgress-bar': {
-                bgcolor: pVal === 100 ? 'success.main' : 'primary.main',
+                bgcolor: progressColor,
                 borderRadius: 3,
               },
             }}
           />
-          <Typography sx={{ fontSize: 12, minWidth: 30, textAlign: 'right' }}>
+          <Typography sx={{ fontSize: 12, fontWeight: 600, minWidth: 32, textAlign: 'right' }}>
             {pVal}%
           </Typography>
         </Box>
-      );
-    }
 
-    case 'budget':
-      return editing ? (
-        <TextField
-          inputRef={inputRef}
-          type="number"
-          size="small"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onBlur={handleBlur}
-          variant="standard"
-          sx={{ width: 80, '& input': { fontSize: 13, py: 0.25 } }}
-          slotProps={{ input: { startAdornment: <Typography sx={{ fontSize: 13, mr: 0.25 }}>$</Typography> } }}
-        />
-      ) : (
+        <Popover
+          open={Boolean(anchorEl)}
+          anchorEl={anchorEl}
+          onClose={() => setAnchorEl(null)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'center' }}
+          slotProps={{ paper: { sx: { mt: 0.5, p: 2, borderRadius: 2, width: 220, display: 'flex', flexDirection: 'column', gap: 2 } } }}
+        >
+          <Typography variant="subtitle2" sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase' }}>
+            Edit Progress Value
+          </Typography>
+
+          {/* Slider */}
+          <Box sx={{ px: 1 }}>
+            <Slider
+              value={pVal}
+              min={0}
+              max={100}
+              onChange={(_, val) => commitValue(val)}
+              sx={{ color: progressColor }}
+            />
+          </Box>
+
+          {/* Numeric text input */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <TextField
+              size="small"
+              type="number"
+              value={draftText}
+              onChange={(e) => setDraftText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onBlur={() => commitValue(draftText)}
+              slotProps={{ htmlInput: { min: 0, max: 100 } }}
+              InputProps={{
+                endAdornment: <Typography sx={{ fontSize: 13, ml: 0.5 }}>%</Typography>,
+                sx: { fontSize: 13, borderRadius: 1.5 }
+              }}
+              sx={{ width: 80 }}
+            />
+
+            <IconButton
+              size="small"
+              onClick={() => commitValue(draftText)}
+              sx={{ bgcolor: 'grey.100', border: '1px solid', borderColor: 'divider', borderRadius: 1.5 }}
+            >
+              <CheckIcon fontSize="small" />
+            </IconButton>
+          </Box>
+
+          <Divider />
+
+          {/* Quick values buttons */}
+          <Box sx={{ display: 'flex', gap: 0.5 }}>
+            {QUICK_PROGRESS_BUTTONS.map((pct) => (
+              <Button
+                key={pct}
+                size="small"
+                variant="outlined"
+                onClick={() => commitValue(pct)}
+                sx={{
+                  minWidth: 0,
+                  fontSize: 10,
+                  px: 0.75,
+                  py: 0.25,
+                  borderRadius: 1,
+                  textTransform: 'none',
+                  borderColor: 'divider',
+                  color: 'text.secondary',
+                  '&:hover': { borderColor: progressColor, color: progressColor },
+                }}
+              >
+                {pct}%
+              </Button>
+            ))}
+          </Box>
+        </Popover>
+      </>
+    );
+  }
+
+  // ─── 4. DATE CELL EDITOR ───
+  if (column.id === 'col_date' || column.type === 'date') {
+    const formatDate = (iso: string) => {
+      const d = new Date(iso + 'T00:00:00');
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    };
+
+    return editing ? (
+      <TextField
+        type="date"
+        size="small"
+        value={draftText}
+        onChange={(e) => {
+          setDraftText(e.target.value);
+          commitValue(e.target.value || null);
+        }}
+        onBlur={() => setEditing(false)}
+        variant="standard"
+        autoFocus
+        sx={{ width: '100%', '& input': { fontSize: 13, py: 0.25 } }}
+      />
+    ) : (
+      <Box
+        onClick={handleCellClick}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          cursor: 'pointer',
+          minHeight: 30,
+          px: 0.5,
+          borderRadius: 1,
+          '&:hover': { bgcolor: 'action.hover' },
+        }}
+      >
+        <CalendarMonthIcon sx={{ fontSize: 16, color: cellValue ? 'primary.main' : 'text.disabled' }} />
         <Typography
-          onClick={handleClick}
           sx={{
             fontSize: 13,
-            cursor: 'pointer',
-            px: 0.5,
-            py: 0.25,
-            borderRadius: 0.5,
-            color: value != null ? 'text.primary' : 'text.disabled',
-            '&:hover': { bgcolor: (t) => alpha(t.palette.primary.main, 0.04) },
+            color: cellValue ? 'text.primary' : 'text.disabled',
           }}
         >
-          {value != null ? `$${Number(value).toLocaleString()}` : '—'}
+          {cellValue ? formatDate(String(cellValue)) : '—'}
         </Typography>
-      );
-
-    case 'files':
-      return (
-        <Typography
-          sx={{
-            fontSize: 12,
-            color: 'text.disabled',
-            fontStyle: 'italic',
-            px: 0.5,
-            py: 0.25,
-          }}
-        >
-          Coming soon
-        </Typography>
-      );
-
-    default:
-      return null;
+      </Box>
+    );
   }
-}
 
-// ─── Helpers ───
-
-function columnTypeToPatchKey(type: ColumnType): string | null {
-  switch (type) {
-    case 'text': return 'name';
-    case 'assignee': return 'assigneeId';
-    case 'status': return 'status';
-    case 'priority': return 'priority';
-    case 'date': return 'dueDate';
-    case 'progress': return 'progress';
-    case 'budget': return 'budget';
-    default: return null;
+  // ─── 5. BUDGET / COST / NUMERIC CELL EDITOR ───
+  if (column.id === 'col_budget' || column.type === 'currency' || column.type === 'number') {
+    const isCurrency = column.type === 'currency' || column.id === 'col_budget';
+    return editing ? (
+      <TextField
+        type="number"
+        size="small"
+        value={draftText}
+        onChange={(e) => setDraftText(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onBlur={() => commitValue(draftText)}
+        variant="standard"
+        autoFocus
+        sx={{ width: '100%', '& input': { fontSize: 13, py: 0.25 } }}
+        InputProps={{
+          startAdornment: isCurrency ? <Typography sx={{ fontSize: 13, mr: 0.25 }}>$</Typography> : null
+        }}
+      />
+    ) : (
+      <Typography
+        onClick={handleCellClick}
+        sx={{
+          fontSize: 13,
+          cursor: 'text',
+          px: 0.5,
+          py: 0.25,
+          borderRadius: 0.5,
+          minHeight: 24,
+          display: 'flex',
+          alignItems: 'center',
+          color: cellValue != null ? 'text.primary' : 'text.disabled',
+          '&:hover': { bgcolor: 'action.hover' },
+        }}
+      >
+        {cellValue != null ? (isCurrency ? `$${Number(cellValue).toLocaleString()}` : Number(cellValue).toLocaleString()) : '—'}
+      </Typography>
+    );
   }
-}
 
-function formatDate(iso: string): string {
-  const d = new Date(iso + 'T00:00:00');
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
+  // ─── 6. FILES CELL COMPENDIUM TRIGGER ───
+  if (column.type === 'files' || column.type === 'file') {
+    const count = task.files?.length || 0;
+    return (
+      <Typography
+        sx={{
+          fontSize: 12.5,
+          fontWeight: 600,
+          color: count > 0 ? 'primary.main' : 'text.disabled',
+          px: 0.5,
+          py: 0.25,
+          cursor: 'default',
+        }}
+      >
+        {count > 0 ? `${count} File${count > 1 ? 's' : ''}` : '—'}
+      </Typography>
+    );
+  }
 
-// ─── Sub-components ───
-
-function StatusChip({ options, value, onClick }: {
-  options: StatusOption[];
-  value: string;
-  onClick: (e: React.MouseEvent<HTMLElement>) => void;
-}) {
-  const opt = options.find((o) => o.id === value);
-  return (
-    <Chip
-      label={opt?.label ?? value}
+  // ─── DEFAULT TEXT CELLS ───
+  return editing ? (
+    <TextField
       size="small"
-      onClick={onClick}
-      sx={{
-        height: 24,
-        borderRadius: '4px',
-        bgcolor: opt?.color ?? '#B3B3B3',
-        color: '#fff',
-        fontSize: 12,
-        fontWeight: 600,
-        cursor: 'pointer',
-        '& .MuiChip-label': { px: 1 },
-      }}
+      value={draftText}
+      onChange={(e) => setDraftText(e.target.value)}
+      onKeyDown={handleKeyDown}
+      onBlur={() => commitValue(draftText)}
+      variant="standard"
+      autoFocus
+      onClick={(e) => e.stopPropagation()}
+      sx={{ width: '100%', '& input': { fontSize: 13, py: 0.25 } }}
     />
-  );
-}
-
-function PriorityChip({ options, value, onClick }: {
-  options: PriorityOption[];
-  value: string;
-  onClick: (e: React.MouseEvent<HTMLElement>) => void;
-}) {
-  const opt = options.find((o) => o.id === value);
-  return (
-    <Chip
-      label={opt?.label ?? value}
-      size="small"
-      onClick={onClick}
-      sx={{
-        height: 24,
-        borderRadius: '4px',
-        bgcolor: opt?.color ?? '#B3B3B3',
-        color: '#fff',
-        fontSize: 12,
-        fontWeight: 600,
-        cursor: 'pointer',
-        '& .MuiChip-label': { px: 1 },
+  ) : (
+    <Typography
+      data-task-name-cell={column.id === 'col_name' ? 'true' : undefined}
+      onClick={(e) => {
+        if (column.id === 'col_name') {
+          e.stopPropagation();
+        }
+        handleCellClick(e);
       }}
-    />
-  );
-}
-
-function DropdownPopover<T extends { id: string }>({ anchorEl, onClose, items, onSelect, renderItem }: {
-  anchorEl: HTMLElement | null;
-  onClose: () => void;
-  items: T[];
-  onSelect: (id: string) => void;
-  renderItem: (item: T) => React.ReactNode;
-}) {
-  return (
-    <Popover
-      open={Boolean(anchorEl)}
-      anchorEl={anchorEl}
-      onClose={onClose}
-      anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-      transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-      slotProps={{ paper: { sx: { mt: 0.5, minWidth: 160, py: 0.5 } } }}
+      sx={{
+        fontSize: 13,
+        fontWeight: column.id === 'col_name' ? 600 : 500,
+        cursor: 'text',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        minHeight: 24,
+        display: 'flex',
+        alignItems: 'center',
+        '&:hover': { bgcolor: 'action.hover' },
+        px: 0.5,
+        py: 0.25,
+        borderRadius: 0.5,
+      }}
     >
-      {items.map((item) => (
-        <MenuItem
-          key={item.id}
-          onClick={() => {
-            onSelect(item.id);
-            onClose();
-          }}
-          sx={{ py: 0.75, px: 1.5 }}
-        >
-          {renderItem(item)}
-        </MenuItem>
-      ))}
-    </Popover>
+      {String(cellValue ?? '')}
+    </Typography>
   );
 }
