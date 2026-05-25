@@ -16,6 +16,8 @@ import {
   Chip,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
+import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
 import loginBg from '../../assets/loginbg.png';
 import type { AssignableUser, CreateWorkspaceProjectPayload } from '../../services/workspacesService';
 
@@ -33,7 +35,27 @@ type FormData = {
   memberUserIds: number[];
   dueDate: string;
   budgetLabel: string;
-  imageUrl: string;
+  bannerFile: File | null;
+};
+
+const formatDateInput = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const tomorrowDate = (): string => {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  return formatDateInput(date);
+};
+
+const isFutureDate = (value: string): boolean => {
+  const selected = new Date(`${value}T00:00:00`);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return selected > today;
 };
 
 function CreateWorkspaceModal({ open, onClose, onSave, assignableUsers, aiImportFileName }: CreateWorkspaceModalProps) {
@@ -43,9 +65,10 @@ function CreateWorkspaceModal({ open, onClose, onSave, assignableUsers, aiImport
     memberUserIds: [],
     dueDate: '',
     budgetLabel: '',
-    imageUrl: '',
+    bannerFile: null,
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [isDraggingBanner, setIsDraggingBanner] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -56,9 +79,10 @@ function CreateWorkspaceModal({ open, onClose, onSave, assignableUsers, aiImport
         memberUserIds: [],
         dueDate: '',
         budgetLabel: '',
-        imageUrl: '',
+        bannerFile: null,
       });
       setErrors({});
+      setIsDraggingBanner(false);
     }
   }, [open]);
 
@@ -78,8 +102,17 @@ function CreateWorkspaceModal({ open, onClose, onSave, assignableUsers, aiImport
     if (!values.title.trim()) newErrors.title = 'Project name is required';
     if (!values.description.trim()) newErrors.description = 'Description is required';
     if (values.memberUserIds.length === 0) newErrors.memberUserIds = 'At least one member is required';
+    if (values.dueDate && !isFutureDate(values.dueDate)) newErrors.dueDate = 'Due date must be in the future';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleBannerFileChange = (file: File | null) => {
+    if (file && !file.type.startsWith('image/')) {
+      setErrors((prev) => ({ ...prev, bannerFile: 'Banner file must be an image' }));
+      return;
+    }
+    handleFieldChange('bannerFile', file);
   };
 
   const handleSave = async () => {
@@ -94,7 +127,8 @@ function CreateWorkspaceModal({ open, onClose, onSave, assignableUsers, aiImport
         memberUserIds: values.memberUserIds,
         dueDate: values.dueDate || 'No date',
         budgetLabel: values.budgetLabel || '0k',
-        imageUrl: values.imageUrl || loginBg,
+        imageUrl: values.bannerFile ? undefined : loginBg,
+        bannerFile: values.bannerFile,
         status: 'planning',
       });
     } finally {
@@ -258,15 +292,14 @@ function CreateWorkspaceModal({ open, onClose, onSave, assignableUsers, aiImport
             <TextField
               fullWidth
               label="Due Date"
-              type="text"
-              placeholder="MM/DD/YYYY"
+              type="date"
               value={values.dueDate}
               onChange={(e) => handleFieldChange('dueDate', e.target.value)}
+              error={!!errors.dueDate}
+              helperText={errors.dueDate}
               InputLabelProps={{ shrink: true, sx: { fontFamily: 'Montserrat, sans-serif' } }}
               inputProps={{
-                inputMode: 'numeric',
-                pattern: '\\d{2}/\\d{2}/\\d{4}',
-                placeholder: 'MM/DD/YYYY',
+                min: tomorrowDate(),
                 sx: { fontFamily: 'Montserrat, sans-serif' },
               }}
             />
@@ -281,15 +314,125 @@ function CreateWorkspaceModal({ open, onClose, onSave, assignableUsers, aiImport
               inputProps={{ sx: { fontFamily: 'Montserrat, sans-serif' } }}
             />
 
-            <TextField
-              fullWidth
-              label="Banner Image URL"
-              placeholder="https://example.com/image.jpg"
-              value={values.imageUrl}
-              onChange={(e) => handleFieldChange('imageUrl', e.target.value)}
-              InputLabelProps={{ sx: { fontFamily: 'Montserrat, sans-serif' } }}
-              inputProps={{ sx: { fontFamily: 'Montserrat, sans-serif' } }}
-            />
+            <Box>
+              <Typography
+                sx={{
+                  fontFamily: 'Montserrat, sans-serif',
+                  fontSize: 14,
+                  fontWeight: 500,
+                  mb: 1,
+                  color: 'text.primary',
+                }}
+              >
+                Banner Image
+              </Typography>
+              <Box
+                component="label"
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.5,
+                  width: '100%',
+                  minHeight: 84,
+                  px: 2,
+                  py: 1.5,
+                  border: '1.5px dashed',
+                  borderColor: isDraggingBanner || values.bannerFile ? 'primary.main' : 'divider',
+                  borderRadius: 1,
+                  bgcolor: isDraggingBanner || values.bannerFile ? 'rgba(95, 2, 41, 0.04)' : 'background.paper',
+                  cursor: 'pointer',
+                  transition: 'border-color 160ms ease, background-color 160ms ease',
+                  '&:hover': {
+                    borderColor: 'primary.main',
+                    bgcolor: 'rgba(95, 2, 41, 0.04)',
+                  },
+                }}
+                onDragEnter={(event) => {
+                  event.preventDefault();
+                  setIsDraggingBanner(true);
+                }}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setIsDraggingBanner(true);
+                }}
+                onDragLeave={(event) => {
+                  event.preventDefault();
+                  setIsDraggingBanner(false);
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  setIsDraggingBanner(false);
+                  handleBannerFileChange(event.dataTransfer.files?.[0] ?? null);
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 1,
+                    display: 'grid',
+                    placeItems: 'center',
+                    bgcolor: 'action.hover',
+                    color: 'primary.main',
+                    flex: '0 0 auto',
+                  }}
+                >
+                  {values.bannerFile ? <ImageOutlinedIcon /> : <UploadFileOutlinedIcon />}
+                </Box>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Typography
+                    sx={{
+                      fontFamily: 'Montserrat, sans-serif',
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: 'text.primary',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {values.bannerFile
+                      ? values.bannerFile.name
+                      : isDraggingBanner
+                      ? 'Drop image here'
+                      : 'Choose or drag a banner image'}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      mt: 0.25,
+                      color: 'text.secondary',
+                      fontFamily: 'Montserrat, sans-serif',
+                      fontSize: 12,
+                    }}
+                  >
+                    PNG, JPG, GIF, or WebP
+                  </Typography>
+                </Box>
+                <Button
+                  variant="outlined"
+                  component="span"
+                  sx={{
+                    textTransform: 'none',
+                    fontFamily: 'Montserrat, sans-serif',
+                    fontWeight: 700,
+                    flex: '0 0 auto',
+                  }}
+                >
+                  Browse
+                </Button>
+                <input
+                  type="file"
+                  hidden
+                  accept="image/*"
+                  onChange={(event) => handleBannerFileChange(event.target.files?.[0] ?? null)}
+                />
+              </Box>
+              {errors.bannerFile && (
+                <Typography sx={{ color: 'error.main', fontSize: 12, fontFamily: 'Montserrat, sans-serif', mt: 0.5 }}>
+                  {errors.bannerFile}
+                </Typography>
+              )}
+            </Box>
           </Stack>
         </Box>
       </DialogContent>
