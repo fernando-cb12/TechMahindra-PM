@@ -1,7 +1,6 @@
 package com.mahindra.backend.entity;
 
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -21,15 +20,19 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "project")
+@Table(name = "boards")
 @Getter
 @Setter
 @NoArgsConstructor
-public class Project {
+public class Board {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "workspace_id", nullable = false)
+    private Workspace workspace;
 
     @Column(nullable = false)
     private String name;
@@ -38,33 +41,11 @@ public class Project {
     private String description;
 
     @Column(nullable = false, length = 20)
-    private String status;
-
-    @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by", nullable = false)
-    private User createdBy;
-
-    @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    @JoinColumn(name = "workspace_id", nullable = false)
-    private Workspace workspace;
+    private String color = "#5F0229";
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
-    @Column(name = "banner_image_url", length = 500)
-    private String bannerImageUrl;
-
-    @Column(name = "budget_label", length = 50)
-    private String budgetLabel;
-
-    @Column(name = "card_due_date")
-    private LocalDate cardDueDate;
-
-    @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private Set<ProjectMember> members = new HashSet<>();
-
-    public void addMember(ProjectMember member) {
-        members.add(member);
-        member.setProject(this);
-    }
+    @OneToMany(mappedBy = "board", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private Set<Task> tasks = new HashSet<>();
 }

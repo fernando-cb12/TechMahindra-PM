@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Box, CircularProgress, Alert, Button, useTheme } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import type { WorkspaceProjectCardData } from '../components/workspaces/WorkspaceProjectCard';
-import { getWorkspaceProjects } from '../services/workspacesService';
+import { getWorkspace } from '../services/workspacesService';
 import WorkspaceHeader from '../components/workspaces/detail/WorkspaceHeader';
 import WorkspaceStats from '../components/workspaces/detail/WorkspaceStats';
 import WorkspaceIssuesSection from '../components/workspaces/detail/WorkspaceIssuesSection';
@@ -28,13 +28,8 @@ function WorkspaceDetail() {
       }
 
       try {
-        const projects = await getWorkspaceProjects();
-        const found = projects.find((p) => p.id === workspaceId);
-        if (!found) {
-          setError('Workspace not found');
-        } else {
-          setWorkspace(found);
-        }
+        const found = await getWorkspace(workspaceId);
+        setWorkspace(found);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load workspace');
       } finally {
@@ -132,7 +127,7 @@ function WorkspaceDetail() {
       >
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           <WorkspaceIssuesSection workspace={workspace} />
-          <WorkspaceBoardsSection />
+          <WorkspaceBoardsSection workspaceId={workspace.id} />
         </Box>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           <WorkspaceMetricsSection />

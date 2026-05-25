@@ -1,38 +1,38 @@
-import { Box, Paper, Typography, Button, useTheme, alpha } from '@mui/material';
+import { useEffect, useState } from 'react';
+import { Alert, Box, CircularProgress, Paper, Typography, Button, useTheme, alpha } from '@mui/material';
 import FolderIcon from '@mui/icons-material/Folder';
 import AddIcon from '@mui/icons-material/Add';
+import { getWorkspaceBoards, type WorkspaceBoard } from '../../../services/workspacesService';
 
-interface Board {
-  id: string;
-  name: string;
-  description: string;
-  color: string;
+interface WorkspaceBoardsSectionProps {
+  workspaceId: string;
 }
 
-function WorkspaceBoardsSection(): React.ReactNode {
+function WorkspaceBoardsSection({ workspaceId }: WorkspaceBoardsSectionProps): React.ReactNode {
   const theme = useTheme();
+  const [boards, setBoards] = useState<WorkspaceBoard[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data - replace with actual API call
-  const boards: Board[] = [
-    {
-      id: 'board-1',
-      name: 'Frontend Design',
-      description: 'UI/UX and frontend implementation',
-      color: '#FF6B6B',
-    },
-    {
-      id: 'board-2',
-      name: 'Backend Design',
-      description: 'API and database architecture',
-      color: '#4ECDC4',
-    },
-    {
-      id: 'board-3',
-      name: 'Requirements',
-      description: 'Project requirements and specifications',
-      color: '#FFE66D',
-    },
-  ];
+  useEffect(() => {
+    let cancelled = false;
+    const loadBoards = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const data = await getWorkspaceBoards(workspaceId);
+        if (!cancelled) setBoards(data);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load boards');
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+    void loadBoards();
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId]);
 
   return (
     <Paper
@@ -95,7 +95,17 @@ function WorkspaceBoardsSection(): React.ReactNode {
           },
         }}
       >
-        {boards.map((board) => (
+        {isLoading ? (
+          <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <CircularProgress size={24} sx={{ color: 'primary.main' }} />
+          </Box>
+        ) : error ? (
+          <Alert severity="error">{error}</Alert>
+        ) : boards.length === 0 ? (
+          <Typography sx={{ color: 'text.secondary', fontSize: 13, py: 2 }}>
+            No boards yet
+          </Typography>
+        ) : boards.map((board) => (
           <Box
             key={board.id}
             sx={{

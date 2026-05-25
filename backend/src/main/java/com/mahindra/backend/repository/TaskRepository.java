@@ -12,12 +12,12 @@ import com.mahindra.backend.entity.Task;
 public interface TaskRepository extends JpaRepository<Task, Long> {
 
     @Query("""
-            select t.project.id,
+            select t.board.workspace.id,
                    sum(case when t.status = 'done' then 1 else 0 end),
                    count(t)
             from Task t
-            where t.project.id in :ids
-            group by t.project.id
+            where t.board.workspace.id in :ids
+            group by t.board.workspace.id
             """)
-    List<Object[]> countDoneAndTotalByProjectIds(@Param("ids") Collection<Long> ids);
+    List<Object[]> countDoneAndTotalByWorkspaceIds(@Param("ids") Collection<Long> ids);
 }
