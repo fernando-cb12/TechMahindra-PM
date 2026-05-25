@@ -8,6 +8,7 @@ export const ROUTES = {
   metrics: '/metrics',
   settings: '/settings',
   career: '/career',
+  rewards: '/rewards',
 } as const;
 
 export type RoutePath = (typeof ROUTES)[keyof typeof ROUTES];
@@ -20,6 +21,7 @@ export const NAV_ITEM_TO_PATH: Record<string, RoutePath> = {
   metrics: ROUTES.metrics,
   settings: ROUTES.settings,
   career: '/career',
+  rewards: '/rewards',
 };
 
 export function pathToActiveNavItem(pathname: string): string {
