@@ -36,7 +36,7 @@ function WorkspaceMetricsSection(): React.ReactNode {
       elevation={0}
       sx={{
         bgcolor: 'background.paper',
-        borderRadius: 2,
+        borderRadius: '5px',
         p: 3,
         minHeight: 340,
         maxHeight: 460,

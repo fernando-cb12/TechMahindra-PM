@@ -1,5 +1,6 @@
 import { Box, Paper, Typography, Chip, Avatar, Button, useTheme, alpha } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import { useNavigate } from 'react-router-dom';
 import type { WorkspaceProjectCardData } from '../WorkspaceProjectCard';
 
 interface WorkspaceIssuesSectionProps {
@@ -17,6 +18,7 @@ interface Issue {
 
 function WorkspaceIssuesSection({ workspace }: WorkspaceIssuesSectionProps) {
   const theme = useTheme();
+  const navigate = useNavigate();
 
   // Mock data - replace with actual API call
   const issues: Issue[] = [
@@ -105,7 +107,7 @@ function WorkspaceIssuesSection({ workspace }: WorkspaceIssuesSectionProps) {
       elevation={0}
       sx={{
         bgcolor: 'background.paper',
-        borderRadius: 2,
+        borderRadius: '5px',
         p: 3,
         minHeight: 340,
         maxHeight: 460,
@@ -115,18 +117,27 @@ function WorkspaceIssuesSection({ workspace }: WorkspaceIssuesSectionProps) {
       }}
     >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography
-          variant="h6"
+        <Button
+          onClick={() =>
+            navigate(
+              `/issues?workspaceId=${encodeURIComponent(workspace.id)}&project=${encodeURIComponent(
+                workspace.title,
+              )}`,
+            )
+          }
           sx={{
+            textTransform: 'none',
+            p: 0,
+            minWidth: 0,
             fontWeight: 700,
-            color: (theme) =>
-              theme.palette.mode === 'dark'
-                ? theme.palette.text.primary
-                : theme.palette.primary.main,
+            fontSize: 20,
+            color: (t) => (t.palette.mode === 'dark' ? t.palette.text.primary : t.palette.primary.main),
+            '&:hover': { bgcolor: 'transparent' },
+            justifyContent: 'flex-start',
           }}
         >
           Issues
-        </Typography>
+        </Button>
         <Typography sx={{ fontSize: 13, color: 'text.secondary', fontWeight: 600 }}>
           + Create Issue
         </Typography>
@@ -146,7 +157,7 @@ function WorkspaceIssuesSection({ workspace }: WorkspaceIssuesSectionProps) {
             backgroundColor: theme.palette.mode === 'dark' ? alpha(theme.palette.common.white, 0.06) : alpha(theme.palette.grey[300], 0.35),
           },
           '&::-webkit-scrollbar-thumb': {
-            borderRadius: 8,
+            borderRadius: '5px',
             backgroundColor: theme.palette.mode === 'dark' ? alpha(theme.palette.grey[600], 0.75) : alpha(theme.palette.grey[500], 0.75),
           },
         }}
@@ -168,7 +179,7 @@ function WorkspaceIssuesSection({ workspace }: WorkspaceIssuesSectionProps) {
                 alignItems: 'flex-start',
                 gap: 1.5,
                 p: 1.5,
-                borderRadius: 1,
+                borderRadius: '5px',
                 bgcolor: alpha(theme.palette.primary.main, 0.03),
                 border: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
                 transition: 'all 0.2s ease',
@@ -235,6 +246,7 @@ function WorkspaceIssuesSection({ workspace }: WorkspaceIssuesSectionProps) {
                     label={issue.id}
                     sx={{
                       height: 20,
+                      borderRadius: '5px',
                       fontSize: 11,
                       fontWeight: 600,
                       bgcolor: alpha(theme.palette.primary.main, 0.1),
@@ -246,6 +258,7 @@ function WorkspaceIssuesSection({ workspace }: WorkspaceIssuesSectionProps) {
                     label={priority.label}
                     sx={{
                       height: 20,
+                      borderRadius: '5px',
                       fontSize: 11,
                       fontWeight: 600,
                       bgcolor: priority.bg,
@@ -257,6 +270,7 @@ function WorkspaceIssuesSection({ workspace }: WorkspaceIssuesSectionProps) {
                     label={status.label}
                     sx={{
                       height: 20,
+                      borderRadius: '5px',
                       fontSize: 11,
                       fontWeight: 600,
                       bgcolor: status.bg,

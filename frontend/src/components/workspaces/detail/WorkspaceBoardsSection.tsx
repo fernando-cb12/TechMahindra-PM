@@ -39,7 +39,7 @@ function WorkspaceBoardsSection({ workspaceId }: WorkspaceBoardsSectionProps): R
       elevation={0}
       sx={{
         bgcolor: 'background.paper',
-        borderRadius: 2,
+        borderRadius: '5px',
         p: 3,
         minHeight: 340,
         maxHeight: 460,
@@ -90,7 +90,7 @@ function WorkspaceBoardsSection({ workspaceId }: WorkspaceBoardsSectionProps): R
             backgroundColor: theme.palette.mode === 'dark' ? alpha(theme.palette.common.white, 0.06) : alpha(theme.palette.grey[300], 0.35),
           },
           '&::-webkit-scrollbar-thumb': {
-            borderRadius: 8,
+            borderRadius: '5px',
             backgroundColor: theme.palette.mode === 'dark' ? alpha(theme.palette.grey[600], 0.75) : alpha(theme.palette.grey[500], 0.75),
           },
         }}
@@ -113,7 +113,7 @@ function WorkspaceBoardsSection({ workspaceId }: WorkspaceBoardsSectionProps): R
               alignItems: 'center',
               gap: 2,
               p: 1.5,
-              borderRadius: 1,
+              borderRadius: '5px',
               bgcolor: alpha(theme.palette.primary.main, 0.03),
               border: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
               transition: 'all 0.2s ease',
@@ -131,7 +131,7 @@ function WorkspaceBoardsSection({ workspaceId }: WorkspaceBoardsSectionProps): R
                 justifyContent: 'center',
                 width: 40,
                 height: 40,
-                borderRadius: 1,
+                borderRadius: '5px',
                 bgcolor: board.color,
                 opacity: 0.8,
               }}

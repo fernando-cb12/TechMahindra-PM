@@ -1,69 +1,83 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import {
+  Alert,
   Box,
   Button,
-  FormControl,
-  MenuItem,
-  Select,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
   Stack,
   Typography,
+  useTheme,
   type SelectChangeEvent,
 } from '@mui/material';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import { alpha, useTheme } from '@mui/material/styles';
-import { Dialog, DialogTitle, DialogContent } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import NewIssue from '../components/issue/NewIssue';
 import IssueList from '../components/issue/IssueList';
-
-type Priority = 'high' | 'medium' | 'low';
-
-type IssueRow = {
-  issueKey: string;
-  summary: string;
-  assignee: string;
-  priority: Priority;
-  status: string;
-};
-
-
+import IssuesTabs from '../components/issue/IssuesTabs';
+import IssuesFilters from '../components/issue/IssuesFilters';
+import IssuesSummaryCards from '../components/issue/IssuesSummaryCards';
+import { createIssue, getIssues } from '../services/issueService';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import type { IssueCardProps } from '../components/issue/types';
 
 function Issues() {
-  const [issues, setIssues] = useState<IssueRow[]>([
-    {
-      issueKey: 'APP-101',
-      summary: 'Audit current UI components',
-      assignee: 'Luis Mares',
-      priority: 'high',
-      status: 'To Do',
-    },
-    {
-      issueKey: 'APP-102',
-      summary: 'Implement new design system',
-      assignee: 'Marco Ibarra',
-      priority: 'medium',
-      status: 'To Do',
-    },
-    {
-      issueKey: 'APP-103',
-      summary: 'Redesign login screen',
-      assignee: 'Antonio Calderon',
-      priority: 'high',
-      status: 'To Do',
-    },
-    {
-      issueKey: 'APP-104',
-      summary: 'Refactor navigation structure',
-      assignee: 'Fernando Camou',
-      priority: 'low',
-      status: 'To Do',
-    },
-  ]);
+  const navigate = useNavigate();
   const theme = useTheme();
-
-  const [tab, setTab] = useState<'all' | 'mine'>('all');
-  const [projectFilter, setProjectFilter] = useState('all');
+  const [issues, setIssues] = useState<IssueCardProps[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [tab, setTab] = useState<'all' | 'mine'>('mine');
+  const [searchParams] = useSearchParams();
+  const projectFromParam = searchParams.get('project');
+  const workspaceIdFromParam = searchParams.get('workspaceId');
+  const [projectFilter, setProjectFilter] = useState<string>(projectFromParam ?? 'all');
   const [assigneeFilter, setAssigneeFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [openModal, setOpenModal] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoadError(null);
+      try {
+        const data = await getIssues();
+        setIssues(data);
+      } catch (error) {
+        setIssues([]);
+        setLoadError(error instanceof Error ? error.message : 'Failed to load issues');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void load();
+  }, []);
+
+  const assigneeOptions = useMemo(
+    () => ['all', ...Array.from(new Set(issues.map((issue) => issue.assignee)))],
+    [issues]
+  );
+
+  const projectOptions = useMemo(
+    () => ['all', ...Array.from(new Set(issues.map((issue) => issue.project)))],
+    [issues]
+  );
+
+  const issueStats = useMemo(
+    () => ({
+      total: issues.length,
+      high: issues.filter((issue) => issue.priority === 'high').length,
+      inProgress: issues.filter((issue) => issue.status === 'In Progress').length,
+      done: issues.filter((issue) => issue.status === 'Done').length,
+    }),
+    [issues]
+  );
 
   const handleProjectChange = (e: SelectChangeEvent) => {
     setProjectFilter(e.target.value);
@@ -73,34 +87,67 @@ function Issues() {
     setAssigneeFilter(e.target.value);
   };
 
-  const handleNewIssue = (issue: IssueRow) => {
-  setIssues((prev) => [...prev, issue]);
-  setOpenModal(false); // closes the modal after creating
-};
-
-
-  const visibleIssues =
-  tab === 'mine'
-    ? issues.filter((r) => r.assignee === 'Antonio Calderon')
-    : issues;
-
-  const selectSx = {
-    height: 35,
-    borderRadius: '10px',
-    fontFamily: 'Montserrat, sans-serif',
-    fontWeight: 700,
-    fontSize: 14,
-    color: 'text.secondary',
-    '& .MuiOutlinedInput-notchedOutline': {
-      borderColor: 'common.black',
-    },
-    '&:hover .MuiOutlinedInput-notchedOutline': {
-      borderColor: 'common.black',
-    },
-    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-      borderColor: 'common.black',
-    },
+  const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(event.target.value);
   };
+
+  const handleCloseModal = () => {
+    if (isCreating) return;
+    setOpenModal(false);
+    setCreateError(null);
+  };
+
+  const handleNewIssue = async (issue: {
+    issueKey: string;
+    project: string;
+    summary: string;
+    assignee: string;
+    priority: 'high' | 'medium' | 'low';
+    status: string;
+  }) => {
+    setCreateError(null);
+    setIsCreating(true);
+    try {
+      await createIssue({
+        project: issue.project,
+        summary: issue.summary,
+        assignee: issue.assignee,
+        priority: issue.priority,
+        status: issue.status,
+      });
+      const data = await getIssues();
+      setIssues(data);
+      setOpenModal(false);
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message : 'Failed to create issue');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const visibleIssues = useMemo(() => {
+    const filteredByTab =
+      tab === 'mine'
+        ? issues.filter((issue) => issue.assignee === 'Antonio Calderon')
+        : issues;
+
+    return filteredByTab
+      .filter(
+        (issue) =>
+          projectFilter === 'all' || issue.project === projectFilter
+      )
+      .filter(
+        (issue) =>
+          assigneeFilter === 'all' || issue.assignee === assigneeFilter
+      )
+      .filter((issue) => {
+        const searchText = searchQuery.toLowerCase();
+        return [issue.issueKey, issue.summary, issue.assignee, issue.project]
+          .join(' ')
+          .toLowerCase()
+          .includes(searchText);
+      });
+  }, [issues, tab, projectFilter, assigneeFilter, searchQuery]);
 
   return (
     <Box
@@ -108,153 +155,188 @@ function Issues() {
       sx={{
         flex: 1,
         minHeight: '100vh',
-        backgroundColor: 'background.paper',
+        backgroundColor: 'background.default',
         px: { xs: 2, sm: 4 },
-        py: 3,
+        py: 4,
       }}
     >
-      {/* Header */}
-      <Stack
-        direction="row"
-        alignItems="flex-start"
-        justifyContent="space-between"
-        sx={{ mb: 3 }}
+      <Button
+        startIcon={<ArrowBackIcon />}
+        onClick={() => navigate(workspaceIdFromParam ? `/workspaces/${workspaceIdFromParam}` : '/workspaces')}
+        sx={{
+          textTransform: 'none',
+          mb: 3,
+          color: theme.palette.mode === 'dark' ? '#fff' : 'primary.main',
+          fontWeight: 600,
+          fontSize: 14,
+          '&:hover': { bgcolor: 'rgba(95, 2, 41, 0.08)' },
+        }}
       >
-        <Typography
-          sx={{
-            fontFamily: 'Montserrat, sans-serif',
-            fontWeight: 700,
-            fontSize: 21.5,
-            color: (theme) =>
-              theme.palette.mode === 'dark'
-                ? theme.palette.text.primary
-                : theme.palette.primary.main,
-          }}
-        >
-          Issues
-        </Typography>
+        Back to Workspace
+      </Button>
+
+      <Stack
+        direction={{ xs: 'column', md: 'row' }}
+        alignItems={{ xs: 'flex-start', md: 'center' }}
+        justifyContent="space-between"
+        sx={{ mb: 3, gap: 3 }}
+      >
+        <Box sx={{ maxWidth: 680 }}>
+          <Typography
+            sx={{
+              fontFamily: 'Montserrat, sans-serif',
+              fontWeight: 700,
+              fontSize: { xs: 28, sm: 32 },
+              color: 'text.primary',
+              mb: 1,
+            }}
+          >
+            Issues
+          </Typography>
+        </Box>
+
         <Button
-          onClick={() => setOpenModal(true)}
+          onClick={() => {
+            setCreateError(null);
+            setOpenModal(true);
+          }}
           variant="contained"
           disableElevation
           sx={{
             bgcolor: 'primary.main',
             borderRadius: '5px',
-            minHeight: 32,
-            px: 2,
+            minHeight: 42,
+            px: 3,
             fontFamily: 'Montserrat, sans-serif',
             fontWeight: 700,
             fontSize: 14,
             textTransform: 'none',
-            '&:hover': { bgcolor: 'primary.dark' },
+            boxShadow: 'none',
+            '&:hover': { bgcolor: 'primary.dark', boxShadow: 'none' },
           }}
         >
           + Create Issue
         </Button>
-        <Dialog
-          open={openModal}
-          onClose={() => setOpenModal(false)}
-          fullWidth
-          maxWidth="sm"
-        >
-          <DialogTitle>Create Issue</DialogTitle>
-          <DialogContent>
-            <NewIssue onSubmit={handleNewIssue} />
-          </DialogContent>
-        </Dialog>
       </Stack>
 
-      <Stack
-        direction={{ xs: 'column', md: 'row' }}
-        alignItems={{ xs: 'stretch', md: 'center' }}
-        justifyContent="space-between"
-        spacing={2}
-        sx={{ mb: 2 }}
+      <Dialog
+        open={openModal}
+        onClose={handleCloseModal}
+        fullWidth
+        maxWidth="sm"
+        PaperProps={{
+          sx: {
+            boxShadow: 'none',
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: '5px',
+          },
+        }}
+        BackdropProps={{ sx: { backgroundColor: 'rgba(0, 0, 0, 0.55)' } }}
       >
-        <Stack direction="row" alignItems="center" spacing={2}>
+        <DialogTitle
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontFamily: 'Montserrat, sans-serif',
+            fontWeight: 700,
+            fontSize: 20,
+            pb: 1,
+          }}
+        >
+          Create Issue
+          <IconButton onClick={handleCloseModal} size="small" disabled={isCreating} aria-label="Close">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 0 }}>
+          <Typography
+            sx={{
+              fontFamily: 'Montserrat, sans-serif',
+              fontSize: 14,
+              color: 'text.secondary',
+              mb: 2,
+            }}
+          >
+            Add a new issue to track work, assign ownership, and set priority.
+          </Typography>
+          {createError ? (
+            <Alert severity="error" sx={{ mb: 2, boxShadow: 'none' }}>
+              {createError}
+            </Alert>
+          ) : null}
+          <NewIssue
+            open={openModal}
+            projectOptions={projectOptions.filter((p) => p !== 'all')}
+            onSubmit={handleNewIssue}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3, pt: 1, gap: 1 }}>
           <Button
-            onClick={() => setTab('all')}
+            onClick={handleCloseModal}
+            disabled={isCreating}
+            sx={{
+              fontFamily: 'Montserrat, sans-serif',
+              textTransform: 'none',
+              fontWeight: 600,
+              color: 'text.primary',
+              boxShadow: 'none',
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="create-issue-form"
             variant="contained"
             disableElevation
+            disabled={isCreating}
             sx={{
-              bgcolor: tab === 'all' ? 'primary.main' : 'transparent',
-              color: tab === 'all' ? 'common.white' : 'text.secondary',
+              fontFamily: 'Montserrat, sans-serif',
+              textTransform: 'none',
+              fontWeight: 700,
+              bgcolor: 'primary.main',
               borderRadius: '5px',
-              minHeight: 32,
-              px: 2,
-              fontFamily: 'Montserrat, sans-serif',
-              fontWeight: 700,
-              fontSize: 14,
-              textTransform: 'none',
+              minWidth: 120,
               boxShadow: 'none',
-              '&:hover': {
-                bgcolor:
-                  tab === 'all'
-                    ? 'primary.dark'
-                    : (t) => alpha(t.palette.primary.main, 0.06),
-                boxShadow: 'none',
-              },
+              '&:hover': { bgcolor: 'primary.dark', boxShadow: 'none' },
             }}
           >
-            All Issues
+            {isCreating ? 'Creating...' : 'Create Issue'}
           </Button>
-          <Button
-            onClick={() => setTab('mine')}
-            variant="text"
-            sx={{
-              color: (theme) =>
-                tab === 'mine'
-                  ? theme.palette.mode === 'dark'
-                    ? theme.palette.text.primary
-                    : theme.palette.primary.main
-                  : theme.palette.text.secondary,
-              fontFamily: 'Montserrat, sans-serif',
-              fontWeight: 700,
-              fontSize: 14,
-              textTransform: 'none',
-              minWidth: 'auto',
-              p: 0.5,
-              ...(tab === 'mine' && {
-                bgcolor: alpha(theme.palette.primary.main, 0.08),
-              }),
-            }}
-          >
-            My Issues
-          </Button>
-        </Stack>
+        </DialogActions>
+      </Dialog>
 
-        <Stack direction="row" spacing={2} sx={{ flexShrink: 0 }}>
-          <FormControl size="small" sx={{ minWidth: 153 }}>
-            <Select
-              value={projectFilter}
-              onChange={handleProjectChange}
-              displayEmpty
-              IconComponent={KeyboardArrowDownIcon}
-              sx={selectSx}
-              inputProps={{ 'aria-label': 'Project filter' }}
-            >
-              <MenuItem value="all">All Projects</MenuItem>
-            </Select>
-          </FormControl>
-          <FormControl size="small" sx={{ minWidth: 170 }}>
-            <Select
-              value={assigneeFilter}
-              onChange={handleAssigneeChange}
-              displayEmpty
-              IconComponent={KeyboardArrowDownIcon}
-              sx={{
-                ...selectSx,
-                backgroundColor: (t) => alpha(t.palette.grey[300], 0.35),
-              }}
-              inputProps={{ 'aria-label': 'Assignee filter' }}
-            >
-              <MenuItem value="all">All Assignees</MenuItem>
-            </Select>
-          </FormControl>
-        </Stack>
-      </Stack>
+      {loadError ? (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {loadError}
+        </Alert>
+      ) : null}
 
-      <IssueList issues={visibleIssues} />
+      <IssuesTabs tab={tab} onTabChange={setTab} />
+
+      <IssuesFilters
+        searchQuery={searchQuery}
+        projectFilter={projectFilter}
+        assigneeFilter={assigneeFilter}
+        projectOptions={projectOptions}
+        assigneeOptions={assigneeOptions}
+        onSearchChange={handleSearchChange}
+        onProjectChange={handleProjectChange}
+        onAssigneeChange={handleAssigneeChange}
+        hideProjectFilter={Boolean(projectFromParam)}
+      />
+
+      {isLoading ? (
+        <Box sx={{ py: 8, display: 'flex', justifyContent: 'center' }}>
+          <CircularProgress size={24} sx={{ color: 'primary.main' }} />
+        </Box>
+      ) : (
+        <IssueList issues={visibleIssues} />
+      )}
+
+      <IssuesSummaryCards stats={issueStats} />
     </Box>
   );
 }

@@ -20,7 +20,7 @@ function WorkspaceStats({ workspace }: WorkspaceStatsProps) {
       elevation={0}
       sx={{
         bgcolor: "background.paper",
-        borderRadius: 2,
+        borderRadius: '5px',
         p: 3,
         minHeight: 240,
         maxHeight: 320,
@@ -56,7 +56,7 @@ function WorkspaceStats({ workspace }: WorkspaceStatsProps) {
           value={workspace.currentProgress}
           sx={{
             height: 8,
-            borderRadius: 1,
+            borderRadius: '5px',
             bgcolor: alpha(theme.palette.primary.main, 0.1),
             "& .MuiLinearProgress-bar": { bgcolor: "primary.main" },
           }}
@@ -92,7 +92,7 @@ function WorkspaceStats({ workspace }: WorkspaceStatsProps) {
           value={workspace.estimatedProgress}
           sx={{
             height: 8,
-            borderRadius: 1,
+            borderRadius: '5px',
             bgcolor: alpha(theme.palette.primary.main, 0.1),
             "& .MuiLinearProgress-bar": {
               bgcolor: alpha(theme.palette.primary.main, 0.6),
