@@ -51,7 +51,7 @@ function WorkspaceGeneralInfo({ workspace }: WorkspaceGeneralInfoProps) {
       elevation={0}
       sx={{
         bgcolor: 'background.paper',
-        borderRadius: 2,
+        borderRadius: '5px',
         overflow: 'hidden',
       }}
     >
@@ -100,7 +100,7 @@ function WorkspaceGeneralInfo({ workspace }: WorkspaceGeneralInfoProps) {
             label={status.label}
             sx={{
               height: 24,
-              borderRadius: 1,
+              borderRadius: '5px',
               bgcolor: status.bg,
               color: status.color,
               fontWeight: 700,
@@ -129,7 +129,7 @@ function WorkspaceGeneralInfo({ workspace }: WorkspaceGeneralInfoProps) {
             value={workspace.currentProgress}
             sx={{
               height: 8,
-              borderRadius: 1,
+              borderRadius: '5px',
               bgcolor: alpha(theme.palette.primary.main, 0.1),
               '& .MuiLinearProgress-bar': { bgcolor: 'primary.main' },
             }}
@@ -148,7 +148,7 @@ function WorkspaceGeneralInfo({ workspace }: WorkspaceGeneralInfoProps) {
             value={workspace.estimatedProgress}
             sx={{
               height: 8,
-              borderRadius: 1,
+              borderRadius: '5px',
               bgcolor: alpha(theme.palette.primary.main, 0.1),
               '& .MuiLinearProgress-bar': { bgcolor: alpha(theme.palette.primary.main, 0.6) },
             }}

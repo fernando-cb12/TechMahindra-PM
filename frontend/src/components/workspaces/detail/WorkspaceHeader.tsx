@@ -51,7 +51,7 @@ function WorkspaceHeader({ workspace }: WorkspaceHeaderProps) {
       elevation={0}
       sx={{
         bgcolor: 'background.paper',
-        borderRadius: 2,
+        borderRadius: '5px',
         overflow: 'hidden',
       }}
     >
@@ -100,7 +100,7 @@ function WorkspaceHeader({ workspace }: WorkspaceHeaderProps) {
             label={status.label}
             sx={{
               height: 24,
-              borderRadius: 1,
+              borderRadius: '5px',
               bgcolor: status.bg,
               color: status.color,
               fontWeight: 700,
