@@ -20,12 +20,12 @@ export const StatCard: React.FC<StatCardProps> = ({ card }) => {
 
   return (
     <Paper
-      elevation={dark ? 4 : 1}
+      elevation={0}
       sx={(theme) => ({
         flex: 1,
         minWidth: 120,
         p: '24px 20px',
-        borderRadius: '18px',
+        borderRadius: '5px',
 
         border: dark ? 'none' : '1px solid',
 
@@ -38,11 +38,7 @@ export const StatCard: React.FC<StatCardProps> = ({ card }) => {
           ? `linear-gradient(145deg, ${theme.palette.primary.light} 0%, ${theme.palette.primary.dark} 100%)`
           : undefined,
 
-        boxShadow: dark
-          ? `0 8px 32px ${alpha(theme.palette.grey[900], 0.45)}`
-          : theme.palette.mode === 'dark'
-            ? `0 4px 18px ${alpha(theme.palette.grey[900], 0.3)}`
-            : `0 2px 12px ${alpha(theme.palette.grey[900], 0.05)}`,
+        boxShadow: 'none',
 
         display: 'flex',
         flexDirection: 'column',
@@ -53,18 +49,6 @@ export const StatCard: React.FC<StatCardProps> = ({ card }) => {
         overflow: 'hidden',
 
         cursor: 'default',
-
-        transition: 'transform 0.18s ease, box-shadow 0.18s ease',
-
-        '&:hover': {
-          transform: 'translateY(-4px)',
-
-          boxShadow: dark
-            ? `0 16px 40px ${alpha(theme.palette.grey[900], 0.55)}`
-            : theme.palette.mode === 'dark'
-              ? `0 8px 28px ${alpha(theme.palette.grey[900], 0.4)}`
-              : `0 8px 24px ${alpha(theme.palette.grey[900], 0.1)}`,
-        },
       })}
     >
       {dark && (
@@ -87,7 +71,7 @@ export const StatCard: React.FC<StatCardProps> = ({ card }) => {
         sx={(theme) => ({
           width: 46,
           height: 46,
-          borderRadius: '13px',
+          borderRadius: '5px',
 
           bgcolor: dark
             ? alpha(theme.palette.primary.contrastText, 0.15)
