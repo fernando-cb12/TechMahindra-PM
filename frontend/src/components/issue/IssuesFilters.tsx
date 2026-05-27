@@ -14,6 +14,7 @@ interface IssuesFiltersProps {
   onSearchChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onProjectChange: (e: SelectChangeEvent) => void;
   onAssigneeChange: (e: SelectChangeEvent) => void;
+  hideProjectFilter?: boolean;
 }
 
 const IssuesFilters = ({
@@ -25,6 +26,7 @@ const IssuesFilters = ({
   onSearchChange,
   onProjectChange,
   onAssigneeChange,
+  hideProjectFilter,
 }: IssuesFiltersProps) => {
   const theme = useTheme();
 
@@ -95,22 +97,24 @@ const IssuesFilters = ({
       />
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ width: '100%' }}>
-        <FormControl size="small" sx={{ minWidth: 160, flex: 1 }}>
-          <Select
-            value={projectFilter}
-            onChange={onProjectChange}
-            displayEmpty
-            IconComponent={KeyboardArrowDownIcon}
-            sx={selectSx}
-            inputProps={{ 'aria-label': 'Project filter' }}
-          >
-            {projectOptions.map((project) => (
-              <MenuItem key={project} value={project}>
-                {project === 'all' ? 'All Projects' : project}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        {!hideProjectFilter ? (
+          <FormControl size="small" sx={{ minWidth: 160, flex: 1 }}>
+            <Select
+              value={projectFilter}
+              onChange={onProjectChange}
+              displayEmpty
+              IconComponent={KeyboardArrowDownIcon}
+              sx={selectSx}
+              inputProps={{ 'aria-label': 'Project filter' }}
+            >
+              {projectOptions.map((project) => (
+                <MenuItem key={project} value={project}>
+                  {project === 'all' ? 'All Projects' : project}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        ) : null}
 
         <FormControl size="small" sx={{ minWidth: 180, flex: 1 }}>
           <Select

@@ -1,5 +1,6 @@
 import { Box, Paper, Typography, Chip, Avatar, Button, useTheme, alpha } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import { useNavigate } from 'react-router-dom';
 import type { WorkspaceProjectCardData } from '../WorkspaceProjectCard';
 
 interface WorkspaceIssuesSectionProps {
@@ -17,6 +18,7 @@ interface Issue {
 
 function WorkspaceIssuesSection({ workspace }: WorkspaceIssuesSectionProps) {
   const theme = useTheme();
+  const navigate = useNavigate();
 
   // Mock data - replace with actual API call
   const issues: Issue[] = [
@@ -115,18 +117,27 @@ function WorkspaceIssuesSection({ workspace }: WorkspaceIssuesSectionProps) {
       }}
     >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography
-          variant="h6"
+        <Button
+          onClick={() =>
+            navigate(
+              `/issues?workspaceId=${encodeURIComponent(workspace.id)}&project=${encodeURIComponent(
+                workspace.title,
+              )}`,
+            )
+          }
           sx={{
+            textTransform: 'none',
+            p: 0,
+            minWidth: 0,
             fontWeight: 700,
-            color: (theme) =>
-              theme.palette.mode === 'dark'
-                ? theme.palette.text.primary
-                : theme.palette.primary.main,
+            fontSize: 20,
+            color: (t) => (t.palette.mode === 'dark' ? t.palette.text.primary : t.palette.primary.main),
+            '&:hover': { bgcolor: 'transparent' },
+            justifyContent: 'flex-start',
           }}
         >
           Issues
-        </Typography>
+        </Button>
         <Typography sx={{ fontSize: 13, color: 'text.secondary', fontWeight: 600 }}>
           + Create Issue
         </Typography>

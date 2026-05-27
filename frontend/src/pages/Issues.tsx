@@ -11,23 +11,31 @@ import {
   IconButton,
   Stack,
   Typography,
+  useTheme,
   type SelectChangeEvent,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import NewIssue from '../components/issue/NewIssue';
 import IssueList from '../components/issue/IssueList';
 import IssuesTabs from '../components/issue/IssuesTabs';
 import IssuesFilters from '../components/issue/IssuesFilters';
 import IssuesSummaryCards from '../components/issue/IssuesSummaryCards';
 import { createIssue, getIssues } from '../services/issueService';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import type { IssueCardProps } from '../components/issue/types';
 
 function Issues() {
+  const navigate = useNavigate();
+  const theme = useTheme();
   const [issues, setIssues] = useState<IssueCardProps[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [tab, setTab] = useState<'all' | 'mine'>('mine');
-  const [projectFilter, setProjectFilter] = useState('all');
+  const [searchParams] = useSearchParams();
+  const projectFromParam = searchParams.get('project');
+  const workspaceIdFromParam = searchParams.get('workspaceId');
+  const [projectFilter, setProjectFilter] = useState<string>(projectFromParam ?? 'all');
   const [assigneeFilter, setAssigneeFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [openModal, setOpenModal] = useState(false);
@@ -152,6 +160,21 @@ function Issues() {
         py: 4,
       }}
     >
+      <Button
+        startIcon={<ArrowBackIcon />}
+        onClick={() => navigate(workspaceIdFromParam ? `/workspaces/${workspaceIdFromParam}` : '/workspaces')}
+        sx={{
+          textTransform: 'none',
+          mb: 3,
+          color: theme.palette.mode === 'dark' ? '#fff' : 'primary.main',
+          fontWeight: 600,
+          fontSize: 14,
+          '&:hover': { bgcolor: 'rgba(95, 2, 41, 0.08)' },
+        }}
+      >
+        Back to Workspace
+      </Button>
+
       <Stack
         direction={{ xs: 'column', md: 'row' }}
         alignItems={{ xs: 'flex-start', md: 'center' }}
@@ -302,6 +325,7 @@ function Issues() {
         onSearchChange={handleSearchChange}
         onProjectChange={handleProjectChange}
         onAssigneeChange={handleAssigneeChange}
+        hideProjectFilter={Boolean(projectFromParam)}
       />
 
       {isLoading ? (
