@@ -28,7 +28,7 @@ const RankTimeline: React.FC<RankTimelineProps> = ({
   return (
     <Paper
       sx={(theme) => ({
-        borderRadius: '20px',
+        borderRadius: '5px',
         p: '28px 32px 32px',
         border: '1px solid',
         borderColor:
@@ -73,14 +73,14 @@ const RankTimeline: React.FC<RankTimelineProps> = ({
           value={(currentXP / maxXP) * 100}
           sx={(theme) => ({
             height: 10,
-            borderRadius: 99,
+            borderRadius: 5,
             bgcolor:
               theme.palette.mode === 'dark'
                 ? alpha(theme.palette.grey[50], 0.08)
                 : 'grey.100',
 
             '& .MuiLinearProgress-bar': {
-              borderRadius: 99,
+              borderRadius: 5,
               background: `linear-gradient(90deg, ${theme.palette.info.main} 0%, ${theme.palette.primary.light} 50%, ${theme.palette.primary.main} 100%)`,
             },
           })}
@@ -125,7 +125,7 @@ const RankTimeline: React.FC<RankTimelineProps> = ({
                 sx={(theme) => ({
                   width: 48,
                   height: 48,
-                  borderRadius: '14px',
+                  borderRadius: '5px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
