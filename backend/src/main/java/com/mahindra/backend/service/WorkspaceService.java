@@ -19,11 +19,13 @@ import com.mahindra.backend.dto.CreateWorkspaceRequest;
 import com.mahindra.backend.dto.WorkspaceBoardDto;
 import com.mahindra.backend.dto.WorkspaceCardDto;
 import com.mahindra.backend.entity.Board;
+import com.mahindra.backend.entity.BoardMember;
 import com.mahindra.backend.entity.User;
 import com.mahindra.backend.entity.UserStatus;
 import com.mahindra.backend.entity.Workspace;
 import com.mahindra.backend.entity.WorkspaceMember;
 import com.mahindra.backend.repository.BoardRepository;
+import com.mahindra.backend.repository.BoardMemberRepository;
 import com.mahindra.backend.repository.MilestoneRepository;
 import com.mahindra.backend.repository.TaskRepository;
 import com.mahindra.backend.repository.UserRepository;
@@ -36,14 +38,17 @@ public class WorkspaceService {
 
     private final WorkspaceRepository workspaceRepository;
     private final BoardRepository boardRepository;
+    private final BoardMemberRepository boardMemberRepository;
     private final UserRepository userRepository;
     private final TaskRepository taskRepository;
     private final MilestoneRepository milestoneRepository;
 
     public WorkspaceService(WorkspaceRepository workspaceRepository, BoardRepository boardRepository,
+            BoardMemberRepository boardMemberRepository,
             UserRepository userRepository, TaskRepository taskRepository, MilestoneRepository milestoneRepository) {
         this.workspaceRepository = workspaceRepository;
         this.boardRepository = boardRepository;
+        this.boardMemberRepository = boardMemberRepository;
         this.userRepository = userRepository;
         this.taskRepository = taskRepository;
         this.milestoneRepository = milestoneRepository;
@@ -85,8 +90,11 @@ public class WorkspaceService {
 
     @Transactional(readOnly = true)
     public List<WorkspaceBoardDto> listBoards(Authentication authentication, Long workspaceId) {
+        User user = resolveUser(authentication);
         getForCurrentUser(authentication, workspaceId);
+        boolean admin = hasGlobalRole(user, "ADMIN");
         return boardRepository.findByWorkspaceIdOrderByCreatedAtAsc(workspaceId).stream()
+                .filter(b -> admin || boardMemberRepository.existsByBoardIdAndUserIdAndDeletedAtIsNull(b.getId(), user.getId()))
                 .map(b -> new WorkspaceBoardDto(
                         String.valueOf(b.getId()),
                         b.getName(),
@@ -127,22 +135,39 @@ public class WorkspaceService {
             workspace.addMember(member);
         }
 
-        workspace.addBoard(defaultBoard("Planning", "Scope, milestones, and intake", "#5F0229"));
-        workspace.addBoard(defaultBoard("Delivery", "Active implementation tasks", "#1976D2"));
-        workspace.addBoard(defaultBoard("Review", "Validation, QA, and release checks", "#2E7D32"));
+        workspace.addBoard(defaultBoard("Planning", "Scope, milestones, and intake", "#5F0229", creator, 0));
+        workspace.addBoard(defaultBoard("Delivery", "Active implementation tasks", "#1976D2", creator, 1));
+        workspace.addBoard(defaultBoard("Review", "Validation, QA, and release checks", "#2E7D32", creator, 2));
 
         workspaceRepository.save(workspace);
         workspaceRepository.flush();
+
+        for (Board board : workspace.getBoards()) {
+            for (WorkspaceMember workspaceMember : workspace.getMembers()) {
+                BoardMember boardMember = new BoardMember();
+                boardMember.setBoard(board);
+                boardMember.setUser(workspaceMember.getUser());
+                boardMember.setAssignedBy(creator);
+                boardMember.setRoleInBoard(switch (workspaceMember.getRoleInWorkspace()) {
+                    case "owner" -> "owner";
+                    case "viewer" -> "viewer";
+                    default -> "editor";
+                });
+                boardMemberRepository.save(boardMember);
+            }
+        }
 
         List<Workspace> hydrated = workspaceRepository.findAllWithMembersByIds(List.of(workspace.getId()));
         return toDtos(hydrated).get(0);
     }
 
-    private static Board defaultBoard(String name, String description, String color) {
+    private static Board defaultBoard(String name, String description, String color, User creator, int position) {
         Board board = new Board();
         board.setName(name);
         board.setDescription(description);
         board.setColor(color);
+        board.setCreatedBy(creator);
+        board.setPosition(position);
         return board;
     }
 

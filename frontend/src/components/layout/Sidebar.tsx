@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -81,6 +81,18 @@ function Sidebar({
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({
     magenta: true,
   });
+
+  useEffect(() => {
+    if (projects.length === 0) return;
+    setExpandedProjects((prev) => {
+      const next = { ...prev };
+      const targetProject = projects.find((project) => project.id === activeProject) ?? projects[0];
+      if (targetProject) {
+        next[targetProject.id] = true;
+      }
+      return next;
+    });
+  }, [projects, activeProject]);
 
   const handleProjectClick = (projectId: string) => {
     setExpandedProjects((prev) => ({

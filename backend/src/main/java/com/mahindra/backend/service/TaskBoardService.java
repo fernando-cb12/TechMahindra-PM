@@ -1,0 +1,717 @@
+package com.mahindra.backend.service;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import org.springframework.security.core.Authentication;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.mahindra.backend.dto.taskboard.BoardConfigDto;
+import com.mahindra.backend.dto.taskboard.BoardSummaryDto;
+import com.mahindra.backend.dto.taskboard.BoardViewDto;
+import com.mahindra.backend.dto.taskboard.ColumnDefinitionDto;
+import com.mahindra.backend.dto.taskboard.ColumnUpsertRequest;
+import com.mahindra.backend.dto.taskboard.CreateGroupRequest;
+import com.mahindra.backend.dto.taskboard.CreateTaskRequest;
+import com.mahindra.backend.dto.taskboard.CreateUpdateRequest;
+import com.mahindra.backend.dto.taskboard.FileAttachmentDto;
+import com.mahindra.backend.dto.taskboard.FileAttachmentInputDto;
+import com.mahindra.backend.dto.taskboard.MoveTaskRequest;
+import com.mahindra.backend.dto.taskboard.SelectOptionDto;
+import com.mahindra.backend.dto.taskboard.TaskBoardPayloadDto;
+import com.mahindra.backend.dto.taskboard.TaskDto;
+import com.mahindra.backend.dto.taskboard.TaskGroupDto;
+import com.mahindra.backend.dto.taskboard.TaskPatchRequest;
+import com.mahindra.backend.dto.taskboard.TaskUpdateDto;
+import com.mahindra.backend.dto.taskboard.UserSummaryDto;
+import com.mahindra.backend.entity.Board;
+import com.mahindra.backend.entity.BoardColumn;
+import com.mahindra.backend.entity.BoardColumnOption;
+import com.mahindra.backend.entity.BoardMember;
+import com.mahindra.backend.entity.BoardView;
+import com.mahindra.backend.entity.Task;
+import com.mahindra.backend.entity.TaskActivity;
+import com.mahindra.backend.entity.TaskCustomValue;
+import com.mahindra.backend.entity.TaskFile;
+import com.mahindra.backend.entity.TaskGroup;
+import com.mahindra.backend.entity.TaskUpdate;
+import com.mahindra.backend.entity.User;
+import com.mahindra.backend.entity.Workspace;
+import com.mahindra.backend.exception.ResourceNotFoundException;
+import com.mahindra.backend.repository.BoardColumnOptionRepository;
+import com.mahindra.backend.repository.BoardColumnRepository;
+import com.mahindra.backend.repository.BoardMemberRepository;
+import com.mahindra.backend.repository.BoardRepository;
+import com.mahindra.backend.repository.BoardViewRepository;
+import com.mahindra.backend.repository.TaskActivityRepository;
+import com.mahindra.backend.repository.TaskCustomValueRepository;
+import com.mahindra.backend.repository.TaskFileRepository;
+import com.mahindra.backend.repository.TaskGroupRepository;
+import com.mahindra.backend.repository.TaskRepository;
+import com.mahindra.backend.repository.TaskUpdateRepository;
+import com.mahindra.backend.repository.UserRepository;
+import com.mahindra.backend.repository.WorkspaceRepository;
+
+@Service
+public class TaskBoardService {
+
+    private static final List<SelectOptionDto> DEFAULT_STATUS = List.of(
+            new SelectOptionDto("todo", "To Do", "#B3B3B3"),
+            new SelectOptionDto("in_progress", "In Progress", "#EAC24F"),
+            new SelectOptionDto("review", "Review", "#A3334D"),
+            new SelectOptionDto("done", "Done", "#4CAF50"),
+            new SelectOptionDto("blocked", "Blocked", "#FB485B"));
+
+    private static final List<SelectOptionDto> DEFAULT_PRIORITY = List.of(
+            new SelectOptionDto("critical", "Critical", "#FB485B"),
+            new SelectOptionDto("high", "High", "#EAC24F"),
+            new SelectOptionDto("medium", "Medium", "#A3334D"),
+            new SelectOptionDto("low", "Low", "#20EA37"));
+
+    private final WorkspaceRepository workspaceRepository;
+    private final BoardRepository boardRepository;
+    private final BoardMemberRepository boardMemberRepository;
+    private final UserRepository userRepository;
+    private final TaskGroupRepository taskGroupRepository;
+    private final BoardColumnRepository boardColumnRepository;
+    private final BoardColumnOptionRepository boardColumnOptionRepository;
+    private final BoardViewRepository boardViewRepository;
+    private final TaskRepository taskRepository;
+    private final TaskCustomValueRepository taskCustomValueRepository;
+    private final TaskUpdateRepository taskUpdateRepository;
+    private final TaskFileRepository taskFileRepository;
+    private final TaskActivityRepository taskActivityRepository;
+
+    public TaskBoardService(WorkspaceRepository workspaceRepository, BoardRepository boardRepository,
+            BoardMemberRepository boardMemberRepository, UserRepository userRepository,
+            TaskGroupRepository taskGroupRepository, BoardColumnRepository boardColumnRepository,
+            BoardColumnOptionRepository boardColumnOptionRepository, BoardViewRepository boardViewRepository,
+            TaskRepository taskRepository, TaskCustomValueRepository taskCustomValueRepository,
+            TaskUpdateRepository taskUpdateRepository, TaskFileRepository taskFileRepository,
+            TaskActivityRepository taskActivityRepository) {
+        this.workspaceRepository = workspaceRepository;
+        this.boardRepository = boardRepository;
+        this.boardMemberRepository = boardMemberRepository;
+        this.userRepository = userRepository;
+        this.taskGroupRepository = taskGroupRepository;
+        this.boardColumnRepository = boardColumnRepository;
+        this.boardColumnOptionRepository = boardColumnOptionRepository;
+        this.boardViewRepository = boardViewRepository;
+        this.taskRepository = taskRepository;
+        this.taskCustomValueRepository = taskCustomValueRepository;
+        this.taskUpdateRepository = taskUpdateRepository;
+        this.taskFileRepository = taskFileRepository;
+        this.taskActivityRepository = taskActivityRepository;
+    }
+
+    @Transactional
+    public TaskBoardPayloadDto getBoard(Authentication authentication, Long workspaceId, Long boardId) {
+        User user = resolveUser(authentication);
+        Board board = resolveAccessibleBoard(user, workspaceId, boardId);
+        return toPayload(user, board);
+    }
+
+    @Transactional(readOnly = true)
+    public void assertCanEditTask(Authentication authentication, Long workspaceId, Long boardId, Long taskId) {
+        User user = resolveUser(authentication);
+        resolveEditableBoard(user, workspaceId, boardId);
+        resolveTask(boardId, taskId);
+    }
+
+    @Transactional
+    public TaskGroupDto createGroup(Authentication authentication, Long workspaceId, Long boardId, CreateGroupRequest request) {
+        User user = resolveUser(authentication);
+        Board board = resolveEditableBoard(user, workspaceId, boardId);
+        TaskGroup group = new TaskGroup();
+        group.setBoard(board);
+        group.setName(request.name().trim());
+        group.setColor(request.color() != null && !request.color().isBlank() ? request.color() : "#A3334D");
+        group.setPosition(taskGroupRepository.findByBoardIdAndDeletedAtIsNullOrderByPositionAscIdAsc(boardId).size());
+        taskGroupRepository.save(group);
+        recordActivity(board, null, user, "group_created", "group", null, group.getName(), "user");
+        return toGroupDto(group, List.of());
+    }
+
+    @Transactional
+    public TaskDto createTask(Authentication authentication, Long workspaceId, Long boardId, Long groupId,
+            CreateTaskRequest request) {
+        User user = resolveUser(authentication);
+        Board board = resolveEditableBoard(user, workspaceId, boardId);
+        TaskGroup group = taskGroupRepository.findById(groupId)
+                .filter(g -> g.getDeletedAt() == null && g.getBoard().getId().equals(boardId))
+                .orElseThrow(() -> new ResourceNotFoundException("Task group not found"));
+
+        Map<String, BoardColumnOption> statusOptions = optionMap(boardId, "col_status");
+        Map<String, BoardColumnOption> priorityOptions = optionMap(boardId, "col_priority");
+
+        Task task = new Task();
+        task.setBoard(board);
+        task.setGroup(group);
+        task.setTitle(request.name().trim());
+        task.setCreatedBy(user);
+        task.setStatus("todo");
+        task.setPriority("medium");
+        task.setStatusOption(statusOptions.get("todo"));
+        task.setPriorityOption(priorityOptions.get("medium"));
+        task.setPosition(taskRepository.findByGroupIdAndDeletedAtIsNullOrderByPositionAscIdAsc(groupId).size());
+        taskRepository.save(task);
+        recordActivity(board, task, user, "task_created", "task", null, task.getTitle(), "user");
+        return toTaskDto(task, List.of(), List.of(), List.of());
+    }
+
+    @Transactional
+    public TaskDto patchTask(Authentication authentication, Long workspaceId, Long boardId, Long taskId,
+            TaskPatchRequest request) {
+        User user = resolveUser(authentication);
+        resolveEditableBoard(user, workspaceId, boardId);
+        Task task = resolveTask(boardId, taskId);
+        Map<String, Object> before = taskSnapshot(task);
+
+        if (request.name() != null) {
+            task.setTitle(request.name().trim());
+        }
+        if (request.status() != null) {
+            task.setStatus(request.status());
+            task.setStatusOption(optionMap(boardId, "col_status").get(request.status()));
+            if ("done".equals(request.status()) && task.getCompletedAt() == null) {
+                task.setCompletedAt(Instant.now());
+            } else if (!"done".equals(request.status())) {
+                task.setCompletedAt(null);
+            }
+        }
+        if (request.priority() != null) {
+            task.setPriority(request.priority());
+            task.setPriorityOption(optionMap(boardId, "col_priority").get(request.priority()));
+        }
+        if (request.dueDate() != null) {
+            task.setDueDate(parseDate(request.dueDate()));
+        }
+        if (request.progress() != null) {
+            task.setProgress(Math.max(0, Math.min(100, request.progress())));
+        }
+        if (request.budget() != null) {
+            task.setBudget(request.budget());
+        }
+        if (request.assigneeIds() != null) {
+            Set<Long> ids = request.assigneeIds().stream().map(Long::valueOf).collect(Collectors.toSet());
+            List<User> assignees = userRepository.findAllById(ids);
+            task.getAssignees().clear();
+            task.getAssignees().addAll(assignees);
+            task.setAssignedTo(assignees.isEmpty() ? null : assignees.get(0));
+        }
+        if (request.values() != null) {
+            applyCustomValues(task, request.values());
+        }
+        task.setUpdatedAt(Instant.now());
+        taskRepository.save(task);
+        recordActivity(task.getBoard(), task, user, "task_updated", "task", before, taskSnapshot(task), "user");
+        return toTaskDto(task,
+                taskCustomValueRepository.findByTaskBoardIdAndTaskDeletedAtIsNull(boardId),
+                taskUpdateRepository.findByTaskBoardIdAndDeletedAtIsNullOrderByCreatedAtAsc(boardId),
+                taskFileRepository.findByTaskBoardIdAndDeletedAtIsNullOrderByUploadedAtAsc(boardId));
+    }
+
+    @Transactional
+    public void deleteTask(Authentication authentication, Long workspaceId, Long boardId, Long taskId) {
+        User user = resolveUser(authentication);
+        resolveEditableBoard(user, workspaceId, boardId);
+        Task task = resolveTask(boardId, taskId);
+        task.setDeletedAt(Instant.now());
+        task.setDeletedBy(user);
+        task.setPurgeAfter(Instant.now().plusSeconds(30L * 24 * 60 * 60));
+        taskRepository.save(task);
+        recordActivity(task.getBoard(), task, user, "task_deleted", "task", task.getTitle(), null, "user");
+    }
+
+    @Transactional
+    public ColumnDefinitionDto createColumn(Authentication authentication, Long workspaceId, Long boardId,
+            ColumnUpsertRequest request) {
+        User user = resolveUser(authentication);
+        Board board = resolveEditableBoard(user, workspaceId, boardId);
+        BoardColumn column = new BoardColumn();
+        column.setBoard(board);
+        column.setKey(uniqueColumnKey(boardId, request.label()));
+        column.setLabel(request.label().trim());
+        column.setType(request.type());
+        column.setWidth(request.width());
+        column.setVisible(request.visible() == null || request.visible());
+        column.setPosition(request.order() != null ? request.order()
+                : boardColumnRepository.findByBoardIdAndDeletedAtIsNullOrderByPositionAscIdAsc(boardId).size());
+        if (request.options() != null) {
+            int index = 0;
+            for (SelectOptionDto option : request.options()) {
+                column.addOption(option(option.id(), option.label(), option.color(), index++));
+            }
+        }
+        boardColumnRepository.save(column);
+        recordActivity(board, null, user, "column_created", column.getKey(), null, column.getLabel(), "user");
+        return toColumnDto(column);
+    }
+
+    @Transactional
+    public TaskUpdateDto createUpdate(Authentication authentication, Long workspaceId, Long boardId, Long taskId,
+            CreateUpdateRequest request) {
+        User user = resolveUser(authentication);
+        resolveEditableBoard(user, workspaceId, boardId);
+        Task task = resolveTask(boardId, taskId);
+        if ((request.content() == null || request.content().isBlank())
+                && (request.attachments() == null || request.attachments().isEmpty())) {
+            throw new IllegalArgumentException("Update content or attachments are required");
+        }
+
+        TaskUpdate update = new TaskUpdate();
+        update.setTask(task);
+        update.setAuthor(user);
+        update.setContent(request.content() != null ? request.content() : "");
+        if (request.mentions() != null && !request.mentions().isEmpty()) {
+            update.getMentions().addAll(userRepository.findAllById(request.mentions().stream().map(Long::valueOf).toList()));
+        }
+        taskUpdateRepository.save(update);
+
+        if (request.attachments() != null) {
+            for (FileAttachmentInputDto input : request.attachments()) {
+                TaskFile file = new TaskFile();
+                file.setTask(task);
+                file.setUpdate(update);
+                file.setFileName(input.name());
+                file.setStorageUrl(input.url());
+                file.setMimeType(input.type());
+                file.setSizeBytes(input.size() != null ? input.size() : 0L);
+                file.setUploadedBy(user);
+                taskFileRepository.save(file);
+                update.getAttachments().add(file);
+            }
+        }
+        recordActivity(task.getBoard(), task, user, "update_created", "updates", null, update.getContent(), "user");
+        return toUpdateDto(update, new ArrayList<>(update.getAttachments()));
+    }
+
+    @Transactional
+    public void moveTask(Authentication authentication, Long workspaceId, Long boardId, Long taskId,
+            MoveTaskRequest request) {
+        User user = resolveUser(authentication);
+        Board sourceBoard = resolveEditableBoard(user, workspaceId, boardId);
+        Board targetBoard = resolveEditableBoard(user, workspaceId, request.toBoardId());
+        Task task = resolveTask(boardId, taskId);
+        TaskGroup targetGroup = taskGroupRepository.findById(request.toGroupId())
+                .filter(g -> g.getBoard().getId().equals(targetBoard.getId()) && g.getDeletedAt() == null)
+                .orElseThrow(() -> new ResourceNotFoundException("Target group not found"));
+
+        if (!sourceBoard.getId().equals(targetBoard.getId())) {
+            discardIncompatibleCustomValues(task, targetBoard, user);
+        }
+        task.setBoard(targetBoard);
+        task.setGroup(targetGroup);
+        task.setPosition(request.position() != null ? request.position()
+                : taskRepository.findByGroupIdAndDeletedAtIsNullOrderByPositionAscIdAsc(targetGroup.getId()).size());
+        task.setUpdatedAt(Instant.now());
+        taskRepository.save(task);
+        recordActivity(targetBoard, task, user, "task_moved", "board", sourceBoard.getId(), targetBoard.getId(), "user");
+    }
+
+    private TaskBoardPayloadDto toPayload(User user, Board board) {
+        ensureDefaults(board, user);
+
+        Long boardId = board.getId();
+        List<BoardColumn> columns = boardColumnRepository.findByBoardIdAndDeletedAtIsNullOrderByPositionAscIdAsc(boardId);
+        List<TaskGroup> groups = taskGroupRepository.findByBoardIdAndDeletedAtIsNullOrderByPositionAscIdAsc(boardId);
+        List<Task> tasks = taskRepository.findByBoardIdAndDeletedAtIsNullOrderByGroupPositionAscPositionAscIdAsc(boardId);
+        List<TaskCustomValue> values = taskCustomValueRepository.findByTaskBoardIdAndTaskDeletedAtIsNull(boardId);
+        List<TaskUpdate> updates = taskUpdateRepository.findByTaskBoardIdAndDeletedAtIsNullOrderByCreatedAtAsc(boardId);
+        List<TaskFile> files = taskFileRepository.findByTaskBoardIdAndDeletedAtIsNullOrderByUploadedAtAsc(boardId);
+        List<BoardView> views = boardViewRepository.findByBoardIdAndDeletedAtIsNullOrderByPositionAscIdAsc(boardId);
+        Map<String, UserSummaryDto> users = loadBoardUsers(board);
+
+        Map<Long, List<Task>> tasksByGroup = tasks.stream()
+                .filter(t -> t.getGroup() != null)
+                .collect(Collectors.groupingBy(t -> t.getGroup().getId()));
+
+        List<TaskGroupDto> groupDtos = groups.stream()
+                .map(g -> toGroupDto(g, tasksByGroup.getOrDefault(g.getId(), List.of())))
+                .toList();
+
+        Map<String, TaskDto> taskDtos = tasks.stream()
+                .collect(Collectors.toMap(t -> String.valueOf(t.getId()), t -> toTaskDto(t, values, updates, files),
+                        (a, b) -> a, LinkedHashMap::new));
+
+        List<ColumnDefinitionDto> columnDtos = columns.stream().map(this::toColumnDto).toList();
+        List<SelectOptionDto> statusOptions = findColumnOptions(columns, "col_status");
+        List<SelectOptionDto> priorityOptions = findColumnOptions(columns, "col_priority");
+        List<BoardSummaryDto> availableBoards = boardRepository
+                .findByWorkspaceIdAndDeletedAtIsNullOrderByPositionAscCreatedAtAsc(board.getWorkspace().getId()).stream()
+                .filter(b -> canReadBoard(user, b))
+                .map(this::toBoardSummaryDto)
+                .toList();
+
+        return new TaskBoardPayloadDto(
+                new BoardConfigDto(String.valueOf(board.getId()), board.getName(), columnDtos, statusOptions, priorityOptions),
+                groupDtos,
+                taskDtos,
+                users,
+                availableBoards,
+                views.stream().map(this::toViewDto).toList());
+    }
+
+    private void ensureDefaults(Board board, User actor) {
+        if (boardColumnRepository.findByBoardIdAndDeletedAtIsNullOrderByPositionAscIdAsc(board.getId()).isEmpty()) {
+            createSystemColumns(board);
+        }
+        if (taskGroupRepository.findByBoardIdAndDeletedAtIsNullOrderByPositionAscIdAsc(board.getId()).isEmpty()) {
+            TaskGroup group = new TaskGroup();
+            group.setBoard(board);
+            group.setName("New Group");
+            group.setColor(board.getColor() != null ? board.getColor() : "#A3334D");
+            group.setPosition(0);
+            taskGroupRepository.save(group);
+        }
+        if (boardViewRepository.findByBoardIdAndDeletedAtIsNullOrderByPositionAscIdAsc(board.getId()).isEmpty()) {
+            boardViewRepository.save(view(board, "Main Table", "table", 0, true, actor));
+            boardViewRepository.save(view(board, "Charts", "chart", 1, false, actor));
+            boardViewRepository.save(view(board, "Calendar", "calendar", 2, false, actor));
+        }
+    }
+
+    private void createSystemColumns(Board board) {
+        BoardColumn name = column(board, "col_name", "Task", "text", 0, true);
+        BoardColumn assignee = column(board, "col_assignee", "Assignee", "assignee", 1, true);
+        BoardColumn status = column(board, "col_status", "Status", "status", 2, true);
+        int idx = 0;
+        for (SelectOptionDto option : DEFAULT_STATUS) {
+            status.addOption(option(option.id(), option.label(), option.color(), idx++));
+        }
+        BoardColumn priority = column(board, "col_priority", "Priority", "priority", 3, true);
+        idx = 0;
+        for (SelectOptionDto option : DEFAULT_PRIORITY) {
+            priority.addOption(option(option.id(), option.label(), option.color(), idx++));
+        }
+        boardColumnRepository.saveAll(List.of(
+                name,
+                assignee,
+                status,
+                priority,
+                column(board, "col_date", "Due Date", "date", 4, true),
+                column(board, "col_progress", "Progress", "progress", 5, true),
+                column(board, "col_budget", "Budget", "budget", 6, true),
+                column(board, "col_files", "Files", "files", 7, true)));
+    }
+
+    private BoardColumn column(Board board, String key, String label, String type, int position, boolean system) {
+        BoardColumn column = new BoardColumn();
+        column.setBoard(board);
+        column.setKey(key);
+        column.setLabel(label);
+        column.setType(type);
+        column.setPosition(position);
+        column.setSystemColumn(system);
+        return column;
+    }
+
+    private BoardColumnOption option(String key, String label, String color, int position) {
+        BoardColumnOption option = new BoardColumnOption();
+        option.setKey(key);
+        option.setLabel(label);
+        option.setColor(color);
+        option.setPosition(position);
+        return option;
+    }
+
+    private BoardView view(Board board, String name, String type, int position, boolean isDefault, User actor) {
+        BoardView view = new BoardView();
+        view.setBoard(board);
+        view.setName(name);
+        view.setType(type);
+        view.setPosition(position);
+        view.setDefaultView(isDefault);
+        view.setCreatedBy(actor);
+        return view;
+    }
+
+    private User resolveUser(Authentication authentication) {
+        return userRepository.findByEmail(authentication.getName())
+                .orElseThrow(() -> new IllegalStateException("Authenticated user not found"));
+    }
+
+    private Board resolveAccessibleBoard(User user, Long workspaceId, Long boardId) {
+        Board board = boardRepository.findActiveByWorkspaceIdAndId(workspaceId, boardId)
+                .orElseThrow(() -> new ResourceNotFoundException("Board not found"));
+        if (!canReadBoard(user, board)) {
+            throw new ResourceNotFoundException("Board not found");
+        }
+        return board;
+    }
+
+    private Board resolveEditableBoard(User user, Long workspaceId, Long boardId) {
+        Board board = resolveAccessibleBoard(user, workspaceId, boardId);
+        if (isAdmin(user)) {
+            return board;
+        }
+        BoardMember member = boardMemberRepository.findByBoardIdAndUserId(boardId, user.getId())
+                .filter(m -> m.getDeletedAt() == null)
+                .orElseThrow(() -> new ResourceNotFoundException("Board not found"));
+        if ("viewer".equals(member.getRoleInBoard())) {
+            throw new IllegalArgumentException("User cannot edit this board");
+        }
+        return board;
+    }
+
+    private boolean canReadBoard(User user, Board board) {
+        return isAdmin(user) || boardMemberRepository.existsByBoardIdAndUserIdAndDeletedAtIsNull(board.getId(), user.getId());
+    }
+
+    private boolean isAdmin(User user) {
+        return user.getRoles().stream().anyMatch(r -> "ADMIN".equals(r.getName()));
+    }
+
+    private Task resolveTask(Long boardId, Long taskId) {
+        return taskRepository.findById(taskId)
+                .filter(t -> t.getDeletedAt() == null && t.getBoard().getId().equals(boardId))
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found"));
+    }
+
+    private Workspace resolveWorkspace(Long workspaceId) {
+        return workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Workspace not found"));
+    }
+
+    private Map<String, UserSummaryDto> loadBoardUsers(Board board) {
+        Workspace workspace = resolveWorkspace(board.getWorkspace().getId());
+        return workspace.getMembers().stream()
+                .map(m -> m.getUser())
+                .sorted(Comparator.comparing(User::getName, String.CASE_INSENSITIVE_ORDER))
+                .collect(Collectors.toMap(u -> String.valueOf(u.getId()), this::toUserDto, (a, b) -> a, LinkedHashMap::new));
+    }
+
+    private void applyCustomValues(Task task, Map<String, Object> values) {
+        Map<String, BoardColumn> columns = boardColumnRepository
+                .findByBoardIdAndDeletedAtIsNullOrderByPositionAscIdAsc(task.getBoard().getId()).stream()
+                .collect(Collectors.toMap(BoardColumn::getKey, Function.identity()));
+        Map<String, TaskCustomValue> existing = task.getCustomValues().stream()
+                .collect(Collectors.toMap(v -> v.getColumn().getKey(), Function.identity()));
+        for (Map.Entry<String, Object> entry : values.entrySet()) {
+            BoardColumn column = columns.get(entry.getKey());
+            if (column == null || column.getSystemColumn()) {
+                continue;
+            }
+            TaskCustomValue value = existing.get(entry.getKey());
+            if (value == null) {
+                value = new TaskCustomValue();
+                value.setTask(task);
+                value.setColumn(column);
+                task.getCustomValues().add(value);
+            }
+            value.setValue(entry.getValue());
+            value.setUpdatedAt(Instant.now());
+        }
+    }
+
+    private void discardIncompatibleCustomValues(Task task, Board targetBoard, User user) {
+        Set<String> targetKeys = boardColumnRepository
+                .findByBoardIdAndDeletedAtIsNullOrderByPositionAscIdAsc(targetBoard.getId()).stream()
+                .map(BoardColumn::getKey)
+                .collect(Collectors.toSet());
+        List<TaskCustomValue> discarded = task.getCustomValues().stream()
+                .filter(value -> !targetKeys.contains(value.getColumn().getKey()))
+                .toList();
+        if (!discarded.isEmpty()) {
+            Map<String, Object> oldValues = discarded.stream()
+                    .collect(Collectors.toMap(v -> v.getColumn().getKey(), TaskCustomValue::getValue));
+            task.getCustomValues().removeAll(discarded);
+            recordActivity(targetBoard, task, user, "custom_values_discarded", "custom_values", oldValues, null, "internal");
+        }
+    }
+
+    private Map<String, BoardColumnOption> optionMap(Long boardId, String columnKey) {
+        return boardColumnRepository.findByBoardIdAndKeyAndDeletedAtIsNull(boardId, columnKey)
+                .map(column -> boardColumnOptionRepository.findByColumnIdAndDeletedAtIsNullOrderByPositionAscIdAsc(column.getId())
+                        .stream().collect(Collectors.toMap(BoardColumnOption::getKey, Function.identity())))
+                .orElse(Map.of());
+    }
+
+    private String uniqueColumnKey(Long boardId, String label) {
+        String base = "col_" + label.toLowerCase().trim().replaceAll("[^a-z0-9]+", "_").replaceAll("^_+|_+$", "");
+        if (base.equals("col_")) {
+            base = "col_custom";
+        }
+        String key = base;
+        int counter = 1;
+        while (boardColumnRepository.findByBoardIdAndKeyAndDeletedAtIsNull(boardId, key).isPresent()) {
+            key = base + "_" + counter++;
+        }
+        return key;
+    }
+
+    private LocalDate parseDate(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(raw);
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("Invalid date; use yyyy-MM-dd", e);
+        }
+    }
+
+    private Map<String, Object> taskSnapshot(Task task) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("name", task.getTitle());
+        map.put("status", task.getStatus());
+        map.put("priority", task.getPriority());
+        map.put("dueDate", task.getDueDate() != null ? task.getDueDate().toString() : null);
+        map.put("progress", task.getProgress());
+        map.put("budget", task.getBudget());
+        return map;
+    }
+
+    private void recordActivity(Board board, Task task, User actor, String eventType, String fieldKey,
+            Object oldValue, Object newValue, String visibility) {
+        TaskActivity activity = new TaskActivity();
+        activity.setBoard(board);
+        activity.setTask(task);
+        activity.setActor(actor);
+        activity.setEventType(eventType);
+        activity.setFieldKey(fieldKey);
+        activity.setOldValue(oldValue);
+        activity.setNewValue(newValue);
+        activity.setVisibility(visibility);
+        taskActivityRepository.save(activity);
+    }
+
+    private BoardSummaryDto toBoardSummaryDto(Board board) {
+        List<TaskGroupDto> groups = taskGroupRepository.findByBoardIdAndDeletedAtIsNullOrderByPositionAscIdAsc(board.getId())
+                .stream()
+                .map(g -> toGroupDto(g, taskRepository.findByGroupIdAndDeletedAtIsNullOrderByPositionAscIdAsc(g.getId())))
+                .toList();
+        return new BoardSummaryDto(String.valueOf(board.getId()), board.getName(), groups);
+    }
+
+    private TaskGroupDto toGroupDto(TaskGroup group, List<Task> tasks) {
+        return new TaskGroupDto(
+                String.valueOf(group.getId()),
+                String.valueOf(group.getBoard().getId()),
+                group.getName(),
+                group.getColor(),
+                group.getPosition(),
+                tasks.stream().map(t -> String.valueOf(t.getId())).toList());
+    }
+
+    private ColumnDefinitionDto toColumnDto(BoardColumn column) {
+        return new ColumnDefinitionDto(
+                column.getKey(),
+                column.getLabel(),
+                column.getType(),
+                column.getWidth(),
+                Boolean.TRUE.equals(column.getVisible()),
+                column.getPosition(),
+                boardColumnOptionRepository.findByColumnIdAndDeletedAtIsNullOrderByPositionAscIdAsc(column.getId())
+                        .stream().map(this::toOptionDto).toList(),
+                Boolean.TRUE.equals(column.getSystemColumn()));
+    }
+
+    private SelectOptionDto toOptionDto(BoardColumnOption option) {
+        return new SelectOptionDto(option.getKey(), option.getLabel(), option.getColor());
+    }
+
+    private List<SelectOptionDto> findColumnOptions(List<BoardColumn> columns, String key) {
+        return columns.stream()
+                .filter(c -> key.equals(c.getKey()))
+                .findFirst()
+                .map(c -> boardColumnOptionRepository.findByColumnIdAndDeletedAtIsNullOrderByPositionAscIdAsc(c.getId())
+                        .stream().map(this::toOptionDto).toList())
+                .orElse(List.of());
+    }
+
+    private TaskDto toTaskDto(Task task, List<TaskCustomValue> allValues, List<TaskUpdate> allUpdates, List<TaskFile> allFiles) {
+        List<TaskCustomValue> values = allValues.stream().filter(v -> v.getTask().getId().equals(task.getId())).toList();
+        List<TaskFile> files = allFiles.stream().filter(f -> f.getTask().getId().equals(task.getId())).toList();
+        List<TaskUpdate> updates = allUpdates.stream().filter(u -> u.getTask().getId().equals(task.getId())).toList();
+        Map<Long, List<TaskFile>> filesByUpdate = files.stream()
+                .filter(f -> f.getUpdate() != null)
+                .collect(Collectors.groupingBy(f -> f.getUpdate().getId()));
+        Map<String, Object> customValues = values.stream()
+                .collect(Collectors.toMap(v -> v.getColumn().getKey(), TaskCustomValue::getValue, (a, b) -> b, LinkedHashMap::new));
+        List<String> assigneeIds = task.getAssignees().stream().map(u -> String.valueOf(u.getId())).toList();
+        return new TaskDto(
+                String.valueOf(task.getId()),
+                task.getTitle(),
+                task.getGroup() != null ? String.valueOf(task.getGroup().getId()) : "",
+                String.valueOf(task.getBoard().getId()),
+                assigneeIds.isEmpty() ? null : assigneeIds.get(0),
+                assigneeIds,
+                task.getStatus(),
+                task.getPriority(),
+                task.getDueDate() != null ? task.getDueDate().toString() : null,
+                task.getProgress(),
+                task.getBudget(),
+                files.stream().map(this::toFileDto).toList(),
+                updates.stream().map(u -> toUpdateDto(u, filesByUpdate.getOrDefault(u.getId(), List.of()))).toList(),
+                task.getCreatedAt().toString(),
+                task.getUpdatedAt().toString(),
+                customValues);
+    }
+
+    private TaskUpdateDto toUpdateDto(TaskUpdate update, List<TaskFile> files) {
+        return new TaskUpdateDto(
+                String.valueOf(update.getId()),
+                String.valueOf(update.getTask().getId()),
+                String.valueOf(update.getAuthor().getId()),
+                update.getContent(),
+                update.getCreatedAt().toString(),
+                update.getUpdatedAt() != null ? update.getUpdatedAt().toString() : null,
+                files.stream().map(this::toFileDto).toList(),
+                update.getMentions().stream().map(u -> String.valueOf(u.getId())).toList());
+    }
+
+    private FileAttachmentDto toFileDto(TaskFile file) {
+        return new FileAttachmentDto(
+                String.valueOf(file.getId()),
+                file.getFileName(),
+                file.getStorageUrl(),
+                file.getUploadedAt().toString(),
+                file.getMimeType() != null ? file.getMimeType() : "application/octet-stream",
+                file.getSizeBytes(),
+                toUserDto(file.getUploadedBy()));
+    }
+
+    private UserSummaryDto toUserDto(User user) {
+        return new UserSummaryDto(
+                String.valueOf(user.getId()),
+                user.getName(),
+                null,
+                initials(user.getName()),
+                user.getEmail());
+    }
+
+    private BoardViewDto toViewDto(BoardView view) {
+        return new BoardViewDto(
+                String.valueOf(view.getId()),
+                view.getName(),
+                view.getType(),
+                view.getPosition(),
+                Boolean.TRUE.equals(view.getDefaultView()),
+                view.getConfig());
+    }
+
+    private String initials(String name) {
+        if (name == null || name.isBlank()) {
+            return "?";
+        }
+        return java.util.Arrays.stream(name.trim().split("\\s+"))
+                .filter(s -> !s.isBlank())
+                .limit(2)
+                .map(s -> s.substring(0, 1).toUpperCase())
+                .collect(Collectors.joining());
+    }
+}

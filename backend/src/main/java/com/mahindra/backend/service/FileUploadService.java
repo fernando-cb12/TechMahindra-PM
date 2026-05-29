@@ -4,6 +4,8 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -27,6 +29,12 @@ public class FileUploadService {
     private final String secretKey;
     private final String publicBaseUrl;
     private final long presignedUrlExpirationSeconds;
+    private final long taskFileMaxSizeBytes;
+
+    private static final Set<String> TASK_FILE_EXTENSIONS = Set.of(
+            "jpg", "jpeg", "png", "gif", "webp", "svg",
+            "pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "csv",
+            "txt", "md", "json", "zip");
 
     public FileUploadService(
             @Value("${aws.s3.bucket-name:}") String bucketName,
@@ -34,13 +42,15 @@ public class FileUploadService {
             @Value("${aws.s3.access-key:}") String accessKey,
             @Value("${aws.s3.secret-key:}") String secretKey,
             @Value("${aws.s3.public-base-url:}") String publicBaseUrl,
-            @Value("${aws.s3.presigned-url-expiration-seconds:300}") long presignedUrlExpirationSeconds) {
+            @Value("${aws.s3.presigned-url-expiration-seconds:300}") long presignedUrlExpirationSeconds,
+            @Value("${app.task-files.max-size-bytes:104857600}") long taskFileMaxSizeBytes) {
         this.bucketName = bucketName;
         this.region = region;
         this.accessKey = accessKey;
         this.secretKey = secretKey;
         this.publicBaseUrl = trimToNull(publicBaseUrl);
         this.presignedUrlExpirationSeconds = presignedUrlExpirationSeconds;
+        this.taskFileMaxSizeBytes = taskFileMaxSizeBytes;
     }
 
     public PresignedUploadResponse createWorkspaceBannerUpload(String fileName, String contentType) {
@@ -66,6 +76,69 @@ public class FileUploadService {
             String uploadUrl = presigner.presignPutObject(presignRequest).url().toString();
             return new PresignedUploadResponse(uploadUrl, publicUrlFor(key), key);
         }
+    }
+
+    public PresignedUploadResponse createTaskUpdateUpload(Long workspaceId, Long boardId, Long taskId,
+            String fileName, String contentType, Long sizeBytes) {
+        validateConfiguration();
+        validateTaskFile(fileName, contentType, sizeBytes);
+
+        String key = "tasksDocumentUpdates/workspaces/%d/boards/%d/tasks/%d/%d-%s".formatted(
+                workspaceId,
+                boardId,
+                taskId,
+                Instant.now().toEpochMilli(),
+                sanitizeFileName(fileName));
+        PutObjectRequest objectRequest = PutObjectRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .contentType(contentType)
+                .build();
+        PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofSeconds(900))
+                .putObjectRequest(objectRequest)
+                .build();
+
+        try (S3Presigner presigner = buildPresigner()) {
+            String uploadUrl = presigner.presignPutObject(presignRequest).url().toString();
+            return new PresignedUploadResponse(uploadUrl, publicUrlFor(key), key);
+        }
+    }
+
+    private void validateTaskFile(String fileName, String contentType, Long sizeBytes) {
+        if (sizeBytes != null && sizeBytes > taskFileMaxSizeBytes) {
+            throw new IllegalArgumentException("Task file exceeds the 100 MB limit");
+        }
+        String extension = extension(fileName);
+        if (!TASK_FILE_EXTENSIONS.contains(extension)) {
+            throw new IllegalArgumentException("Unsupported task file type");
+        }
+        String type = contentType == null ? "" : contentType.toLowerCase(Locale.ROOT);
+        boolean knownType = type.startsWith("image/")
+                || type.equals("application/pdf")
+                || type.contains("word")
+                || type.contains("presentation")
+                || type.contains("spreadsheet")
+                || type.contains("excel")
+                || type.equals("text/csv")
+                || type.startsWith("text/")
+                || type.equals("application/json")
+                || type.equals("application/zip")
+                || type.equals("application/octet-stream");
+        if (!knownType) {
+            throw new IllegalArgumentException("Unsupported task file MIME type");
+        }
+    }
+
+    private static String extension(String fileName) {
+        if (fileName == null) {
+            return "";
+        }
+        int dot = fileName.lastIndexOf('.');
+        if (dot < 0 || dot == fileName.length() - 1) {
+            return "";
+        }
+        return fileName.substring(dot + 1).toLowerCase(Locale.ROOT);
     }
 
     private S3Presigner buildPresigner() {

@@ -20,4 +20,8 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             group by t.board.workspace.id
             """)
     List<Object[]> countDoneAndTotalByWorkspaceIds(@Param("ids") Collection<Long> ids);
+
+    List<Task> findByBoardIdAndDeletedAtIsNullOrderByGroupPositionAscPositionAscIdAsc(Long boardId);
+
+    List<Task> findByGroupIdAndDeletedAtIsNullOrderByPositionAscIdAsc(Long groupId);
 }

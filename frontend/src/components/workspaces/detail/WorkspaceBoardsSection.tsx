@@ -3,6 +3,7 @@ import { Alert, Box, CircularProgress, Paper, Typography, Button, useTheme, alph
 import FolderIcon from '@mui/icons-material/Folder';
 import AddIcon from '@mui/icons-material/Add';
 import { getWorkspaceBoards, type WorkspaceBoard } from '../../../services/workspacesService';
+import { useNavigate } from 'react-router-dom';
 
 interface WorkspaceBoardsSectionProps {
   workspaceId: string;
@@ -10,6 +11,7 @@ interface WorkspaceBoardsSectionProps {
 
 function WorkspaceBoardsSection({ workspaceId }: WorkspaceBoardsSectionProps): React.ReactNode {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [boards, setBoards] = useState<WorkspaceBoard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -108,6 +110,7 @@ function WorkspaceBoardsSection({ workspaceId }: WorkspaceBoardsSectionProps): R
         ) : boards.map((board) => (
           <Box
             key={board.id}
+            onClick={() => navigate(`/workspaces/${workspaceId}/boards/${board.id}`)}
             sx={{
               display: 'flex',
               alignItems: 'center',
