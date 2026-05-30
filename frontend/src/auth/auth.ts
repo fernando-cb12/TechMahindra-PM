@@ -95,6 +95,23 @@ export function hasMinimumRole(roles: AppRole[], minimumRole: AppRole): boolean 
   });
 }
 
+export const DEV_ADMIN_PREVIEW_TOKEN = 'dev-admin-preview';
+
+/** Temporary session for admin UI preview from the login screen. */
+export function createDevAdminSession(): AuthSession {
+  return {
+    accessToken: DEV_ADMIN_PREVIEW_TOKEN,
+    tokenType: 'Bearer',
+    expiresAtMs: Date.now() + 24 * 60 * 60 * 1000,
+    email: 'admin@techmahindra.com',
+    roles: ['ADMIN'],
+  };
+}
+
+export function isDevAdminPreviewSession(session: AuthSession | null): boolean {
+  return session?.accessToken === DEV_ADMIN_PREVIEW_TOKEN;
+}
+
 export async function login(credentials: LoginCredentials): Promise<AuthSession> {
   let payload: AuthResponse;
   try {

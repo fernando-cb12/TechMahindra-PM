@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Box, AppBar, Toolbar } from "@mui/material";
+import { Box, AppBar, Toolbar, Typography } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
 import mahindraLogo from "../assets/mahindralogobk.png";
 import loginBg from "../assets/loginbg.png";
 import LoginForm from "../components/login/LoginForm";
 import { ROUTES } from "../app/routes";
 import { useAuth } from "../auth/AuthContext";
-import { hasMinimumRole } from "../auth/auth";
+import { createDevAdminSession, hasMinimumRole, saveSession } from "../auth/auth";
 
 function Login() {
   const navigate = useNavigate();
@@ -108,6 +108,31 @@ function Login() {
         {/* Login Form */}
         <LoginForm onLogin={handleLogin} errorMessage={errorMessage} />
       </Box>
+
+      <Typography
+        component="button"
+        type="button"
+        onClick={() => {
+          saveSession(createDevAdminSession(), true);
+          window.location.href = ROUTES.admin;
+        }}
+        sx={{
+          position: "fixed",
+          bottom: 12,
+          right: 12,
+          zIndex: 2,
+          border: "none",
+          background: "transparent",
+          color: alpha(theme.palette.common.white, 0.4),
+          fontFamily,
+          fontSize: 11,
+          cursor: "pointer",
+          textDecoration: "underline",
+          "&:hover": { color: alpha(theme.palette.common.white, 0.65) },
+        }}
+      >
+        Access as admin
+      </Typography>
     </Box>
   );
 }

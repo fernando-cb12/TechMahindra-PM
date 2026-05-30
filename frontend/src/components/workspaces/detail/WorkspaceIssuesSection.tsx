@@ -118,13 +118,7 @@ function WorkspaceIssuesSection({ workspace }: WorkspaceIssuesSectionProps) {
     >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Button
-          onClick={() =>
-            navigate(
-              `/issues?workspaceId=${encodeURIComponent(workspace.id)}&project=${encodeURIComponent(
-                workspace.title,
-              )}`,
-            )
-          }
+          onClick={() => navigate(`/workspaces/${workspace.id}/issues`)}
           sx={{
             textTransform: 'none',
             p: 0,
