@@ -44,7 +44,7 @@ function AdminUsers() {
       name: searchQuery.trim() || undefined,
       status: statusFilter === 'all' ? undefined : statusFilter,
     });
-  }, [allUsers, searchQuery, statusFilter]);
+  }, [searchQuery, statusFilter]);
 
   const handleOpenCreate = () => {
     setFormMode('create');
