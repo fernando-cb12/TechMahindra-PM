@@ -1,6 +1,6 @@
 // ─── TaskBoardPage — top level layout connecting everything ───
 
-import { Box, Typography, Button, Tabs, Tab, IconButton, Popover } from '@mui/material';
+import { Alert, Box, Typography, Button, Tabs, Tab, IconButton, Popover, LinearProgress } from '@mui/material';
 import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1';
 import TableChartIcon from '@mui/icons-material/TableChart';
 import InsertChartIcon from '@mui/icons-material/InsertChart';
@@ -8,7 +8,8 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import AddIcon from '@mui/icons-material/Add';
 import { useParams } from 'react-router-dom';
 
-import { TaskBoardProvider, useTaskBoard } from './TaskBoardContext';
+import { TaskBoardProvider } from './TaskBoardContext';
+import { useTaskBoard } from './useTaskBoard';
 import MainTableView from './table/MainTableView';
 import ChartView from './chart/ChartView';
 import CalendarView from './calendar/CalendarView';
@@ -18,7 +19,7 @@ import { useState } from 'react';
 
 // The actual content inside the provider
 function TaskBoardContent() {
-  const { boardConfig, activeView, setActiveView } = useTaskBoard();
+  const { boardConfig, activeView, setActiveView, isLoading, error } = useTaskBoard();
   const [addViewAnchor, setAddViewAnchor] = useState<HTMLButtonElement | null>(null);
   
   // Format the board title (e.g., frontend -> Frontend Design)
@@ -26,6 +27,7 @@ function TaskBoardContent() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
+      {isLoading && <LinearProgress sx={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2 }} />}
       
       {/* Header */}
       <Box sx={{ px: 4, py: 3, pb: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
@@ -113,6 +115,11 @@ function TaskBoardContent() {
 
       {/* Main Content Area */}
       <Box sx={{ flex: 1, overflowY: 'auto', px: activeView === 'table' ? 4 : 2, py: activeView === 'table' ? 0 : 2 }}>
+        {error && (
+          <Alert severity="warning" sx={{ my: 2 }}>
+            {error}
+          </Alert>
+        )}
         {/* We keep all views mounted (or just table) to preserve scroll if desired, 
             but standard is conditional rendering. Let's do conditional rendering for now 
             except for Table which might be heavy to re-mount. */}
@@ -136,7 +143,7 @@ export default function TaskBoardPage() {
 
   return (
     <Box sx={{ flex: 1, minHeight: '100vh', bgcolor: 'background.default' }}>
-      <TaskBoardProvider workspaceId={`${workspaceId}_${boardId}`}>
+      <TaskBoardProvider workspaceId={workspaceId} boardId={boardId}>
         <TaskBoardContent />
       </TaskBoardProvider>
     </Box>

@@ -20,7 +20,7 @@ import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import ColumnManager from '../ColumnManager';
-import { useTaskBoard } from '../TaskBoardContext';
+import { useTaskBoard } from '../useTaskBoard';
 
 export default function TableToolbar() {
   const {

@@ -2,9 +2,7 @@
 // Single source of truth for all Task Board state.
 
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
@@ -21,72 +19,20 @@ import type {
   TaskBoardState,
 } from './types';
 import { getMockWorkspaceBoards, getMockWorkspaceData, getMockUsers } from '../../../mocks/taskBoard';
-
-// ─── Context value (state + actions) ───
-interface TaskBoardContextValue extends Omit<TaskBoardState, 'manualGroupOrder'> {
-  manualGroupOrder: string[];
-  availableBoards: BoardMoveTarget[];
-
-  // View
-  setActiveView: (view: BoardView) => void;
-
-  // Panel
-  openPanel: (taskId: string) => void;
-  closePanel: () => void;
-  setPanelTab: (tab: PanelState['activeTab']) => void;
-
-  // Groups
-  toggleGroupCollapse: (groupId: string) => void;
-
-  // Tasks — mutations
-  updateTask: (taskId: string, patch: Partial<Task>) => void;
-  addTask: (task: Task) => void;
-  addTaskToFirstGroup: () => void;
-  moveTask: (taskId: string, fromGroupId: string, toGroupId: string, newIndex: number) => void;
-  moveTaskToGroup: (taskId: string, toGroupId: string) => void;
-  moveTaskToBoardGroup: (taskId: string, toBoardId: string, toGroupId: string) => void;
-  toggleTaskComplete: (taskId: string) => void;
-  deleteTask: (taskId: string) => void;
-
-  // Column management
-  updateColumns: (columns: ColumnDefinition[]) => void;
-  addColumn: (col: ColumnDefinition) => void;
-  updateStatusOptions: (options: SelectOption[]) => void;
-  updatePriorityOptions: (options: SelectOption[]) => void;
-
-  // Groups — mutations
-  reorderGroups: (newGroups: TaskGroup[]) => void;
-  addGroupAtSecondPosition: () => void;
-  updateGroupColor: (groupId: string, color: string) => void;
-  updateGroupName: (groupId: string, name: string) => void;
-  moveGroupToBoard: (groupId: string, toBoardId: string) => void;
-  deleteGroup: (groupId: string) => void;
-
-  // Search & Sorting UI
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  sortMode: 'none' | 'taskCount' | 'alphabetical';
-  setSortMode: (mode: 'none' | 'taskCount' | 'alphabetical') => void;
-  sortDirection: 'asc' | 'desc';
-  setSortDirection: (dir: 'asc' | 'desc') => void;
-
-  // Computed groups (filtered & sorted)
-  visibleGroups: TaskGroup[];
-
-  // Completion tracking (local only)
-  completedTasks: Set<string>;
-}
-
-const TaskBoardContext = createContext<TaskBoardContextValue | null>(null);
+import { TaskBoardContext, type TaskBoardContextValue } from './TaskBoardContextDefinition';
+import {
+  createColumn as createColumnRequest,
+  createTask as createTaskRequest,
+  createTaskGroup,
+  createTaskUpdate,
+  deleteTask as deleteTaskRequest,
+  getTaskBoard,
+  patchTask,
+  type BoardMoveTarget,
+} from '../../../services/taskBoardService';
 
 // ─── localStorage helpers (Section 18 of spec) ───
 const STORAGE_VERSION = 2;
-
-interface BoardMoveTarget {
-  id: string;
-  name: string;
-  groups: TaskGroup[];
-}
 
 interface StoredBoardState {
   version: number;
@@ -167,42 +113,41 @@ function cloneTaskRecord(tasks: Record<string, Task>): Record<string, Task> {
 // ─── Provider ───
 interface TaskBoardProviderProps {
   workspaceId: string;
+  boardId: string;
   children: ReactNode;
 }
 
-export function TaskBoardProvider({ workspaceId, children }: TaskBoardProviderProps) {
-  const users = useMemo(() => getMockUsers(), []);
-  const workspaceRootId = useMemo(() => {
-    const parts = workspaceId.split('_');
-    return parts.length > 1 ? parts.slice(0, -1).join('_') : workspaceId;
-  }, [workspaceId]);
+export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardProviderProps) {
+  const storageBoardId = `${workspaceId}_${boardId}`;
+  const workspaceRootId = workspaceId;
 
   // ─── Base States ───
   const [boardConfig, setBoardConfig] = useState<BoardConfig>(() => {
-    const fallback = getMockWorkspaceData(workspaceId);
-    const loaded = loadBoardState(workspaceId, fallback);
-    return loaded?.config ?? { workspaceId, columns: [], statusOptions: [], priorityOptions: [] };
+    const fallback = getMockWorkspaceData(storageBoardId);
+    const loaded = loadBoardState(storageBoardId, fallback);
+    return loaded?.config ?? { workspaceId: boardId, columns: [], statusOptions: [], priorityOptions: [] };
   });
 
   const [groups, setGroups] = useState<TaskGroup[]>(() => {
-    const fallback = getMockWorkspaceData(workspaceId);
-    const loaded = loadBoardState(workspaceId, fallback);
+    const fallback = getMockWorkspaceData(storageBoardId);
+    const loaded = loadBoardState(storageBoardId, fallback);
     return loaded?.groups ?? [];
   });
 
   const [tasks, setTasks] = useState<Record<string, Task>>(() => {
-    const fallback = getMockWorkspaceData(workspaceId);
-    const loaded = loadBoardState(workspaceId, fallback);
+    const fallback = getMockWorkspaceData(storageBoardId);
+    const loaded = loadBoardState(storageBoardId, fallback);
     return loaded?.tasks ?? {};
   });
 
   const [manualGroupOrder, setManualGroupOrder] = useState<string[]>(() => {
-    const fallback = getMockWorkspaceData(workspaceId);
-    const loaded = loadBoardState(workspaceId, fallback);
+    const fallback = getMockWorkspaceData(storageBoardId);
+    const loaded = loadBoardState(storageBoardId, fallback);
     return loaded?.manualGroupOrder ?? [];
   });
 
-  const availableBoards = useMemo<BoardMoveTarget[]>(() => (
+  const [users, setUsers] = useState<Record<string, TaskBoardState['users'][string]>>(() => getMockUsers());
+  const [availableBoards, setAvailableBoards] = useState<BoardMoveTarget[]>(() => (
     getMockWorkspaceBoards(workspaceRootId).map((board) => {
       const stored = buildBoardState(board.id);
       return {
@@ -211,7 +156,9 @@ export function TaskBoardProvider({ workspaceId, children }: TaskBoardProviderPr
         groups: stored?.groups ?? board.groups,
       };
     })
-  ), [workspaceRootId, boardConfig, groups]);
+  ));
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // UI state
   const [activeView, setActiveView] = useState<BoardView>('table');
@@ -229,15 +176,27 @@ export function TaskBoardProvider({ workspaceId, children }: TaskBoardProviderPr
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Re-init state when workspace/board ID changes
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    const fallback = getMockWorkspaceData(workspaceId);
-    const loaded = loadBoardState(workspaceId, fallback);
-    if (!loaded) return;
+    let cancelled = false;
+    setIsLoading(true);
+    setError(null);
 
-    setBoardConfig(loaded.config);
-    setGroups(loaded.groups);
-    setTasks(loaded.tasks);
-    setManualGroupOrder(loaded.manualGroupOrder);
+    const fallback = getMockWorkspaceData(storageBoardId);
+    const loaded = loadBoardState(storageBoardId, fallback);
+    setBoardConfig(loaded?.config ?? { workspaceId: boardId, columns: [], statusOptions: [], priorityOptions: [] });
+    setGroups(loaded?.groups ?? []);
+    setTasks(loaded?.tasks ?? {});
+    setManualGroupOrder(loaded?.manualGroupOrder ?? []);
+    setUsers(getMockUsers());
+    setAvailableBoards(getMockWorkspaceBoards(workspaceRootId).map((board) => {
+      const stored = buildBoardState(board.id);
+      return {
+        id: board.id,
+        name: stored?.config.boardName ?? board.name,
+        groups: stored?.groups ?? board.groups,
+      };
+    }));
 
     setPanel({ isOpen: false, taskId: null, activeTab: 'updates' });
     setCollapsedGroups(new Set());
@@ -245,7 +204,30 @@ export function TaskBoardProvider({ workspaceId, children }: TaskBoardProviderPr
     setSearchQuery('');
     setSortMode('none');
     setSortDirection('desc');
-  }, [workspaceId]);
+
+    void getTaskBoard(workspaceId, boardId)
+      .then((payload) => {
+        if (cancelled) return;
+        setBoardConfig(payload.boardConfig);
+        setGroups(payload.groups);
+        setTasks(payload.tasks);
+        setUsers(payload.users);
+        setManualGroupOrder(payload.groups.map((g) => g.id));
+        setAvailableBoards(payload.availableBoards);
+        setError(null);
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load task board');
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId, boardId, storageBoardId, workspaceRootId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Sync to localStorage helper
   const syncStorage = useCallback((
@@ -254,13 +236,13 @@ export function TaskBoardProvider({ workspaceId, children }: TaskBoardProviderPr
     updatedTasks: Record<string, Task>,
     updatedOrder: string[]
   ) => {
-    saveBoardState(workspaceId, {
+    saveBoardState(storageBoardId, {
       config: updatedConfig,
       groups: updatedGroups,
       tasks: updatedTasks,
       manualGroupOrder: updatedOrder,
     });
-  }, [workspaceId]);
+  }, [storageBoardId]);
 
   // ─── Actions ───
   const openPanel = useCallback((taskId: string) => {
@@ -303,7 +285,42 @@ export function TaskBoardProvider({ workspaceId, children }: TaskBoardProviderPr
       syncStorage(boardConfig, groups, updated, manualGroupOrder);
       return updated;
     });
-  }, [boardConfig, groups, manualGroupOrder, syncStorage]);
+    void patchTask(workspaceId, boardId, taskId, patch).catch((e) => {
+      setError(e instanceof Error ? e.message : 'Failed to update task');
+    });
+  }, [workspaceId, boardId, boardConfig, groups, manualGroupOrder, syncStorage]);
+
+  const postTaskUpdate = useCallback((taskId: string, content: string, attachments: Task['files'], mentions: string[]) => {
+    const existing = tasks[taskId];
+    if (!existing) return;
+
+    const activeUser = Object.values(users)[0];
+    const optimisticUpdate = {
+      id: `upd_${Date.now()}`,
+      taskId,
+      authorId: activeUser?.id ?? '',
+      content,
+      createdAt: new Date().toISOString(),
+      attachments,
+      mentions,
+    };
+    updateTask(taskId, {
+      updates: [...(existing.updates || []), optimisticUpdate],
+      files: [...(existing.files || []), ...attachments],
+    });
+    void createTaskUpdate(workspaceId, boardId, taskId, { content, attachments, mentions })
+      .then(() => {
+        void getTaskBoard(workspaceId, boardId).then((payload) => {
+          setBoardConfig(payload.boardConfig);
+          setGroups(payload.groups);
+          setTasks(payload.tasks);
+          setUsers(payload.users);
+          setManualGroupOrder(payload.groups.map((g) => g.id));
+          setAvailableBoards(payload.availableBoards);
+        });
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to create update'));
+  }, [workspaceId, boardId, tasks, users, updateTask]);
 
   const addTask = useCallback((task: Task) => {
     const updatedTasks = { ...tasks, [task.id]: task };
@@ -314,7 +331,21 @@ export function TaskBoardProvider({ workspaceId, children }: TaskBoardProviderPr
     setTasks(updatedTasks);
     setGroups(updatedGroups);
     syncStorage(boardConfig, updatedGroups, updatedTasks, manualGroupOrder);
-  }, [tasks, groups, boardConfig, manualGroupOrder, syncStorage]);
+    void createTaskRequest(workspaceId, boardId, task.groupId, { name: task.name })
+      .then((created) => {
+        setTasks((prev) => {
+          const rest = { ...prev };
+          delete rest[task.id];
+          return { ...rest, [created.id]: created };
+        });
+        setGroups((prev) => prev.map((g) => (
+          g.id === task.groupId
+            ? { ...g, taskIds: g.taskIds.map((id) => (id === task.id ? created.id : id)) }
+            : g
+        )));
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to create task'));
+  }, [workspaceId, boardId, tasks, groups, boardConfig, manualGroupOrder, syncStorage]);
 
   // Computed visibleGroups selector
   const visibleGroups = useMemo(() => {
@@ -399,7 +430,7 @@ export function TaskBoardProvider({ workspaceId, children }: TaskBoardProviderPr
       id: newTaskId,
       name: 'New Task',
       groupId: targetGroup.id,
-      workspaceId,
+      workspaceId: boardId,
       assigneeId: null,
       assigneeIds: [],
       status: boardConfig.statusOptions[0]?.id || '',
@@ -421,14 +452,14 @@ export function TaskBoardProvider({ workspaceId, children }: TaskBoardProviderPr
     setTasks(updatedTasks);
     setGroups(updatedGroups);
     syncStorage(boardConfig, updatedGroups, updatedTasks, manualGroupOrder);
-  }, [visibleGroups, workspaceId, boardConfig, tasks, groups, manualGroupOrder, syncStorage]);
+  }, [visibleGroups, boardId, boardConfig, tasks, groups, manualGroupOrder, syncStorage]);
 
   // Insert an empty group in the second position of the board
   const addGroupAtSecondPosition = useCallback(() => {
     const newGroupId = `group_${Date.now()}`;
     const newGroup: TaskGroup = {
       id: newGroupId,
-      workspaceId,
+      workspaceId: boardId,
       name: 'New Group',
       color: '#A3334D', // default Burgundy color
       order: groups.length,
@@ -448,7 +479,13 @@ export function TaskBoardProvider({ workspaceId, children }: TaskBoardProviderPr
     setGroups(updatedGroups);
     setManualGroupOrder(updatedOrder);
     syncStorage(boardConfig, updatedGroups, tasks, updatedOrder);
-  }, [groups, manualGroupOrder, workspaceId, tasks, boardConfig, syncStorage]);
+    void createTaskGroup(workspaceId, boardId, { name: newGroup.name, color: newGroup.color })
+      .then((created) => {
+        setGroups((prev) => prev.map((g) => (g.id === newGroupId ? { ...created, taskIds: [] } : g)));
+        setManualGroupOrder((prev) => prev.map((id) => (id === newGroupId ? created.id : id)));
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to create group'));
+  }, [workspaceId, boardId, groups, manualGroupOrder, tasks, boardConfig, syncStorage]);
 
   const moveTask = useCallback(
     (taskId: string, fromGroupId: string, toGroupId: string, newIndex: number) => {
@@ -513,7 +550,7 @@ export function TaskBoardProvider({ workspaceId, children }: TaskBoardProviderPr
 
   const moveTaskToBoardGroup = useCallback(
     (taskId: string, toBoardId: string, toGroupId: string) => {
-      if (toBoardId === workspaceId) {
+      if (toBoardId === boardId) {
         moveTaskToGroup(taskId, toGroupId);
         return;
       }
@@ -540,7 +577,8 @@ export function TaskBoardProvider({ workspaceId, children }: TaskBoardProviderPr
         g.id === toGroupId ? { ...g, taskIds: [...g.taskIds, nextTaskId] } : g
       );
 
-      const { [taskId]: _deletedTask, ...updatedCurrentTasks } = tasks;
+      const updatedCurrentTasks = { ...tasks };
+      delete updatedCurrentTasks[taskId];
       const updatedCurrentGroups = groups.map((g) => ({
         ...g,
         taskIds: g.taskIds.filter((id) => id !== taskId),
@@ -563,7 +601,7 @@ export function TaskBoardProvider({ workspaceId, children }: TaskBoardProviderPr
       });
       syncStorage(boardConfig, updatedCurrentGroups, updatedCurrentTasks, manualGroupOrder);
     },
-    [workspaceId, moveTaskToGroup, tasks, groups, boardConfig, manualGroupOrder, syncStorage]
+    [boardId, moveTaskToGroup, tasks, groups, boardConfig, manualGroupOrder, syncStorage]
   );
 
   const toggleTaskComplete = useCallback((taskId: string) => {
@@ -577,7 +615,8 @@ export function TaskBoardProvider({ workspaceId, children }: TaskBoardProviderPr
 
   const deleteTask = useCallback(
     (taskId: string) => {
-      const { [taskId]: _deletedTask, ...updatedTasks } = tasks;
+      const updatedTasks = { ...tasks };
+      delete updatedTasks[taskId];
       const updatedGroups = groups.map((g) => ({
         ...g,
         taskIds: g.taskIds.filter((id) => id !== taskId),
@@ -592,8 +631,11 @@ export function TaskBoardProvider({ workspaceId, children }: TaskBoardProviderPr
         return next;
       });
       syncStorage(boardConfig, updatedGroups, updatedTasks, manualGroupOrder);
+      void deleteTaskRequest(workspaceId, boardId, taskId).catch((e) => {
+        setError(e instanceof Error ? e.message : 'Failed to delete task');
+      });
     },
-    [tasks, groups, boardConfig, manualGroupOrder, syncStorage]
+    [workspaceId, boardId, tasks, groups, boardConfig, manualGroupOrder, syncStorage]
   );
 
   const updateColumns = useCallback(
@@ -611,8 +653,16 @@ export function TaskBoardProvider({ workspaceId, children }: TaskBoardProviderPr
       const updatedConfig = { ...boardConfig, columns: updatedColumnsList };
       setBoardConfig(updatedConfig);
       syncStorage(updatedConfig, groups, tasks, manualGroupOrder);
+      void createColumnRequest(workspaceId, boardId, col)
+        .then((created) => {
+          setBoardConfig((prev) => ({
+            ...prev,
+            columns: prev.columns.map((c) => (c.id === col.id ? created : c)),
+          }));
+        })
+        .catch((e) => setError(e instanceof Error ? e.message : 'Failed to create column'));
     },
-    [boardConfig, groups, tasks, manualGroupOrder, syncStorage]
+    [workspaceId, boardId, boardConfig, groups, tasks, manualGroupOrder, syncStorage]
   );
 
   const reorderGroups = useCallback(
@@ -648,7 +698,7 @@ export function TaskBoardProvider({ workspaceId, children }: TaskBoardProviderPr
 
   const moveGroupToBoard = useCallback(
     (groupId: string, toBoardId: string) => {
-      if (toBoardId === workspaceId) return;
+      if (toBoardId === boardId) return;
 
       const groupToMove = groups.find((g) => g.id === groupId);
       const targetState = buildBoardState(toBoardId);
@@ -718,7 +768,7 @@ export function TaskBoardProvider({ workspaceId, children }: TaskBoardProviderPr
       });
       syncStorage(boardConfig, updatedCurrentGroups, updatedCurrentTasks, updatedCurrentOrder);
     },
-    [workspaceId, groups, manualGroupOrder, tasks, boardConfig, syncStorage]
+    [boardId, groups, manualGroupOrder, tasks, boardConfig, syncStorage]
   );
 
   const deleteGroup = useCallback(
@@ -777,6 +827,8 @@ export function TaskBoardProvider({ workspaceId, children }: TaskBoardProviderPr
       tasks,
       users,
       availableBoards,
+      isLoading,
+      error,
       panel,
       activeView,
       collapsedGroups,
@@ -795,6 +847,7 @@ export function TaskBoardProvider({ workspaceId, children }: TaskBoardProviderPr
       setPanelTab,
       toggleGroupCollapse,
       updateTask,
+      postTaskUpdate,
       addTask,
       addTaskToFirstGroup,
       moveTask,
@@ -819,6 +872,8 @@ export function TaskBoardProvider({ workspaceId, children }: TaskBoardProviderPr
       tasks,
       users,
       availableBoards,
+      isLoading,
+      error,
       panel,
       activeView,
       collapsedGroups,
@@ -834,6 +889,7 @@ export function TaskBoardProvider({ workspaceId, children }: TaskBoardProviderPr
       setPanelTab,
       toggleGroupCollapse,
       updateTask,
+      postTaskUpdate,
       addTask,
       addTaskToFirstGroup,
       moveTask,
@@ -861,11 +917,3 @@ export function TaskBoardProvider({ workspaceId, children }: TaskBoardProviderPr
   );
 }
 
-// ─── Consumer hook ───
-export function useTaskBoard(): TaskBoardContextValue {
-  const ctx = useContext(TaskBoardContext);
-  if (!ctx) {
-    throw new Error('useTaskBoard must be used within <TaskBoardProvider>');
-  }
-  return ctx;
-}

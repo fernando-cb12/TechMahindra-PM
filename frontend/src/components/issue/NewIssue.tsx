@@ -48,8 +48,10 @@ const NewIssue: React.FC<NewIssueProps> = ({ open, projectOptions, onSubmit }) =
 
   useEffect(() => {
     if (open) {
+      /* eslint-disable react-hooks/set-state-in-effect */
       setForm(emptyForm);
       setErrors({});
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [open]);
 

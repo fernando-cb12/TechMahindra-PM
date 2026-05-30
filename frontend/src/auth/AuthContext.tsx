@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   clearSession,
   hasMinimumRole,
@@ -8,22 +8,7 @@ import {
   type AppRole,
   type AuthSession,
 } from './auth';
-
-interface LoginInput {
-  email: string;
-  password: string;
-  persistent: boolean;
-}
-
-interface AuthContextValue {
-  session: AuthSession | null;
-  isAuthenticated: boolean;
-  login: (input: LoginInput) => Promise<AuthSession>;
-  logout: () => void;
-  hasRoleAtLeast: (role: AppRole) => boolean;
-}
-
-const AuthContext = createContext<AuthContextValue | null>(null);
+import { AuthContext, type AuthContextValue } from './AuthContextDefinition';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(() => loadSession());
@@ -32,7 +17,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       session,
       isAuthenticated: session !== null,
-      login: async ({ email, password, persistent }: LoginInput) => {
+      login: async ({ email, password, persistent }) => {
         const nextSession = await loginRequest({ email, password });
         saveSession(nextSession, persistent);
         setSession(nextSession);
@@ -53,12 +38,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth(): AuthContextValue {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-  return context;
 }

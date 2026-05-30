@@ -1,10 +1,11 @@
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import { Box } from '@mui/material';
 import { Responsive } from 'react-grid-layout';
+import type { Layout } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import MetricCard from './MetricCard';
-import { useDashboard } from './DashboardContext';
+import { useDashboard } from './useDashboard';
 import type { Card } from './types';
 
 const GRID_COLS = 12;
@@ -46,10 +47,10 @@ function DashboardGrid() {
   );
 
   const handleLayoutChange = useCallback(
-    (layout: any) => {
+    (layout: Layout) => {
       if (!isEditMode) return;
       const updated: Card[] = cards.map((card) => {
-        const item = layout.find((l: any) => l.i === card.id);
+        const item = layout.find((l) => l.i === card.id);
         if (!item) return card;
         return {
           ...card,
@@ -90,11 +91,9 @@ function DashboardGrid() {
         cols={{ lg: GRID_COLS }}
         rowHeight={rowHeight}
         margin={[10, 10] as [number, number]}
-        {...({ isResizable: isEditMode, isDraggable: isEditMode } as any)}
-        preventCollision={true}
-        compactType={undefined}
+        resizeConfig={{ enabled: isEditMode }}
+        dragConfig={{ enabled: isEditMode, handle: '.mmd-drag-handle' }}
         onLayoutChange={handleLayoutChange}
-        draggableHandle=".mmd-drag-handle"
       >
         {cards.map((card) => (
           <div key={card.id}>

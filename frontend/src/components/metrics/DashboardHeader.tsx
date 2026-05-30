@@ -2,7 +2,7 @@ import { Box, Button, Typography } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import CheckIcon from '@mui/icons-material/Check';
-import { useDashboard } from './DashboardContext';
+import { useDashboard } from './useDashboard';
 
 function DashboardHeader() {
   const { isEditMode, hasUnsavedChanges, toggleEditMode, confirmEdit, openAddModal } =

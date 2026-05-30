@@ -34,9 +34,11 @@ import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import ImageIcon from '@mui/icons-material/Image';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
-import { useTaskBoard } from '../TaskBoardContext';
+import { useTaskBoard } from '../useTaskBoard';
 import { useState, useRef, useMemo } from 'react';
 import type { TaskUpdate, FileAttachment, User } from '../types';
+import { useParams } from 'react-router-dom';
+import { uploadTaskUpdateFile } from '../../../../services/taskBoardService';
 
 // Format file size in KB or MB
 function formatFileSize(bytes: number): string {
@@ -56,7 +58,8 @@ function getFileIcon(type: string) {
 
 // ─── 1. UPDATES TAB COMPONENT (Section 11.1/11.2/12.1 of spec) ───
 function UpdatesTab({ taskId }: { taskId: string }) {
-  const { tasks, users, updateTask } = useTaskBoard();
+  const { tasks, users, updateTask, postTaskUpdate } = useTaskBoard();
+  const { workspaceId = '', boardId = '' } = useParams();
   const task = tasks[taskId];
   
   const [newUpdate, setNewUpdate] = useState('');
@@ -121,15 +124,24 @@ function UpdatesTab({ taskId }: { taskId: string }) {
     fileInputRef.current?.click();
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const localUrl = URL.createObjectURL(file);
+    let fileUrl = URL.createObjectURL(file);
+    try {
+      if (workspaceId && boardId && taskId) {
+        const uploaded = await uploadTaskUpdateFile(workspaceId, boardId, taskId, file);
+        fileUrl = uploaded.publicUrl;
+      }
+    } catch (error) {
+      console.error('Failed to upload task file', error);
+    }
+
     const newFileAttach: FileAttachment = {
       id: `file_${Date.now()}`,
       name: file.name,
-      url: localUrl,
+      url: fileUrl,
       type: file.type || 'application/octet-stream',
       size: file.size,
       uploadedAt: new Date().toISOString(),
@@ -150,23 +162,7 @@ function UpdatesTab({ taskId }: { taskId: string }) {
       }
     });
 
-    const updId = `upd_${Date.now()}`;
-    const upd: TaskUpdate = {
-      id: updId,
-      taskId,
-      authorId: 'u1', // Active user
-      content: newUpdate,
-      createdAt: new Date().toISOString(),
-      attachments: draftFiles,
-      mentions: mentionedIds,
-    };
-
-    // Attach comments locally and copy uploaded files to parent task's files
-    const updatedFiles = [...(task.files || []), ...draftFiles];
-    updateTask(taskId, {
-      updates: [...(task.updates || []), upd],
-      files: updatedFiles,
-    });
+    postTaskUpdate(taskId, newUpdate, draftFiles, mentionedIds);
 
     // Reset editor
     setNewUpdate('');

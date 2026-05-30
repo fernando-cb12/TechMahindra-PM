@@ -1,6 +1,6 @@
 // ─── TaskCell — generic cell renderer per ColumnType (Section 5/7/8/6.2 of spec) ───
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Avatar,
   AvatarGroup,
@@ -26,7 +26,7 @@ import CheckIcon from '@mui/icons-material/Check';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import type { ColumnDefinition, SelectOption } from '../types';
-import { useTaskBoard } from '../TaskBoardContext';
+import { useTaskBoard } from '../useTaskBoard';
 
 interface TaskCellProps {
   taskId: string;
@@ -68,6 +68,7 @@ export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellP
   const [isCreatingOption, setIsCreatingOption] = useState(false);
   const [newOptionLabel, setNewOptionLabel] = useState('');
   const [newOptionColor, setNewOptionColor] = useState(PRESET_COLORS[0]);
+  const optionIdSequence = useRef(0);
 
   // Color picker for a specific option
   const [optionColorAnchor, setOptionColorAnchor] = useState<HTMLElement | null>(null);
@@ -90,6 +91,7 @@ export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellP
 
   const [draftText, setDraftText] = useState(String(cellValue ?? ''));
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setDraftText(String(cellValue ?? ''));
   }, [cellValue]);
@@ -99,10 +101,11 @@ export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellP
       setEditing(true);
     }
   }, [column.id, renameSignal]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!task) return null;
 
-  const commitValue = (val: any) => {
+  const commitValue = (val: string | number | string[] | null) => {
     if (column.id === 'col_name') {
       updateTask(taskId, { name: String(val) });
     } else if (column.id === 'col_date') {
@@ -309,7 +312,8 @@ export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellP
     // Option modifications
     const handleAddOption = () => {
       if (!newOptionLabel.trim()) return;
-      const optId = `opt_${Date.now()}`;
+      optionIdSequence.current += 1;
+      const optId = `opt_${optionIdSequence.current}`;
       const newOpt: SelectOption = {
         id: optId,
         label: newOptionLabel,

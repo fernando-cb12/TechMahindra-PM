@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -19,7 +19,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import mahindraLogo from '../../assets/mahindralogobk.png';
 import type { NavItem, Project, SidebarProps } from './types';
 import { NAV_ITEM_TO_PATH } from '../../app/routes';
-import { useAuth } from '../../auth/AuthContext';
+import { useAuth } from '../../auth/useAuth';
 
 const defaultNavItems: NavItem[] = [
   { label: 'Dashboard', value: 'dashboard' },
@@ -81,6 +81,13 @@ function Sidebar({
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({
     magenta: true,
   });
+
+  const visibleExpandedProjects = useMemo(() => {
+    const targetProject = projects.find((project) => project.id === activeProject) ?? projects[0];
+    return targetProject
+      ? { ...expandedProjects, [targetProject.id]: true }
+      : expandedProjects;
+  }, [projects, activeProject, expandedProjects]);
 
   const handleProjectClick = (projectId: string) => {
     setExpandedProjects((prev) => ({
@@ -216,7 +223,7 @@ function Sidebar({
                     color: 'common.white',
                   }}
                 />
-                {expandedProjects[project.id] ? (
+                {visibleExpandedProjects[project.id] ? (
                   <ExpandLessIcon sx={{ fontSize: 18, ml: 1 }} />
                 ) : (
                   <ExpandMoreIcon sx={{ fontSize: 18, ml: 1 }} />
@@ -225,7 +232,7 @@ function Sidebar({
 
               {/* Project Subsections */}
               <Collapse
-                in={expandedProjects[project.id]}
+                in={visibleExpandedProjects[project.id]}
                 timeout="auto"
                 unmountOnExit
               >

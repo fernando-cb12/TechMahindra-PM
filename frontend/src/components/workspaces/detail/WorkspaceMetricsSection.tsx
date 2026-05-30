@@ -17,12 +17,13 @@ function WorkspaceMetricsSection(): React.ReactNode {
   const radius = size / 2 - 10;
   const circumference = 2 * Math.PI * radius;
 
-  let currentAngle = -90;
-  const segments = metricData.segments.map((segment) => {
+  const segments = metricData.segments.map((segment, index, allSegments) => {
+    const currentAngle = -90 + allSegments
+      .slice(0, index)
+      .reduce((sum, previous) => sum + (previous.value / 100) * 360, 0);
     const offset = circumference * (segment.value / 100);
     const dashArray = `${offset} ${circumference}`;
     const transform = `rotate(${currentAngle} ${size / 2} ${size / 2})`;
-    currentAngle += (segment.value / 100) * 360;
 
     return {
       ...segment,
