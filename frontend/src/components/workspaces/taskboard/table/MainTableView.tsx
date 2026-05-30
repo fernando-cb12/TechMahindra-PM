@@ -77,6 +77,14 @@ export default function MainTableView() {
         const newIndex = toGroup.taskIds.indexOf(overTaskItem.id);
         moveTask(activeTaskItem.id, fromGroup.id, toGroup.id, newIndex);
       }
+    } else if (activeData?.type === 'Task' && overData?.type === 'Group') {
+      const activeTaskItem = activeData.task as Task;
+      const overGroupItem = overData.group as TaskGroupType;
+
+      const fromGroup = visibleGroups.find((g) => g.taskIds.includes(activeTaskItem.id));
+      if (fromGroup && fromGroup.id !== overGroupItem.id) {
+        moveTask(activeTaskItem.id, fromGroup.id, overGroupItem.id, overGroupItem.taskIds.length);
+      }
     } else if (activeData?.type === 'Group' && overData?.type === 'Group') {
       const activeGroupItem = activeData.group as TaskGroupType;
       const overGroupItem = overData.group as TaskGroupType;

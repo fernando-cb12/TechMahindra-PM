@@ -1,5 +1,7 @@
 package com.mahindra.backend.controller;
 
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.mahindra.backend.dto.taskboard.ColumnDefinitionDto;
+import com.mahindra.backend.dto.taskboard.ColumnUpdateRequest;
 import com.mahindra.backend.dto.taskboard.ColumnUpsertRequest;
 import com.mahindra.backend.dto.taskboard.CreateGroupRequest;
 import com.mahindra.backend.dto.taskboard.CreateTaskRequest;
@@ -25,6 +28,7 @@ import com.mahindra.backend.dto.taskboard.TaskDto;
 import com.mahindra.backend.dto.taskboard.TaskGroupDto;
 import com.mahindra.backend.dto.taskboard.TaskPatchRequest;
 import com.mahindra.backend.dto.taskboard.TaskUpdateDto;
+import com.mahindra.backend.dto.taskboard.UpdateGroupRequest;
 import com.mahindra.backend.service.TaskBoardService;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -56,6 +60,15 @@ public class TaskBoardController {
             @Valid @RequestBody CreateGroupRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(taskBoardService.createGroup(authentication, workspaceId, boardId, request));
+    }
+
+    @PatchMapping("/groups/{groupId}")
+    public ResponseEntity<TaskGroupDto> updateGroup(Authentication authentication,
+            @PathVariable Long workspaceId,
+            @PathVariable Long boardId,
+            @PathVariable Long groupId,
+            @RequestBody UpdateGroupRequest request) {
+        return ResponseEntity.ok(taskBoardService.updateGroup(authentication, workspaceId, boardId, groupId, request));
     }
 
     @PostMapping("/groups/{groupId}/tasks")
@@ -93,6 +106,14 @@ public class TaskBoardController {
             @Valid @RequestBody ColumnUpsertRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(taskBoardService.createColumn(authentication, workspaceId, boardId, request));
+    }
+
+    @PutMapping("/columns")
+    public ResponseEntity<List<ColumnDefinitionDto>> replaceColumns(Authentication authentication,
+            @PathVariable Long workspaceId,
+            @PathVariable Long boardId,
+            @RequestBody List<ColumnUpdateRequest> request) {
+        return ResponseEntity.ok(taskBoardService.replaceColumns(authentication, workspaceId, boardId, request));
     }
 
     @PostMapping("/tasks/{taskId}/updates")
