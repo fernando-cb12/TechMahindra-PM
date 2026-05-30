@@ -26,7 +26,7 @@ import DashboardCustomizeIcon from '@mui/icons-material/DashboardCustomize';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { TaskGroup as TaskGroupType } from '../types';
-import { useTaskBoard } from '../TaskBoardContext';
+import { useTaskBoard } from '../useTaskBoard';
 import TaskRow from './TaskRow';
 import ColumnHeader from './ColumnHeader';
 

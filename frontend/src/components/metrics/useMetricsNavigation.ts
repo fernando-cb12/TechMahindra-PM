@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useBlocker } from 'react-router-dom';
 import type { Blocker } from 'react-router-dom';
-import { useDashboard } from './DashboardContext';
+import { useDashboard } from './useDashboard';
 
 interface UseMetricsNavigationReturn {
   isNavigating: boolean;

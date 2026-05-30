@@ -3,7 +3,7 @@ import { Box } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { Sidebar } from '../components/layout/Sidebar';
 import { pathToActiveNavItem } from '../app/routes';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../auth/useAuth';
 import { ROUTES } from '../app/routes';
 import type { Project } from '../components/layout/types';
 import { getWorkspaceBoards, getWorkspaceProjects } from '../services/workspacesService';
@@ -16,7 +16,7 @@ function MainLayout() {
   const activeNavItem = pathToActiveNavItem(location.pathname);
 
   // Check if we are inside a workspace board to highlight the sidebar correctly
-  const boardMatch = location.pathname.match(/\/workspaces\/([^\/]+)\/boards\/([^\/]+)/);
+  const boardMatch = location.pathname.match(/\/workspaces\/([^/]+)\/boards\/([^/]+)/);
   const activeProject = boardMatch ? boardMatch[1] : undefined;
   const activeSubsection = boardMatch ? boardMatch[2] : undefined;
 

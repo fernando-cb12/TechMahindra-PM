@@ -34,7 +34,7 @@ import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import ImageIcon from '@mui/icons-material/Image';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
-import { useTaskBoard } from '../TaskBoardContext';
+import { useTaskBoard } from '../useTaskBoard';
 import { useState, useRef, useMemo } from 'react';
 import type { TaskUpdate, FileAttachment, User } from '../types';
 import { useParams } from 'react-router-dom';

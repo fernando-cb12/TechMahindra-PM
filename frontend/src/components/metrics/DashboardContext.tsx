@@ -1,8 +1,9 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { Card, ChartType, DashboardState, Metric } from './types';
+import type { Card, ChartType, Metric } from './types';
 import { DEFAULT_SIZES } from './types';
 import { getMetrics } from '../../services/metricsService';
+import { DashboardContext, type DashboardContextValue } from './DashboardContextDefinition';
 
 // ── localStorage helpers ────────────────────────────────────────────
 const STORAGE_KEY = 'mmd_layout';
@@ -30,21 +31,6 @@ function saveLayout(cards: Card[]) {
 }
 
 // ── Context value shape ─────────────────────────────────────────────
-interface DashboardContextValue extends DashboardState {
-  metrics: Metric[];
-  hasUnsavedChanges: boolean;
-  toggleEditMode: () => void;
-  openAddModal: () => void;
-  closeAddModal: () => void;
-  addCard: (metricId: string, chartType: ChartType) => void;
-  removeCard: (cardId: string) => void;
-  updateLayouts: (updated: Card[]) => void;
-  confirmEdit: () => void;
-  discardChanges: () => void;
-}
-
-const DashboardContext = createContext<DashboardContextValue | null>(null);
-
 // ── Provider ────────────────────────────────────────────────────────
 export function DashboardProvider({ children }: { children: ReactNode }) {
   const [metrics, setMetrics] = useState<Metric[]>([]);
@@ -173,8 +159,3 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 }
 
 // ── Hook ────────────────────────────────────────────────────────────
-export function useDashboard(): DashboardContextValue {
-  const ctx = useContext(DashboardContext);
-  if (!ctx) throw new Error('useDashboard must be used within <DashboardProvider>');
-  return ctx;
-}

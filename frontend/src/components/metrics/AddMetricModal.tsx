@@ -13,7 +13,7 @@ import {
   Chip,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { useDashboard } from './DashboardContext';
+import { useDashboard } from './useDashboard';
 import { CHART_TYPE_LABELS } from './types';
 import type { ChartType } from './types';
 

@@ -20,7 +20,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useTaskBoard } from './TaskBoardContext';
+import { useTaskBoard } from './useTaskBoard';
 import type { ColumnDefinition } from './types';
 
 // Sortable item wrapper

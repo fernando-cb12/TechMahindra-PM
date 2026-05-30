@@ -8,7 +8,8 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import AddIcon from '@mui/icons-material/Add';
 import { useParams } from 'react-router-dom';
 
-import { TaskBoardProvider, useTaskBoard } from './TaskBoardContext';
+import { TaskBoardProvider } from './TaskBoardContext';
+import { useTaskBoard } from './useTaskBoard';
 import MainTableView from './table/MainTableView';
 import ChartView from './chart/ChartView';
 import CalendarView from './calendar/CalendarView';

@@ -2,9 +2,7 @@
 // Single source of truth for all Task Board state.
 
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
@@ -21,6 +19,7 @@ import type {
   TaskBoardState,
 } from './types';
 import { getMockWorkspaceBoards, getMockWorkspaceData, getMockUsers } from '../../../mocks/taskBoard';
+import { TaskBoardContext, type TaskBoardContextValue } from './TaskBoardContextDefinition';
 import {
   createColumn as createColumnRequest,
   createTask as createTaskRequest,
@@ -31,66 +30,6 @@ import {
   patchTask,
   type BoardMoveTarget,
 } from '../../../services/taskBoardService';
-
-// ─── Context value (state + actions) ───
-interface TaskBoardContextValue extends Omit<TaskBoardState, 'manualGroupOrder'> {
-  manualGroupOrder: string[];
-  availableBoards: BoardMoveTarget[];
-  isLoading: boolean;
-  error: string | null;
-
-  // View
-  setActiveView: (view: BoardView) => void;
-
-  // Panel
-  openPanel: (taskId: string) => void;
-  closePanel: () => void;
-  setPanelTab: (tab: PanelState['activeTab']) => void;
-
-  // Groups
-  toggleGroupCollapse: (groupId: string) => void;
-
-  // Tasks — mutations
-  updateTask: (taskId: string, patch: Partial<Task>) => void;
-  postTaskUpdate: (taskId: string, content: string, attachments: Task['files'], mentions: string[]) => void;
-  addTask: (task: Task) => void;
-  addTaskToFirstGroup: () => void;
-  moveTask: (taskId: string, fromGroupId: string, toGroupId: string, newIndex: number) => void;
-  moveTaskToGroup: (taskId: string, toGroupId: string) => void;
-  moveTaskToBoardGroup: (taskId: string, toBoardId: string, toGroupId: string) => void;
-  toggleTaskComplete: (taskId: string) => void;
-  deleteTask: (taskId: string) => void;
-
-  // Column management
-  updateColumns: (columns: ColumnDefinition[]) => void;
-  addColumn: (col: ColumnDefinition) => void;
-  updateStatusOptions: (options: SelectOption[]) => void;
-  updatePriorityOptions: (options: SelectOption[]) => void;
-
-  // Groups — mutations
-  reorderGroups: (newGroups: TaskGroup[]) => void;
-  addGroupAtSecondPosition: () => void;
-  updateGroupColor: (groupId: string, color: string) => void;
-  updateGroupName: (groupId: string, name: string) => void;
-  moveGroupToBoard: (groupId: string, toBoardId: string) => void;
-  deleteGroup: (groupId: string) => void;
-
-  // Search & Sorting UI
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  sortMode: 'none' | 'taskCount' | 'alphabetical';
-  setSortMode: (mode: 'none' | 'taskCount' | 'alphabetical') => void;
-  sortDirection: 'asc' | 'desc';
-  setSortDirection: (dir: 'asc' | 'desc') => void;
-
-  // Computed groups (filtered & sorted)
-  visibleGroups: TaskGroup[];
-
-  // Completion tracking (local only)
-  completedTasks: Set<string>;
-}
-
-const TaskBoardContext = createContext<TaskBoardContextValue | null>(null);
 
 // ─── localStorage helpers (Section 18 of spec) ───
 const STORAGE_VERSION = 2;
@@ -237,6 +176,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Re-init state when workspace/board ID changes
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
@@ -287,6 +227,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       cancelled = true;
     };
   }, [workspaceId, boardId, storageBoardId, workspaceRootId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Sync to localStorage helper
   const syncStorage = useCallback((
@@ -393,7 +334,8 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
     void createTaskRequest(workspaceId, boardId, task.groupId, { name: task.name })
       .then((created) => {
         setTasks((prev) => {
-          const { [task.id]: _deletedTask, ...rest } = prev;
+          const rest = { ...prev };
+          delete rest[task.id];
           return { ...rest, [created.id]: created };
         });
         setGroups((prev) => prev.map((g) => (
@@ -635,7 +577,8 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
         g.id === toGroupId ? { ...g, taskIds: [...g.taskIds, nextTaskId] } : g
       );
 
-      const { [taskId]: _deletedTask, ...updatedCurrentTasks } = tasks;
+      const updatedCurrentTasks = { ...tasks };
+      delete updatedCurrentTasks[taskId];
       const updatedCurrentGroups = groups.map((g) => ({
         ...g,
         taskIds: g.taskIds.filter((id) => id !== taskId),
@@ -672,7 +615,8 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
 
   const deleteTask = useCallback(
     (taskId: string) => {
-      const { [taskId]: _deletedTask, ...updatedTasks } = tasks;
+      const updatedTasks = { ...tasks };
+      delete updatedTasks[taskId];
       const updatedGroups = groups.map((g) => ({
         ...g,
         taskIds: g.taskIds.filter((id) => id !== taskId),
@@ -973,11 +917,3 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
   );
 }
 
-// ─── Consumer hook ───
-export function useTaskBoard(): TaskBoardContextValue {
-  const ctx = useContext(TaskBoardContext);
-  if (!ctx) {
-    throw new Error('useTaskBoard must be used within <TaskBoardProvider>');
-  }
-  return ctx;
-}

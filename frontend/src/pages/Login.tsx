@@ -6,7 +6,7 @@ import mahindraLogo from "../assets/mahindralogobk.png";
 import loginBg from "../assets/loginbg.png";
 import LoginForm from "../components/login/LoginForm";
 import { ROUTES } from "../app/routes";
-import { useAuth } from "../auth/AuthContext";
+import { useAuth } from "../auth/useAuth";
 import { hasMinimumRole } from "../auth/auth";
 
 function Login() {

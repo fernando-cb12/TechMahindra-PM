@@ -13,7 +13,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Task, ColumnDefinition } from '../types';
 import TaskCell from './TaskCell';
-import { useTaskBoard } from '../TaskBoardContext';
+import { useTaskBoard } from '../useTaskBoard';
 
 interface TaskRowProps {
   task: Task;

@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { Box, Typography, IconButton, Paper, Button } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import { useTaskBoard } from '../TaskBoardContext';
+import { useTaskBoard } from '../useTaskBoard';
 
 export default function CalendarView() {
   const { tasks, groups, openPanel } = useTaskBoard();

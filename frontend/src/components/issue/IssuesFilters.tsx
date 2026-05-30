@@ -1,5 +1,5 @@
 import { Box, FormControl, InputAdornment, MenuItem, Select, Stack, TextField, type SelectChangeEvent } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { useTheme, type Theme } from '@mui/material/styles';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import SearchIcon from '@mui/icons-material/Search';
 import { alpha } from '@mui/material/styles';
@@ -37,7 +37,7 @@ const IssuesFilters = ({
     fontWeight: 700,
     fontSize: 14,
     color: 'text.secondary',
-    backgroundColor: (t: any) => alpha(t.palette.grey[300], 0.28),
+    backgroundColor: (t: Theme) => alpha(t.palette.grey[300], 0.28),
     '& .MuiOutlinedInput-notchedOutline': {
       borderColor: 'divider',
     },
