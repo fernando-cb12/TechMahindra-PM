@@ -393,7 +393,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
     void createTaskRequest(workspaceId, boardId, task.groupId, { name: task.name })
       .then((created) => {
         setTasks((prev) => {
-          const { [task.id]:, ...rest } = prev;
+          const { [task.id]: _deletedTask, ...rest } = prev;
           return { ...rest, [created.id]: created };
         });
         setGroups((prev) => prev.map((g) => (
