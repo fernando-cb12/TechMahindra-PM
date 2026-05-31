@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS task_groups (
     board_id BIGINT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     color VARCHAR(20) NOT NULL,
+    workflow_meaning VARCHAR(20) NOT NULL DEFAULT 'none',
     position INT NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

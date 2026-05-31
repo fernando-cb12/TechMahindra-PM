@@ -88,10 +88,8 @@ CREATE TABLE task (
     board_id     BIGINT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
     title        VARCHAR(255) NOT NULL,
     description  TEXT,
-    status       VARCHAR(20) NOT NULL DEFAULT 'todo'
-                 CHECK (status IN ('todo', 'in_progress', 'review', 'done', 'overdue')),
-    priority     VARCHAR(10) NOT NULL DEFAULT 'medium'
-                 CHECK (priority IN ('low', 'medium', 'high', 'critical')),
+    status       VARCHAR(100) NOT NULL DEFAULT 'todo',
+    priority     VARCHAR(100) NOT NULL DEFAULT 'medium',
     points_value INT NOT NULL DEFAULT 10 CHECK (points_value IN (10, 25, 50, 100)),
     due_date     TIMESTAMPTZ,
     completed_at TIMESTAMPTZ,
