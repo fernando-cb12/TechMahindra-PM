@@ -27,8 +27,11 @@ import {
   createTaskUpdate,
   deleteTask as deleteTaskRequest,
   getTaskBoard,
+  moveTask as moveTaskRequest,
   patchTask,
+  replaceColumns,
   type BoardMoveTarget,
+  updateTaskGroup,
 } from '../../../services/taskBoardService';
 
 // ─── localStorage helpers (Section 18 of spec) ───
@@ -444,15 +447,8 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       updatedAt: new Date().toISOString(),
     };
 
-    const updatedTasks = { ...tasks, [newTaskId]: newTask };
-    const updatedGroups = groups.map((g) =>
-      g.id === targetGroup.id ? { ...g, taskIds: [...g.taskIds, newTaskId] } : g
-    );
-
-    setTasks(updatedTasks);
-    setGroups(updatedGroups);
-    syncStorage(boardConfig, updatedGroups, updatedTasks, manualGroupOrder);
-  }, [visibleGroups, boardId, boardConfig, tasks, groups, manualGroupOrder, syncStorage]);
+    addTask(newTask);
+  }, [visibleGroups, boardId, boardConfig, addTask]);
 
   // Insert an empty group in the second position of the board
   const addGroupAtSecondPosition = useCallback(() => {
@@ -513,8 +509,13 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       setGroups(updatedGroups);
       setTasks(updatedTasks);
       syncStorage(boardConfig, updatedGroups, updatedTasks, manualGroupOrder);
+      void moveTaskRequest(workspaceId, boardId, taskId, {
+        toBoardId: boardId,
+        toGroupId,
+        position: newIndex,
+      }).catch((e) => setError(e instanceof Error ? e.message : 'Failed to move task'));
     },
-    [groups, tasks, boardConfig, manualGroupOrder, syncStorage]
+    [workspaceId, boardId, groups, tasks, boardConfig, manualGroupOrder, syncStorage]
   );
 
   const moveTaskToGroup = useCallback(
@@ -544,8 +545,13 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       setGroups(updatedGroups);
       setTasks(updatedTasks);
       syncStorage(boardConfig, updatedGroups, updatedTasks, manualGroupOrder);
+      void moveTaskRequest(workspaceId, boardId, taskId, {
+        toBoardId: boardId,
+        toGroupId,
+        position: groups.find((g) => g.id === toGroupId)?.taskIds.length ?? 0,
+      }).catch((e) => setError(e instanceof Error ? e.message : 'Failed to move task'));
     },
-    [tasks, groups, boardConfig, manualGroupOrder, syncStorage]
+    [workspaceId, boardId, tasks, groups, boardConfig, manualGroupOrder, syncStorage]
   );
 
   const moveTaskToBoardGroup = useCallback(
@@ -600,8 +606,13 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
         manualGroupOrder: targetState.manualGroupOrder,
       });
       syncStorage(boardConfig, updatedCurrentGroups, updatedCurrentTasks, manualGroupOrder);
+      void moveTaskRequest(workspaceId, boardId, taskId, {
+        toBoardId,
+        toGroupId,
+        position: targetState.groups.find((g) => g.id === toGroupId)?.taskIds.length ?? 0,
+      }).catch((e) => setError(e instanceof Error ? e.message : 'Failed to move task'));
     },
-    [boardId, moveTaskToGroup, tasks, groups, boardConfig, manualGroupOrder, syncStorage]
+    [workspaceId, boardId, moveTaskToGroup, tasks, groups, boardConfig, manualGroupOrder, syncStorage]
   );
 
   const toggleTaskComplete = useCallback((taskId: string) => {
@@ -643,8 +654,13 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       const updatedConfig = { ...boardConfig, columns };
       setBoardConfig(updatedConfig);
       syncStorage(updatedConfig, groups, tasks, manualGroupOrder);
+      void replaceColumns(workspaceId, boardId, columns)
+        .then((savedColumns) => {
+          setBoardConfig((prev) => ({ ...prev, columns: savedColumns }));
+        })
+        .catch((e) => setError(e instanceof Error ? e.message : 'Failed to update columns'));
     },
-    [boardConfig, groups, tasks, manualGroupOrder, syncStorage]
+    [workspaceId, boardId, boardConfig, groups, tasks, manualGroupOrder, syncStorage]
   );
 
   const addColumn = useCallback(
@@ -670,8 +686,12 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       const updatedOrder = newGroups.map((g) => g.id);
       setManualGroupOrder(updatedOrder);
       syncStorage(boardConfig, groups, tasks, updatedOrder);
+      newGroups.forEach((group, index) => {
+        void updateTaskGroup(workspaceId, boardId, group.id, { order: index })
+          .catch((e) => setError(e instanceof Error ? e.message : 'Failed to reorder groups'));
+      });
     },
-    [boardConfig, groups, tasks, syncStorage]
+    [workspaceId, boardId, boardConfig, groups, tasks, syncStorage]
   );
 
   const updateGroupColor = useCallback(
@@ -681,8 +701,10 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       );
       setGroups(updatedGroups);
       syncStorage(boardConfig, updatedGroups, tasks, manualGroupOrder);
+      void updateTaskGroup(workspaceId, boardId, groupId, { color })
+        .catch((e) => setError(e instanceof Error ? e.message : 'Failed to update group'));
     },
-    [groups, boardConfig, tasks, manualGroupOrder, syncStorage]
+    [workspaceId, boardId, groups, boardConfig, tasks, manualGroupOrder, syncStorage]
   );
 
   const updateGroupName = useCallback(
@@ -692,8 +714,10 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       );
       setGroups(updatedGroups);
       syncStorage(boardConfig, updatedGroups, tasks, manualGroupOrder);
+      void updateTaskGroup(workspaceId, boardId, groupId, { name })
+        .catch((e) => setError(e instanceof Error ? e.message : 'Failed to update group'));
     },
-    [groups, boardConfig, tasks, manualGroupOrder, syncStorage]
+    [workspaceId, boardId, groups, boardConfig, tasks, manualGroupOrder, syncStorage]
   );
 
   const moveGroupToBoard = useCallback(
@@ -803,20 +827,36 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
 
   const updateStatusOptions = useCallback(
     (statusOptions: SelectOption[]) => {
-      const updatedConfig = { ...boardConfig, statusOptions };
+      const columns = boardConfig.columns.map((column) => (
+        column.id === 'col_status' ? { ...column, options: statusOptions } : column
+      ));
+      const updatedConfig = { ...boardConfig, columns, statusOptions };
       setBoardConfig(updatedConfig);
       syncStorage(updatedConfig, groups, tasks, manualGroupOrder);
+      void replaceColumns(workspaceId, boardId, columns)
+        .then((savedColumns) => {
+          setBoardConfig((prev) => ({ ...prev, columns: savedColumns }));
+        })
+        .catch((e) => setError(e instanceof Error ? e.message : 'Failed to update status options'));
     },
-    [boardConfig, groups, tasks, manualGroupOrder, syncStorage]
+    [workspaceId, boardId, boardConfig, groups, tasks, manualGroupOrder, syncStorage]
   );
 
   const updatePriorityOptions = useCallback(
     (priorityOptions: SelectOption[]) => {
-      const updatedConfig = { ...boardConfig, priorityOptions };
+      const columns = boardConfig.columns.map((column) => (
+        column.id === 'col_priority' ? { ...column, options: priorityOptions } : column
+      ));
+      const updatedConfig = { ...boardConfig, columns, priorityOptions };
       setBoardConfig(updatedConfig);
       syncStorage(updatedConfig, groups, tasks, manualGroupOrder);
+      void replaceColumns(workspaceId, boardId, columns)
+        .then((savedColumns) => {
+          setBoardConfig((prev) => ({ ...prev, columns: savedColumns }));
+        })
+        .catch((e) => setError(e instanceof Error ? e.message : 'Failed to update priority options'));
     },
-    [boardConfig, groups, tasks, manualGroupOrder, syncStorage]
+    [workspaceId, boardId, boardConfig, groups, tasks, manualGroupOrder, syncStorage]
   );
 
   // ─── Memoized Context Value ───

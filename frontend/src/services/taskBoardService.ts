@@ -74,6 +74,23 @@ export async function createTaskGroup(
   }
 }
 
+export async function updateTaskGroup(
+  workspaceId: string,
+  boardId: string,
+  groupId: string,
+  payload: { name?: string; color?: string; order?: number }
+): Promise<TaskGroup> {
+  try {
+    const { data } = await apiClient.patch<TaskGroup>(
+      `/api/workspaces/${workspaceId}/boards/${boardId}/groups/${groupId}`,
+      payload
+    );
+    return data;
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
 export async function createTask(
   workspaceId: string,
   boardId: string,
@@ -113,6 +130,23 @@ export async function deleteTask(workspaceId: string, boardId: string, taskId: s
   }
 }
 
+export async function moveTask(
+  workspaceId: string,
+  boardId: string,
+  taskId: string,
+  payload: { toBoardId: string; toGroupId: string; position?: number }
+): Promise<void> {
+  try {
+    await apiClient.put(`/api/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/move`, {
+      toBoardId: Number(payload.toBoardId),
+      toGroupId: Number(payload.toGroupId),
+      position: payload.position,
+    });
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
 export async function createColumn(
   workspaceId: string,
   boardId: string,
@@ -127,6 +161,27 @@ export async function createColumn(
       order: column.order,
       options: column.options ?? [],
     });
+    return data;
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
+export async function replaceColumns(
+  workspaceId: string,
+  boardId: string,
+  columns: ColumnDefinition[]
+): Promise<ColumnDefinition[]> {
+  try {
+    const { data } = await apiClient.put<ColumnDefinition[]>(`/api/workspaces/${workspaceId}/boards/${boardId}/columns`, columns.map((column) => ({
+      id: column.id,
+      label: column.label,
+      type: column.type,
+      width: column.width,
+      visible: column.isVisible,
+      order: column.order,
+      options: column.options ?? [],
+    })));
     return data;
   } catch (e) {
     throw new Error(getErrorMessage(e));

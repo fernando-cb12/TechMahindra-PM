@@ -23,6 +23,7 @@ import com.mahindra.backend.dto.taskboard.BoardConfigDto;
 import com.mahindra.backend.dto.taskboard.BoardSummaryDto;
 import com.mahindra.backend.dto.taskboard.BoardViewDto;
 import com.mahindra.backend.dto.taskboard.ColumnDefinitionDto;
+import com.mahindra.backend.dto.taskboard.ColumnUpdateRequest;
 import com.mahindra.backend.dto.taskboard.ColumnUpsertRequest;
 import com.mahindra.backend.dto.taskboard.CreateGroupRequest;
 import com.mahindra.backend.dto.taskboard.CreateTaskRequest;
@@ -36,6 +37,7 @@ import com.mahindra.backend.dto.taskboard.TaskDto;
 import com.mahindra.backend.dto.taskboard.TaskGroupDto;
 import com.mahindra.backend.dto.taskboard.TaskPatchRequest;
 import com.mahindra.backend.dto.taskboard.TaskUpdateDto;
+import com.mahindra.backend.dto.taskboard.UpdateGroupRequest;
 import com.mahindra.backend.dto.taskboard.UserSummaryDto;
 import com.mahindra.backend.entity.Board;
 import com.mahindra.backend.entity.BoardColumn;
@@ -143,6 +145,38 @@ public class TaskBoardService {
         taskGroupRepository.save(group);
         recordActivity(board, null, user, "group_created", "group", null, group.getName(), "user");
         return toGroupDto(group, List.of());
+    }
+
+    @Transactional
+    public TaskGroupDto updateGroup(Authentication authentication, Long workspaceId, Long boardId, Long groupId,
+            UpdateGroupRequest request) {
+        User user = resolveUser(authentication);
+        Board board = resolveEditableBoard(user, workspaceId, boardId);
+        TaskGroup group = taskGroupRepository.findById(groupId)
+                .filter(g -> g.getDeletedAt() == null && g.getBoard().getId().equals(boardId))
+                .orElseThrow(() -> new ResourceNotFoundException("Task group not found"));
+        Map<String, Object> before = new LinkedHashMap<>();
+        before.put("name", group.getName());
+        before.put("color", group.getColor());
+        before.put("order", group.getPosition());
+
+        if (request.name() != null && !request.name().isBlank()) {
+            group.setName(request.name().trim());
+        }
+        if (request.color() != null && !request.color().isBlank()) {
+            group.setColor(request.color());
+        }
+        if (request.order() != null) {
+            group.setPosition(Math.max(0, request.order()));
+        }
+        group.setUpdatedAt(Instant.now());
+        taskGroupRepository.save(group);
+        Map<String, Object> after = new LinkedHashMap<>();
+        after.put("name", group.getName());
+        after.put("color", group.getColor());
+        after.put("order", group.getPosition());
+        recordActivity(board, null, user, "group_updated", "group", before, after, "user");
+        return toGroupDto(group, taskRepository.findByGroupIdAndDeletedAtIsNullOrderByPositionAscIdAsc(groupId));
     }
 
     @Transactional
@@ -262,6 +296,60 @@ public class TaskBoardService {
     }
 
     @Transactional
+    public List<ColumnDefinitionDto> replaceColumns(Authentication authentication, Long workspaceId, Long boardId,
+            List<ColumnUpdateRequest> request) {
+        User user = resolveUser(authentication);
+        Board board = resolveEditableBoard(user, workspaceId, boardId);
+        List<BoardColumn> existingColumns = boardColumnRepository.findByBoardIdAndDeletedAtIsNullOrderByPositionAscIdAsc(boardId);
+        Map<String, BoardColumn> existingByKey = existingColumns.stream()
+                .collect(Collectors.toMap(BoardColumn::getKey, Function.identity()));
+        Set<String> requestedKeys = request.stream()
+                .map(ColumnUpdateRequest::id)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        int index = 0;
+        for (ColumnUpdateRequest input : request) {
+            if (input.id() == null || input.id().isBlank()) {
+                continue;
+            }
+            BoardColumn column = existingByKey.get(input.id());
+            if (column == null) {
+                column = new BoardColumn();
+                column.setBoard(board);
+                column.setKey(input.id());
+                column.setSystemColumn(false);
+                existingByKey.put(input.id(), column);
+            }
+            if (input.label() != null && !input.label().isBlank()) {
+                column.setLabel(input.label().trim());
+            }
+            if (input.type() != null && !input.type().isBlank()) {
+                column.setType(input.type());
+            }
+            column.setWidth(input.width());
+            column.setVisible(input.visible() == null || input.visible());
+            column.setPosition(input.order() != null ? input.order() : index);
+            column.setUpdatedAt(Instant.now());
+            applyColumnOptions(column, input.options(), user);
+            boardColumnRepository.save(column);
+            index++;
+        }
+
+        for (BoardColumn column : existingColumns) {
+            if (!Boolean.TRUE.equals(column.getSystemColumn()) && !requestedKeys.contains(column.getKey())) {
+                column.setDeletedAt(Instant.now());
+                column.setDeletedBy(user);
+                column.setPurgeAfter(Instant.now().plusSeconds(30L * 24 * 60 * 60));
+                boardColumnRepository.save(column);
+            }
+        }
+        recordActivity(board, null, user, "columns_updated", "columns", null, request, "user");
+        return boardColumnRepository.findByBoardIdAndDeletedAtIsNullOrderByPositionAscIdAsc(boardId)
+                .stream().map(this::toColumnDto).toList();
+    }
+
+    @Transactional
     public TaskUpdateDto createUpdate(Authentication authentication, Long workspaceId, Long boardId, Long taskId,
             CreateUpdateRequest request) {
         User user = resolveUser(authentication);
@@ -309,16 +397,20 @@ public class TaskBoardService {
         TaskGroup targetGroup = taskGroupRepository.findById(request.toGroupId())
                 .filter(g -> g.getBoard().getId().equals(targetBoard.getId()) && g.getDeletedAt() == null)
                 .orElseThrow(() -> new ResourceNotFoundException("Target group not found"));
+        Long sourceGroupId = task.getGroup() != null ? task.getGroup().getId() : null;
 
         if (!sourceBoard.getId().equals(targetBoard.getId())) {
             discardIncompatibleCustomValues(task, targetBoard, user);
         }
         task.setBoard(targetBoard);
         task.setGroup(targetGroup);
-        task.setPosition(request.position() != null ? request.position()
-                : taskRepository.findByGroupIdAndDeletedAtIsNullOrderByPositionAscIdAsc(targetGroup.getId()).size());
+        task.setPosition(0);
         task.setUpdatedAt(Instant.now());
         taskRepository.save(task);
+        if (sourceGroupId != null && !sourceGroupId.equals(targetGroup.getId())) {
+            normalizeTaskPositions(sourceGroupId, null, null);
+        }
+        normalizeTaskPositions(targetGroup.getId(), task, request.position());
         recordActivity(targetBoard, task, user, "task_moved", "board", sourceBoard.getId(), targetBoard.getId(), "user");
     }
 
@@ -428,6 +520,41 @@ public class TaskBoardService {
         return option;
     }
 
+    private void applyColumnOptions(BoardColumn column, List<SelectOptionDto> options, User user) {
+        if (options == null) {
+            return;
+        }
+        Map<String, BoardColumnOption> existingByKey = column.getOptions().stream()
+                .collect(Collectors.toMap(BoardColumnOption::getKey, Function.identity(), (a, b) -> a));
+        Set<String> requestedKeys = options.stream().map(SelectOptionDto::id).collect(Collectors.toSet());
+        int index = 0;
+        for (SelectOptionDto input : options) {
+            if (input.id() == null || input.id().isBlank()) {
+                continue;
+            }
+            BoardColumnOption option = existingByKey.get(input.id());
+            if (option == null) {
+                option = option(input.id(), input.label(), input.color(), index);
+                column.addOption(option);
+            } else {
+                option.setLabel(input.label());
+                option.setColor(input.color());
+                option.setPosition(index);
+                option.setDeletedAt(null);
+                option.setDeletedBy(null);
+                option.setPurgeAfter(null);
+            }
+            index++;
+        }
+        for (BoardColumnOption option : column.getOptions()) {
+            if (!requestedKeys.contains(option.getKey())) {
+                option.setDeletedAt(Instant.now());
+                option.setDeletedBy(user);
+                option.setPurgeAfter(Instant.now().plusSeconds(30L * 24 * 60 * 60));
+            }
+        }
+    }
+
     private BoardView view(Board board, String name, String type, int position, boolean isDefault, User actor) {
         BoardView view = new BoardView();
         view.setBoard(board);
@@ -531,6 +658,20 @@ public class TaskBoardService {
             task.getCustomValues().removeAll(discarded);
             recordActivity(targetBoard, task, user, "custom_values_discarded", "custom_values", oldValues, null, "internal");
         }
+    }
+
+    private void normalizeTaskPositions(Long groupId, Task insertedTask, Integer requestedPosition) {
+        List<Task> orderedTasks = new ArrayList<>(taskRepository.findByGroupIdAndDeletedAtIsNullOrderByPositionAscIdAsc(groupId));
+        if (insertedTask != null) {
+            orderedTasks.removeIf(t -> t.getId().equals(insertedTask.getId()));
+            int position = requestedPosition == null ? orderedTasks.size()
+                    : Math.max(0, Math.min(requestedPosition, orderedTasks.size()));
+            orderedTasks.add(position, insertedTask);
+        }
+        for (int i = 0; i < orderedTasks.size(); i++) {
+            orderedTasks.get(i).setPosition(i);
+        }
+        taskRepository.saveAll(orderedTasks);
     }
 
     private Map<String, BoardColumnOption> optionMap(Long boardId, String columnKey) {
