@@ -74,6 +74,23 @@ export async function updateBoard(
   }
 }
 
+export async function deleteBoard(workspaceId: string, boardId: string): Promise<void> {
+  try {
+    await apiClient.delete(`/api/workspaces/${workspaceId}/boards/${boardId}`);
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
+export async function restoreBoard(workspaceId: string, boardId: string): Promise<TaskBoardPayload> {
+  try {
+    const { data } = await apiClient.post<TaskBoardPayload>(`/api/workspaces/${workspaceId}/boards/${boardId}/restore`);
+    return data;
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
 export async function createTaskGroup(
   workspaceId: string,
   boardId: string,

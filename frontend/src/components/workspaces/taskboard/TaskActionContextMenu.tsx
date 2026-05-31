@@ -6,6 +6,8 @@ import DriveFileMoveIcon from '@mui/icons-material/DriveFileMove';
 import EventBusyIcon from '@mui/icons-material/EventBusy';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
+import LinkIcon from '@mui/icons-material/Link';
+import { useParams } from 'react-router-dom';
 import { useTaskBoard } from './useTaskBoard';
 
 interface MenuPosition {
@@ -22,6 +24,7 @@ interface TaskActionContextMenuProps {
 
 export default function TaskActionContextMenu({ taskId, position, onClose, showDateActions = false }: TaskActionContextMenuProps) {
   const { tasks, groups, openPanel, updateTask, moveTaskToGroup, deleteTask } = useTaskBoard();
+  const { workspaceId = '', boardId = '' } = useParams();
   const [moveMenuAnchor, setMoveMenuAnchor] = useState<HTMLElement | null>(null);
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameDraft, setRenameDraft] = useState('');
@@ -52,6 +55,19 @@ export default function TaskActionContextMenu({ taskId, position, onClose, showD
   const deleteCurrentTask = () => {
     if (!task) return;
     deleteTask(task.id);
+    closeAll();
+  };
+
+  const copyTaskLink = async () => {
+    if (!task) return;
+    const url = `${window.location.origin}/workspaces/${workspaceId}/boards/${boardId}?task=${task.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      window.dispatchEvent(new CustomEvent('app:feedback', { detail: { message: 'Link copied' } }));
+    } catch {
+      console.warn('Failed to copy task link', url);
+      window.dispatchEvent(new CustomEvent('app:feedback', { detail: { message: url } }));
+    }
     closeAll();
   };
 
@@ -116,6 +132,10 @@ export default function TaskActionContextMenu({ taskId, position, onClose, showD
           <DriveFileMoveIcon sx={{ fontSize: 18, mr: 1.25, color: 'text.secondary' }} />
           <Typography sx={{ fontSize: 13 }}>Move to group</Typography>
           <KeyboardArrowRightIcon sx={{ fontSize: 16, ml: 'auto', color: 'text.secondary' }} />
+        </MenuItem>
+        <MenuItem onClick={copyTaskLink}>
+          <LinkIcon sx={{ fontSize: 18, mr: 1.25, color: 'text.secondary' }} />
+          <Typography sx={{ fontSize: 13 }}>Copy task link</Typography>
         </MenuItem>
         {showDateActions && task && (
           <MenuItem

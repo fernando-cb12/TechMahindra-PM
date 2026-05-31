@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -11,13 +11,29 @@ import {
   Typography,
   IconButton,
   Tooltip,
+  Menu,
+  MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import LogoutIcon from '@mui/icons-material/Logout';
+import PushPinIcon from '@mui/icons-material/PushPin';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import DashboardCustomizeIcon from '@mui/icons-material/DashboardCustomize';
+import DriveFileRenameOutlineIcon from '@mui/icons-material/DriveFileRenameOutline';
+import LinkIcon from '@mui/icons-material/Link';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import mahindraLogo from '../../assets/mahindralogobk.png';
-import type { NavItem, Project, SidebarProps } from './types';
+import type { NavItem, Project, ProjectSubsection, SidebarProps } from './types';
 import { NAV_ITEM_TO_PATH } from '../../app/routes';
 import { useAuth } from '../../auth/useAuth';
 
@@ -31,71 +47,247 @@ const defaultNavItems: NavItem[] = [
 ];
 
 const defaultProjects: Project[] = [
-  {
-    label: 'Magenta',
-    id: 'magenta',
-    subsections: [
-      { label: 'Frontend Design', id: 'frontend' },
-      { label: 'Backend', id: 'backend' },
-      { label: 'Requirements Analytics', id: 'requirements' },
-    ],
-  },
-  {
-    label: 'Blue',
-    id: 'blue',
-    subsections: [
-      { label: 'Frontend Design', id: 'frontend' },
-      { label: 'Backend Design', id: 'backend' },
-    ],
-  },
-  {
-    label: 'Green',
-    id: 'green',
-    subsections: [
-      { label: 'API Development', id: 'api' },
-      { label: 'DevOps', id: 'devops' },
-      { label: 'Testing', id: 'testing' },
-    ],
-  },
+  { label: 'Magenta', id: 'magenta', subsections: [{ label: 'Frontend Design', id: 'frontend' }] },
 ];
+
+type WorkspaceMenuState = { anchor: HTMLElement; project: Project } | null;
+type BoardMenuState = { anchor: HTMLElement; project: Project; board: ProjectSubsection } | null;
+type RenameState =
+  | { type: 'workspace'; project: Project; value: string }
+  | { type: 'board'; project: Project; board: ProjectSubsection; value: string }
+  | null;
+
+function readStoredIds(key: string) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || '[]') as string[];
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredIds(key: string, ids: string[]) {
+  localStorage.setItem(key, JSON.stringify(ids));
+}
 
 function Sidebar({
   activeNavItem = 'dashboard',
-  activeProject = 'magenta',
-  activeSubsection = 'frontend',
+  activeProject,
+  activeSubsection,
   onNavItemClick,
   onProjectClick,
   onSubsectionClick,
+  onWorkspaceOpen,
+  onWorkspaceCreateBoard,
+  onWorkspaceCreateWorkspace,
+  onWorkspaceRename,
+  onWorkspaceDelete,
+  onBoardRename,
+  onBoardDelete,
+  onCopyLink,
   onLogout,
-  //userPoints = 250,
   navItems = defaultNavItems,
   projects = defaultProjects,
 }: SidebarProps) {
   const navigate = useNavigate();
   const { session } = useAuth();
-
-  // Derive display values from the JWT session (email is the sub claim)
   const emailPrefix = session?.email?.split('@')[0] ?? 'User';
   const userName = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
   const userInitials = emailPrefix.slice(0, 2).toUpperCase();
-  const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({
-    magenta: true,
-  });
+  const storageUser = session?.email ?? 'anonymous';
+  const pinnedStorageKey = `sidebar_pinned_workspaces_${storageUser}`;
+  const recentStorageKey = `sidebar_recent_workspaces_${storageUser}`;
 
-  const visibleExpandedProjects = useMemo(() => {
-    const targetProject = projects.find((project) => project.id === activeProject) ?? projects[0];
-    return targetProject
-      ? { ...expandedProjects, [targetProject.id]: true }
-      : expandedProjects;
-  }, [projects, activeProject, expandedProjects]);
+  const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
+  const [manualToggles, setManualToggles] = useState<Set<string>>(new Set());
+  const [workspaceMenu, setWorkspaceMenu] = useState<WorkspaceMenuState>(null);
+  const [boardMenu, setBoardMenu] = useState<BoardMenuState>(null);
+  const [renameState, setRenameState] = useState<RenameState>(null);
+  const [pinnedIds, setPinnedIds] = useState<string[]>(() => readStoredIds(pinnedStorageKey));
+  const [recentIds, setRecentIds] = useState<string[]>(() => readStoredIds(recentStorageKey));
+  const contextMenuSlotProps = { paper: { sx: { minWidth: 220, borderRadius: 2, py: 0.5 } } };
+  const menuIconSx = { fontSize: 18, mr: 1.25, color: 'text.secondary' };
+  const dangerIconSx = { fontSize: 18, mr: 1.25 };
 
-  const handleProjectClick = (projectId: string) => {
-    setExpandedProjects((prev) => ({
-      ...prev,
-      [projectId]: !prev[projectId],
-    }));
+  useEffect(() => {
+    setPinnedIds(readStoredIds(pinnedStorageKey));
+    setRecentIds(readStoredIds(recentStorageKey));
+  }, [pinnedStorageKey, recentStorageKey]);
+
+  useEffect(() => {
+    if (!activeProject || manualToggles.has(activeProject)) return;
+    setExpandedProjects((prev) => ({ ...prev, [activeProject]: true }));
+  }, [activeProject, manualToggles]);
+
+  useEffect(() => {
+    if (!activeProject || !projects.some((project) => project.id === activeProject)) return;
+    setRecentIds((prev) => {
+      if (pinnedIds.includes(activeProject)) {
+        const next = prev.filter((id) => id !== activeProject);
+        writeStoredIds(recentStorageKey, next);
+        return next;
+      }
+      const next = [activeProject, ...prev.filter((id) => id !== activeProject)].slice(0, 5);
+      writeStoredIds(recentStorageKey, next);
+      return next;
+    });
+  }, [activeProject, pinnedIds, projects, recentStorageKey]);
+
+  const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
+  const pinnedIdSet = useMemo(() => new Set(pinnedIds), [pinnedIds]);
+  const pinnedProjects = pinnedIds.map((id) => projectById.get(id)).filter((project): project is Project => Boolean(project));
+  const recentProjects = recentIds
+    .filter((id) => !pinnedIdSet.has(id))
+    .map((id) => projectById.get(id))
+    .filter((project): project is Project => Boolean(project));
+  const recentIdSet = useMemo(() => new Set(recentProjects.map((project) => project.id)), [recentProjects]);
+  const allProjects = projects.filter((project) => !pinnedIdSet.has(project.id) && !recentIdSet.has(project.id));
+
+  const handleProjectToggle = (projectId: string) => {
+    setManualToggles((prev) => new Set(prev).add(projectId));
+    setExpandedProjects((prev) => ({ ...prev, [projectId]: !prev[projectId] }));
     onProjectClick?.(projectId);
   };
+
+  const openWorkspaceMenu = (event: MouseEvent<HTMLElement>, project: Project) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setWorkspaceMenu({ anchor: event.currentTarget, project });
+  };
+
+  const openBoardMenu = (event: MouseEvent<HTMLElement>, project: Project, board: ProjectSubsection) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setBoardMenu({ anchor: event.currentTarget, project, board });
+  };
+
+  const isPinned = (projectId: string) => pinnedIds.includes(projectId);
+
+  const togglePin = (projectId: string) => {
+    setPinnedIds((prev) => {
+      const next = prev.includes(projectId) ? prev.filter((id) => id !== projectId) : [projectId, ...prev];
+      writeStoredIds(pinnedStorageKey, next);
+      return next;
+    });
+    setRecentIds((prev) => {
+      const next = prev.filter((id) => id !== projectId);
+      writeStoredIds(recentStorageKey, next);
+      return next;
+    });
+  };
+
+  const saveRename = () => {
+    if (!renameState) return;
+    const nextName = renameState.value.trim();
+    if (!nextName) return;
+    if (renameState.type === 'workspace') {
+      onWorkspaceRename?.(renameState.project.id, nextName);
+    } else {
+      onBoardRename?.(renameState.project.id, renameState.board.id, nextName);
+    }
+    setRenameState(null);
+  };
+
+  const renderSectionHeader = (label: string) => (
+    <Typography
+      sx={{
+        fontSize: 10,
+        fontWeight: 800,
+        color: (theme) => alpha(theme.palette.common.white, 0.58),
+        textTransform: 'uppercase',
+        px: 2,
+        mt: 1.4,
+        mb: 0.65,
+        letterSpacing: '0.5px',
+      }}
+    >
+      {label}
+    </Typography>
+  );
+
+  const renderWorkspaceRow = (project: Project, options?: { compact?: boolean; showBoards?: boolean }) => (
+    <Box key={`${options?.compact ? 'compact' : 'all'}-${project.id}`}>
+      <ListItemButton
+        onClick={() => options?.showBoards ? handleProjectToggle(project.id) : onWorkspaceOpen?.(project.id)}
+        onContextMenu={(event) => openWorkspaceMenu(event, project)}
+        selected={project.id === activeProject}
+        sx={{
+          borderRadius: 1,
+          mb: 0.5,
+          px: 2,
+          py: options?.compact ? 0.75 : 1,
+          '&.Mui-selected': { backgroundColor: 'secondary.main' },
+          '&:hover': { backgroundColor: (theme) => alpha(theme.palette.common.white, 0.15) },
+        }}
+      >
+        <Box
+          sx={{
+            width: options?.compact ? 8 : 12,
+            height: options?.compact ? 8 : 12,
+            borderRadius: '50%',
+            backgroundColor: project.id === activeProject ? 'common.white' : 'transparent',
+            border: (theme) => `2px solid ${theme.palette.common.white}`,
+            mr: 1.25,
+            flexShrink: 0,
+          }}
+        />
+        <ListItemText
+          primary={project.label}
+          primaryTypographyProps={{
+            fontSize: options?.compact ? 10.5 : 11,
+            fontWeight: project.id === activeProject ? 700 : 500,
+            color: 'common.white',
+            noWrap: true,
+          }}
+        />
+        {isPinned(project.id) && <PushPinIcon sx={{ fontSize: 12, mr: 0.5, opacity: 0.75 }} />}
+        {options?.showBoards && (
+          expandedProjects[project.id] ? <ExpandLessIcon sx={{ fontSize: 18, ml: 0.5 }} /> : <ExpandMoreIcon sx={{ fontSize: 18, ml: 0.5 }} />
+        )}
+      </ListItemButton>
+
+      {options?.showBoards && (
+        <Collapse in={Boolean(expandedProjects[project.id])} timeout="auto" unmountOnExit>
+          <List disablePadding>
+            {project.subsections.map((subsection) => (
+              <ListItemButton
+                key={subsection.id}
+                onClick={() => onSubsectionClick?.(project.id, subsection.id)}
+                onContextMenu={(event) => openBoardMenu(event, project, subsection)}
+                selected={project.id === activeProject && subsection.id === activeSubsection}
+                sx={{
+                  borderRadius: 1,
+                  mb: 0.5,
+                  ml: 2,
+                  px: 2,
+                  py: 0.8,
+                  backgroundColor: project.id === activeProject && subsection.id === activeSubsection ? 'secondary.main' : 'transparent',
+                  '&:hover': { backgroundColor: (theme) => alpha(theme.palette.common.white, 0.1) },
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    backgroundColor: project.id === activeProject && subsection.id === activeSubsection
+                      ? 'common.white'
+                      : (theme) => alpha(theme.palette.common.white, 0.5),
+                    mr: 1.5,
+                    flexShrink: 0,
+                  }}
+                />
+                <ListItemText
+                  primary={subsection.label}
+                  primaryTypographyProps={{ fontSize: 10, fontWeight: 500, color: 'common.white', noWrap: true }}
+                />
+              </ListItemButton>
+            ))}
+          </List>
+        </Collapse>
+      )}
+    </Box>
+  );
 
   return (
     <Box
@@ -115,17 +307,10 @@ function Sidebar({
         overflowY: 'auto',
       }}
     >
-      {/* Logo */}
       <Box sx={{ mb: 4, display: 'flex', justifyContent: 'center' }}>
-        <Box
-          component="img"
-          src={mahindraLogo}
-          alt="Tech Mahindra logo"
-          sx={{ width: '100%', maxWidth: 140, height: 'auto' }}
-        />
+        <Box component="img" src={mahindraLogo} alt="Tech Mahindra logo" sx={{ width: '100%', maxWidth: 140, height: 'auto' }} />
       </Box>
 
-      {/* Main Navigation */}
       <Box component="nav" sx={{ flex: 1 }}>
         <List disablePadding>
           {navItems.map((item) => (
@@ -142,236 +327,150 @@ function Sidebar({
                 mb: 0.5,
                 px: 2,
                 py: 1.2,
-                '&.Mui-selected': {
-                  backgroundColor: 'secondary.main',
-                },
-                '&:hover': {
-                  backgroundColor: (theme) =>
-                    alpha(theme.palette.common.white, 0.1),
-                },
+                '&.Mui-selected': { backgroundColor: 'secondary.main' },
+                '&:hover': { backgroundColor: (theme) => alpha(theme.palette.common.white, 0.1) },
               }}
             >
               <ListItemText
                 primary={item.label}
-                primaryTypographyProps={{
-                  fontSize: 12,
-                  fontWeight: item.value === activeNavItem ? 700 : 500,
-                  color: 'common.white',
-                }}
+                primaryTypographyProps={{ fontSize: 12, fontWeight: item.value === activeNavItem ? 700 : 500, color: 'common.white' }}
               />
             </ListItemButton>
           ))}
         </List>
+
+        <Box sx={{ mt: 2 }}>
+          <Typography
+            sx={{
+              fontSize: 10,
+              fontWeight: 800,
+              color: (theme) => alpha(theme.palette.common.white, 0.7),
+              textTransform: 'uppercase',
+              px: 2,
+              mb: 0.75,
+              letterSpacing: '0.5px',
+            }}
+          >
+            Workspaces
+          </Typography>
+
+          <List disablePadding>
+            {pinnedProjects.length > 0 && (
+              <>
+                {renderSectionHeader('Pinned')}
+                {pinnedProjects.map((project) => renderWorkspaceRow(project, { compact: true, showBoards: true }))}
+              </>
+            )}
+            {recentProjects.length > 0 && (
+              <>
+                {renderSectionHeader('Recent')}
+                {recentProjects.map((project) => renderWorkspaceRow(project, { compact: true, showBoards: true }))}
+              </>
+            )}
+            {renderSectionHeader('All')}
+            {allProjects.map((project) => renderWorkspaceRow(project, { showBoards: true }))}
+          </List>
+        </Box>
       </Box>
 
-      {/* Workspaces Section */}
-      <Box sx={{ mb: 3 }}>
-        <Typography
-          sx={{
-            fontSize: 10,
-            fontWeight: 700,
-            color: (theme) => alpha(theme.palette.common.white, 0.6),
-            textTransform: 'uppercase',
-            px: 2,
-            mb: 1.5,
-            letterSpacing: '0.5px',
-          }}
-        >
-          Workspaces
-        </Typography>
-
-        <List disablePadding>
-          {projects.map((project) => (
-            <Box key={project.id}>
-              <ListItemButton
-                onClick={() => handleProjectClick(project.id)}
-                selected={project.id === activeProject}
-                sx={{
-                  borderRadius: 1,
-                  mb: 0.5,
-                  px: 2,
-                  py: 1,
-                  '&.Mui-selected': {
-                    backgroundColor: 'secondary.main',
-                  },
-                  '&:hover': {
-                    backgroundColor: (theme) =>
-                      alpha(theme.palette.common.white, 0.15),
-                  },
-                }}
-              >
-                <Box
-                  sx={{
-                    width: 12,
-                    height: 12,
-                    borderRadius: '50%',
-                    backgroundColor:
-                      project.id === activeProject
-                        ? 'common.white'
-                        : 'transparent',
-                    border: (theme) =>
-                      `2px solid ${theme.palette.common.white}`,
-                    mr: 1.5,
-                    flexShrink: 0,
-                  }}
-                />
-                <ListItemText
-                  primary={project.label}
-                  primaryTypographyProps={{
-                    fontSize: 11,
-                    fontWeight: project.id === activeProject ? 600 : 400,
-                    color: 'common.white',
-                  }}
-                />
-                {visibleExpandedProjects[project.id] ? (
-                  <ExpandLessIcon sx={{ fontSize: 18, ml: 1 }} />
-                ) : (
-                  <ExpandMoreIcon sx={{ fontSize: 18, ml: 1 }} />
-                )}
-              </ListItemButton>
-
-              {/* Project Subsections */}
-              <Collapse
-                in={visibleExpandedProjects[project.id]}
-                timeout="auto"
-                unmountOnExit
-              >
-                <List disablePadding>
-                  {project.subsections.map((subsection) => (
-                    <ListItemButton
-                      key={subsection.id}
-                      onClick={() =>
-                        onSubsectionClick?.(project.id, subsection.id)
-                      }
-                      selected={
-                        project.id === activeProject &&
-                        subsection.id === activeSubsection
-                      }
-                      sx={{
-                        borderRadius: 1,
-                        mb: 0.5,
-                        ml: 2,
-                        px: 2,
-                        py: 0.8,
-                        backgroundColor:
-                          project.id === activeProject &&
-                          subsection.id === activeSubsection
-                            ? 'secondary.main'
-                            : 'transparent',
-                        '&:hover': {
-                          backgroundColor: (theme) =>
-                            alpha(theme.palette.common.white, 0.1),
-                        },
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          width: 6,
-                          height: 6,
-                          borderRadius: '50%',
-                          backgroundColor:
-                            project.id === activeProject &&
-                            subsection.id === activeSubsection
-                              ? 'common.white'
-                              : (theme) =>
-                                  alpha(theme.palette.common.white, 0.5),
-                          mr: 1.5,
-                          flexShrink: 0,
-                        }}
-                      />
-                      <ListItemText
-                        primary={subsection.label}
-                        primaryTypographyProps={{
-                          fontSize: 10,
-                          fontWeight:
-                            project.id === activeProject &&
-                            subsection.id === activeSubsection
-                              ? 600
-                              : 400,
-                          color: 'common.white',
-                        }}
-                      />
-                    </ListItemButton>
-                  ))}
-                </List>
-              </Collapse>
-            </Box>
-          ))}
-        </List>
-      </Box>
-
-      {/* User Section */}
-      <Divider
-        sx={{
-          borderColor: (theme) => alpha(theme.palette.common.white, 0.2),
-          mb: 2,
-        }}
-      />
+      <Divider sx={{ borderColor: (theme) => alpha(theme.palette.common.white, 0.2), mb: 2 }} />
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        <Avatar
-          sx={{
-            width: 36,
-            height: 36,
-            bgcolor: 'secondary.main',
-            fontWeight: 700,
-            fontSize: 13,
-            flexShrink: 0,
-          }}
-        >
+        <Avatar sx={{ width: 36, height: 36, bgcolor: 'secondary.main', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
           {userInitials}
         </Avatar>
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography
-            sx={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: 'common.white',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
+          <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'common.white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {userName}
           </Typography>
-          <Typography
-            sx={{
-              fontSize: 9,
-              color: (theme) => alpha(theme.palette.common.white, 0.7),
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
+          <Typography sx={{ fontSize: 9, color: (theme) => alpha(theme.palette.common.white, 0.7), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {session?.email ?? ''}
           </Typography>
         </Box>
-
-        {/* Logout button */}
         <Tooltip title="Log out" placement="right">
-          <IconButton
-            id="sidebar-logout-btn"
-            size="small"
-            onClick={onLogout}
-            aria-label="Log out"
-            sx={{
-              color: (theme) => alpha(theme.palette.common.white, 0.75),
-              flexShrink: 0,
-              '&:hover': {
-                color: 'common.white',
-                backgroundColor: (theme) =>
-                  alpha(theme.palette.common.white, 0.12),
-              },
-              transition: 'color 0.2s, background-color 0.2s',
-            }}
-          >
+          <IconButton id="sidebar-logout-btn" size="small" onClick={onLogout} aria-label="Log out" sx={{ color: (theme) => alpha(theme.palette.common.white, 0.75), flexShrink: 0, '&:hover': { color: 'common.white', backgroundColor: (theme) => alpha(theme.palette.common.white, 0.12) } }}>
             <LogoutIcon sx={{ fontSize: 18 }} />
           </IconButton>
         </Tooltip>
       </Box>
+
+      <Menu open={Boolean(workspaceMenu)} anchorEl={workspaceMenu?.anchor ?? null} onClose={() => setWorkspaceMenu(null)} slotProps={contextMenuSlotProps}>
+        <MenuItem onClick={() => { if (workspaceMenu) onWorkspaceOpen?.(workspaceMenu.project.id); setWorkspaceMenu(null); }}>
+          <OpenInNewIcon sx={menuIconSx} />
+          <Typography sx={{ fontSize: 13 }}>Open workspace</Typography>
+        </MenuItem>
+        <MenuItem onClick={() => { if (workspaceMenu) onWorkspaceCreateBoard?.(workspaceMenu.project.id); setWorkspaceMenu(null); }}>
+          <DashboardCustomizeIcon sx={menuIconSx} />
+          <Typography sx={{ fontSize: 13 }}>Create board</Typography>
+        </MenuItem>
+        <MenuItem onClick={() => { onWorkspaceCreateWorkspace?.(); setWorkspaceMenu(null); }}>
+          <AddCircleOutlineIcon sx={menuIconSx} />
+          <Typography sx={{ fontSize: 13 }}>Create workspace</Typography>
+        </MenuItem>
+        <MenuItem onClick={() => { if (workspaceMenu) setRenameState({ type: 'workspace', project: workspaceMenu.project, value: workspaceMenu.project.label }); setWorkspaceMenu(null); }}>
+          <DriveFileRenameOutlineIcon sx={menuIconSx} />
+          <Typography sx={{ fontSize: 13 }}>Rename</Typography>
+        </MenuItem>
+        <MenuItem onClick={() => { if (workspaceMenu) togglePin(workspaceMenu.project.id); setWorkspaceMenu(null); }}>
+          <PushPinIcon sx={menuIconSx} />
+          <Typography sx={{ fontSize: 13 }}>{workspaceMenu && isPinned(workspaceMenu.project.id) ? 'Unpin workspace' : 'Pin workspace'}</Typography>
+        </MenuItem>
+        <MenuItem onClick={() => { if (workspaceMenu) onCopyLink?.(`/workspaces/${workspaceMenu.project.id}`); setWorkspaceMenu(null); }}>
+          <LinkIcon sx={menuIconSx} />
+          <Typography sx={{ fontSize: 13 }}>Copy link</Typography>
+        </MenuItem>
+        <Divider sx={{ my: 0.5 }} />
+        <MenuItem sx={{ color: 'error.main' }} onClick={() => { if (workspaceMenu) onWorkspaceDelete?.(workspaceMenu.project.id); setWorkspaceMenu(null); }}>
+          <DeleteOutlineIcon sx={dangerIconSx} />
+          <Typography sx={{ fontSize: 13 }}>Delete</Typography>
+        </MenuItem>
+      </Menu>
+
+      <Menu open={Boolean(boardMenu)} anchorEl={boardMenu?.anchor ?? null} onClose={() => setBoardMenu(null)} slotProps={contextMenuSlotProps}>
+        <MenuItem onClick={() => { if (boardMenu) setRenameState({ type: 'board', project: boardMenu.project, board: boardMenu.board, value: boardMenu.board.label }); setBoardMenu(null); }}>
+          <DriveFileRenameOutlineIcon sx={menuIconSx} />
+          <Typography sx={{ fontSize: 13 }}>Rename</Typography>
+        </MenuItem>
+        <MenuItem onClick={() => { if (boardMenu) onCopyLink?.(`/workspaces/${boardMenu.project.id}/boards/${boardMenu.board.id}`); setBoardMenu(null); }}>
+          <LinkIcon sx={menuIconSx} />
+          <Typography sx={{ fontSize: 13 }}>Copy link</Typography>
+        </MenuItem>
+        <MenuItem disabled>
+          <ContentCopyIcon sx={menuIconSx} />
+          <Typography sx={{ fontSize: 13 }}>Duplicate board</Typography>
+        </MenuItem>
+        <Divider sx={{ my: 0.5 }} />
+        <MenuItem sx={{ color: 'error.main' }} onClick={() => { if (boardMenu) onBoardDelete?.(boardMenu.project.id, boardMenu.board.id); setBoardMenu(null); }}>
+          <DeleteOutlineIcon sx={dangerIconSx} />
+          <Typography sx={{ fontSize: 13 }}>Delete</Typography>
+        </MenuItem>
+      </Menu>
+
+      <Dialog open={Boolean(renameState)} onClose={() => setRenameState(null)} fullWidth maxWidth="xs">
+        <DialogTitle>{renameState?.type === 'workspace' ? 'Rename workspace' : 'Rename board'}</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            size="small"
+            value={renameState?.value ?? ''}
+            onChange={(event) => setRenameState((prev) => prev ? { ...prev, value: event.target.value } : prev)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') saveRename();
+              if (event.key === 'Escape') setRenameState(null);
+            }}
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRenameState(null)} sx={{ textTransform: 'none' }}>Cancel</Button>
+          <Button variant="contained" onClick={saveRename} disabled={!renameState?.value.trim()} sx={{ textTransform: 'none' }}>
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
 
 export { Sidebar };
-

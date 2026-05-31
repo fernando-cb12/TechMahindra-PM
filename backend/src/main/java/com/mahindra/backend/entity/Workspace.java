@@ -47,6 +47,19 @@ public class Workspace {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt = Instant.now();
+
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "deleted_by")
+    private User deletedBy;
+
+    @Column(name = "purge_after")
+    private Instant purgeAfter;
+
     @Column(name = "banner_image_url", length = 500)
     private String bannerImageUrl;
 

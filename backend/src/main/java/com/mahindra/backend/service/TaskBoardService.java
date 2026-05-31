@@ -142,6 +142,31 @@ public class TaskBoardService {
         return toPayload(user, board);
     }
 
+    @Transactional
+    public void deleteBoard(Authentication authentication, Long workspaceId, Long boardId) {
+        User user = resolveUser(authentication);
+        Board board = resolveBoardManager(user, workspaceId, boardId);
+        board.setDeletedAt(Instant.now());
+        board.setDeletedBy(user);
+        board.setPurgeAfter(Instant.now().plusSeconds(30L * 24 * 60 * 60));
+        board.setUpdatedAt(Instant.now());
+        boardRepository.save(board);
+        recordActivity(board, null, user, "board_deleted", "board", board.getName(), null, "user");
+    }
+
+    @Transactional
+    public TaskBoardPayloadDto restoreBoard(Authentication authentication, Long workspaceId, Long boardId) {
+        User user = resolveUser(authentication);
+        Board board = resolveBoardManagerIncludingDeleted(user, workspaceId, boardId);
+        board.setDeletedAt(null);
+        board.setDeletedBy(null);
+        board.setPurgeAfter(null);
+        board.setUpdatedAt(Instant.now());
+        boardRepository.save(board);
+        recordActivity(board, null, user, "board_restored", "board", null, board.getName(), "user");
+        return toPayload(user, board);
+    }
+
     @Transactional(readOnly = true)
     public void assertCanEditTask(Authentication authentication, Long workspaceId, Long boardId, Long taskId) {
         User user = resolveUser(authentication);
@@ -666,8 +691,23 @@ public class TaskBoardService {
 
     private Board resolveBoardManager(User user, Long workspaceId, Long boardId) {
         Board board = resolveAccessibleBoard(user, workspaceId, boardId);
+        assertCanManageBoard(user, boardId);
+        return board;
+    }
+
+    private Board resolveBoardManagerIncludingDeleted(User user, Long workspaceId, Long boardId) {
+        Board board = boardRepository.findAnyByWorkspaceIdAndId(workspaceId, boardId)
+                .orElseThrow(() -> new ResourceNotFoundException("Board not found"));
+        if (!canReadBoard(user, board)) {
+            throw new ResourceNotFoundException("Board not found");
+        }
+        assertCanManageBoard(user, boardId);
+        return board;
+    }
+
+    private void assertCanManageBoard(User user, Long boardId) {
         if (isAdmin(user)) {
-            return board;
+            return;
         }
         if (!isTeamLead(user)) {
             throw new IllegalArgumentException("User cannot manage this board");
@@ -678,7 +718,6 @@ public class TaskBoardService {
         if (!"owner".equals(member.getRoleInBoard()) && !"editor".equals(member.getRoleInBoard())) {
             throw new IllegalArgumentException("User cannot manage this board");
         }
-        return board;
     }
 
     private boolean canReadBoard(User user, Board board) {

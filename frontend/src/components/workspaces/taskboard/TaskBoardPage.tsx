@@ -7,7 +7,7 @@ import InsertChartIcon from '@mui/icons-material/InsertChart';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
 import AddIcon from '@mui/icons-material/Add';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 
 import { TaskBoardProvider } from './TaskBoardContext';
 import { useTaskBoard } from './useTaskBoard';
@@ -17,7 +17,7 @@ import CalendarView from './calendar/CalendarView';
 import KanbanView from './kanban/KanbanView';
 import TaskDetailPanel from './panel/TaskDetailPanel';
 import type { BoardView } from './types';
-import { useEffect, useMemo, useState, type MouseEvent, type ReactElement } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactElement } from 'react';
 import { useAuth } from '../../../auth/useAuth';
 
 const OPTIONAL_VIEWS: Array<{ value: Exclude<BoardView, 'table'>; label: string; icon: ReactElement }> = [
@@ -49,7 +49,12 @@ function TaskBoardContent() {
     undoTaskDelete,
     dismissDeleteNotice,
     renameBoard,
+    tasks,
+    openPanel,
   } = useTaskBoard();
+  const [searchParams] = useSearchParams();
+  const taskParamRef = useRef<string | null>(null);
+  const hasAutoOpenedTaskRef = useRef(false);
   const { session, hasRoleAtLeast } = useAuth();
   const [addViewAnchor, setAddViewAnchor] = useState<HTMLButtonElement | null>(null);
   const [viewMenu, setViewMenu] = useState<{ anchor: HTMLElement; view: Exclude<BoardView, 'table'> } | null>(null);
@@ -83,6 +88,17 @@ function TaskBoardContent() {
   useEffect(() => {
     setBoardNameDraft(boardTitle);
   }, [boardTitle]);
+
+  useEffect(() => {
+    const taskId = searchParams.get('task');
+    if (taskParamRef.current !== taskId) {
+      taskParamRef.current = taskId;
+      hasAutoOpenedTaskRef.current = false;
+    }
+    if (!taskId || hasAutoOpenedTaskRef.current || isLoading || !tasks[taskId]) return;
+    openPanel(taskId);
+    hasAutoOpenedTaskRef.current = true;
+  }, [searchParams, tasks, isLoading, openPanel]);
 
   const handleAddView = (view: Exclude<BoardView, 'table'>) => {
     setVisibleOptionalViews((prev) => [...prev, view]);

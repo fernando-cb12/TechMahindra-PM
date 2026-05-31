@@ -62,6 +62,21 @@ public class TaskBoardController {
         return ResponseEntity.ok(taskBoardService.updateBoard(authentication, workspaceId, boardId, request));
     }
 
+    @DeleteMapping
+    public ResponseEntity<Void> deleteBoard(Authentication authentication,
+            @PathVariable Long workspaceId,
+            @PathVariable Long boardId) {
+        taskBoardService.deleteBoard(authentication, workspaceId, boardId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/restore")
+    public ResponseEntity<TaskBoardPayloadDto> restoreBoard(Authentication authentication,
+            @PathVariable Long workspaceId,
+            @PathVariable Long boardId) {
+        return ResponseEntity.ok(taskBoardService.restoreBoard(authentication, workspaceId, boardId));
+    }
+
     @PostMapping("/groups")
     public ResponseEntity<TaskGroupDto> createGroup(Authentication authentication,
             @PathVariable Long workspaceId,

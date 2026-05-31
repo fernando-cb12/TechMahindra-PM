@@ -8,6 +8,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -15,7 +17,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.mahindra.backend.dto.AssignableUserDto;
+import com.mahindra.backend.dto.CreateBoardRequest;
 import com.mahindra.backend.dto.CreateWorkspaceRequest;
+import com.mahindra.backend.dto.UpdateWorkspaceRequest;
 import com.mahindra.backend.dto.WorkspaceBoardDto;
 import com.mahindra.backend.dto.WorkspaceCardDto;
 import com.mahindra.backend.service.WorkspaceService;
@@ -48,6 +52,36 @@ public class WorkspaceController {
     @GetMapping("/{workspaceId}/boards")
     public ResponseEntity<List<WorkspaceBoardDto>> boards(Authentication authentication, @PathVariable Long workspaceId) {
         return ResponseEntity.ok(workspaceService.listBoards(authentication, workspaceId));
+    }
+
+    @PostMapping("/{workspaceId}/boards")
+    @PreAuthorize("hasAnyRole('ADMIN','TEAM_LEAD')")
+    public ResponseEntity<WorkspaceBoardDto> createBoard(Authentication authentication,
+            @PathVariable Long workspaceId,
+            @RequestBody CreateBoardRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(workspaceService.createBoard(authentication, workspaceId, request));
+    }
+
+    @PatchMapping("/{workspaceId}")
+    @PreAuthorize("hasAnyRole('ADMIN','TEAM_LEAD')")
+    public ResponseEntity<WorkspaceCardDto> update(Authentication authentication,
+            @PathVariable Long workspaceId,
+            @RequestBody UpdateWorkspaceRequest request) {
+        return ResponseEntity.ok(workspaceService.update(authentication, workspaceId, request));
+    }
+
+    @DeleteMapping("/{workspaceId}")
+    @PreAuthorize("hasAnyRole('ADMIN','TEAM_LEAD')")
+    public ResponseEntity<Void> delete(Authentication authentication, @PathVariable Long workspaceId) {
+        workspaceService.delete(authentication, workspaceId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{workspaceId}/restore")
+    @PreAuthorize("hasAnyRole('ADMIN','TEAM_LEAD')")
+    public ResponseEntity<WorkspaceCardDto> restore(Authentication authentication, @PathVariable Long workspaceId) {
+        return ResponseEntity.ok(workspaceService.restore(authentication, workspaceId));
     }
 
     @GetMapping("/assignable-users")
