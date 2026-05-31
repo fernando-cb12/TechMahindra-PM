@@ -77,15 +77,22 @@ Incluye:
 
 ### Etapa 3: Kanban by Task Group
 
-Estado: siguiente etapa de implementacion.
+Estado: implementada.
 
 Incluye:
 
 - Nueva tab `Kanban`.
 - Columnas basadas en task groups.
-- Cards con task name, assignees, due date, priority y workflow/status tag principal.
-- Movimiento de cards entre task groups.
-- Reuso de filtros basicos de Calendar cuando esten disponibles.
+- Cards con task name, assignees, due date, priority, status/workflow, progress y updates.
+- Movimiento de cards entre task groups usando el movimiento existente del board.
+- Reuso de filtros basicos de Calendar mediante una barra compartida.
+- Persistencia de filtros de Kanban por board durante la sesion hasta que el usuario use `Clear`.
+- Menu de click derecho para crear tasks desde Kanban y Calendar.
+- Menu de click derecho sobre tasks en Kanban y Calendar con acciones rapidas.
+- Eliminacion directa desde menus, sin `confirm` nativo del navegador para tasks o groups.
+- Correccion de movimiento dentro del mismo grupo para evitar que una task desaparezca del estado local.
+- Edicion rapida en Kanban para status, priority, due date, assignees y progress desde la card.
+- Drag and drop en Calendar para mover tareas entre dias y actualizar `dueDate`.
 
 Objetivo:
 
@@ -265,12 +272,19 @@ Columnas no incluidas en filtros de tags en la etapa 2:
 - Las tareas filtradas no aparecen en el calendario.
 - El color de la tarea puede seguir usando el color del task group.
 - Al hacer click en una tarea, se abre el panel de detalle.
+- Click derecho sobre un dia permite crear una task para esa fecha.
+- Como Calendar no implica un unico task group, el menu de creacion debe pedir seleccionar el grupo destino.
+- La creacion desde Calendar debe persistir `dueDate` en backend, no solo en estado optimista.
+- Calendar debe mantener los cuadros de dia visibles aunque no haya tareas en el rango, para que crear por fecha y drag/drop sigan funcionando.
+- Arrastrar una task a otro dia actualiza su `dueDate`.
+- Click derecho sobre una task en Calendar permite abrir detalle, renombrar, mover de grupo, limpiar fecha y borrar.
+- Calendar no debe reemplazar el grid por un empty state cuando no hay tareas; el feedback de cero resultados debe vivir en el contador/barra, manteniendo los dias interactivos.
 
 ### Estados Utiles
 
 - Tareas overdue pueden tener indicador visual sutil.
 - Tareas done pueden mostrarse con menor intensidad si el filtro las incluye.
-- Si no hay tareas para el mes/filtros, mostrar empty state breve.
+- Si no hay tareas para el mes/filtros, mantener el grid visible y mostrar feedback breve en el contador/barra de filtros.
 
 ### Modos de Visualizacion
 
@@ -318,8 +332,9 @@ Layouts:
 
 Empty states:
 
-- Si no hay tareas visibles en el rango actual, mostrar un mensaje especifico al modo activo.
-- Ejemplos: `No scheduled tasks for this day`, `No scheduled tasks for this week`, `No scheduled tasks for this month`.
+- Si no hay tareas visibles en el rango actual, el grid/lista del modo activo permanece visible.
+- La barra de filtros/contador muestra `0 scheduled`.
+- Los dias siguen aceptando click derecho para crear y drag/drop para actualizar due date.
 
 ## Kanban
 
@@ -349,6 +364,12 @@ Tarjetas:
 - Priority
 - Workflow/status tag principal si existe
 - Progress si aporta valor
+- Updates count como senal compacta de actividad
+- Click derecho en una columna permite crear una task dentro de ese task group.
+- Click derecho sobre una card permite abrir detalle, renombrar, mover de grupo y borrar.
+- Status, priority, due date, assignees y progress pueden editarse directamente desde la card.
+- Progress se edita con opciones rapidas de 25 en 25: `0%`, `25%`, `50%`, `75%`, `100%`.
+- Clicks sobre campos editables no deben abrir el panel de detalle ni iniciar drag.
 
 Detalle recomendado de card:
 
@@ -368,12 +389,14 @@ Reglas:
 - Debe respetar permisos existentes de edicion.
 - Debe actualizar el orden visual de tareas dentro del grupo si el modelo lo soporta.
 - Si el orden por grupo todavia no se persiste, puede mantenerse orden actual como primera version.
+- Mover dentro del mismo grupo debe reinsertar la task en la nueva posicion sin sacarla del grupo.
 
 Primera implementacion aceptable:
 
 - Drag and drop entre columnas actualiza `groupId`.
-- El orden dentro de cada columna puede mantenerse segun el orden actual de tasks si persistir posicion aumenta demasiado el alcance.
-- Si ya existe soporte de `moveTask` con `position`, usarlo para mantener orden cuando sea razonable.
+- Drag and drop sobre otra card usa la posicion de esa card como referencia.
+- El movimiento usa `moveTask` con `position` para mantener la misma ruta de persistencia de Main Table.
+- Empty columns muestran un drop target claro.
 
 ### Filtros
 
@@ -386,6 +409,12 @@ Kanban debe compartir filtros basicos con Calendar cuando sea posible:
 - Tags/opciones de columnas compatibles
 
 En Kanban, si se filtra por task group, simplemente se muestran las columnas seleccionadas.
+
+Persistencia:
+
+- Los filtros de Kanban se guardan en session storage por board.
+- Los filtros se mantienen al salir y volver a la vista durante la sesion.
+- `Clear` elimina los filtros activos y limpia la persistencia de esa vista.
 
 ### Agrupaciones Futuras
 

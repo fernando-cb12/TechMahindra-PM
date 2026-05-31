@@ -5,6 +5,7 @@ import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1';
 import TableChartIcon from '@mui/icons-material/TableChart';
 import InsertChartIcon from '@mui/icons-material/InsertChart';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
 import AddIcon from '@mui/icons-material/Add';
 import { useParams } from 'react-router-dom';
 
@@ -13,6 +14,7 @@ import { useTaskBoard } from './useTaskBoard';
 import MainTableView from './table/MainTableView';
 import ChartView from './chart/ChartView';
 import CalendarView from './calendar/CalendarView';
+import KanbanView from './kanban/KanbanView';
 import TaskDetailPanel from './panel/TaskDetailPanel';
 import type { BoardView } from './types';
 import { useState } from 'react';
@@ -75,6 +77,13 @@ function TaskBoardContent() {
               value="calendar" 
               sx={{ textTransform: 'none', minHeight: 40, py: 0, fontWeight: 600 }} 
             />
+            <Tab
+              icon={<ViewKanbanIcon sx={{ fontSize: 18 }} />}
+              iconPosition="start"
+              label="Kanban"
+              value="kanban"
+              sx={{ textTransform: 'none', minHeight: 40, py: 0, fontWeight: 600 }}
+            />
           </Tabs>
 
           <IconButton
@@ -129,6 +138,7 @@ function TaskBoardContent() {
         
         {activeView === 'insights' && <ChartView />}
         {activeView === 'calendar' && <CalendarView />}
+        {activeView === 'kanban' && <KanbanView />}
       </Box>
 
       {/* Slide-in Panel */}

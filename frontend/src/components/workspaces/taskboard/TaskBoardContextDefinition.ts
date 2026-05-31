@@ -23,6 +23,7 @@ export interface TaskBoardContextValue extends Omit<TaskBoardState, 'manualGroup
   updateTask: (taskId: string, patch: Partial<Task>) => void;
   postTaskUpdate: (taskId: string, content: string, attachments: Task['files'], mentions: string[]) => void;
   addTask: (task: Task) => void;
+  addTaskToGroup: (groupId: string, defaults?: Partial<Pick<Task, 'name' | 'dueDate'>>) => void;
   addTaskToFirstGroup: () => void;
   moveTask: (taskId: string, fromGroupId: string, toGroupId: string, newIndex: number) => void;
   moveTaskToGroup: (taskId: string, toGroupId: string) => void;

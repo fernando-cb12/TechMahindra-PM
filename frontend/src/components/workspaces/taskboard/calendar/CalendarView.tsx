@@ -1,22 +1,17 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
-import { Box, Button, ButtonGroup, Checkbox, Chip, Divider, IconButton, Paper, Popover, TextField, Typography } from '@mui/material';
+import { Box, Button, ButtonGroup, IconButton, Paper, TextField, Typography } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
-import RestartAltIcon from '@mui/icons-material/RestartAlt';
-import { alpha } from '@mui/material/styles';
 import { useTaskBoard } from '../useTaskBoard';
-import type { FilterChoice, TaskFilterState } from '../taskFilters';
+import type { TaskFilterState } from '../taskFilters';
 import {
-  EMPTY_TASK_FILTERS,
-  WORKFLOW_FILTER_CHOICES,
-  getAssigneeFilterChoices,
-  getFilterCount,
-  getTagFilterChoices,
+  readStoredTaskFilters,
   taskMatchesFilters,
 } from '../taskFilters';
+import TaskFilterBar from '../TaskFilterBar';
+import TaskCreateContextMenu from '../TaskCreateContextMenu';
+import TaskActionContextMenu from '../TaskActionContextMenu';
 
-type FilterKey = keyof TaskFilterState;
 type CalendarMode = 'day' | 'week' | 'month';
 
 const WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -61,139 +56,14 @@ function parseDateInput(value: string) {
   return new Date(year, month - 1, day);
 }
 
-function readStringArray(value: unknown) {
-  return Array.isArray(value) ? value.map(String) : [];
-}
-
-function readWorkflowArray(value: unknown): TaskFilterState['workflowStates'] {
-  return readStringArray(value).filter((item): item is TaskFilterState['workflowStates'][number] => (
-    item === 'new' || item === 'in_progress' || item === 'done' || item === 'unclassified'
-  ));
-}
-
-function readStoredFilters(storageKey: string): TaskFilterState {
-  if (typeof window === 'undefined') return EMPTY_TASK_FILTERS;
-
-  try {
-    const raw = window.sessionStorage.getItem(storageKey);
-    if (!raw) return EMPTY_TASK_FILTERS;
-
-    const parsed = JSON.parse(raw) as Partial<Record<FilterKey, unknown>>;
-    return {
-      groupIds: readStringArray(parsed.groupIds),
-      assigneeIds: readStringArray(parsed.assigneeIds),
-      priorityIds: readStringArray(parsed.priorityIds),
-      workflowStates: readWorkflowArray(parsed.workflowStates),
-      tagIds: readStringArray(parsed.tagIds),
-    };
-  } catch {
-    return EMPTY_TASK_FILTERS;
-  }
-}
-
-interface FilterButtonProps {
-  label: string;
-  choices: FilterChoice[];
-  selected: string[];
-  onToggle: (id: string) => void;
-}
-
-function FilterButton({ label, choices, selected, onToggle }: FilterButtonProps) {
-  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
-  const selectedCount = selected.length;
-
-  return (
-    <>
-      <Button
-        size="small"
-        variant={selectedCount > 0 ? 'contained' : 'outlined'}
-        startIcon={<FilterAltOutlinedIcon sx={{ fontSize: 16 }} />}
-        onClick={(event) => setAnchorEl(event.currentTarget)}
-        sx={{ textTransform: 'none', borderRadius: 1.5, minHeight: 32 }}
-      >
-        {label}
-        {selectedCount > 0 && (
-          <Chip
-            size="small"
-            label={selectedCount}
-            sx={{
-              ml: 0.75,
-              height: 18,
-              minWidth: 18,
-              bgcolor: 'common.white',
-              color: 'primary.main',
-              fontSize: 10,
-              fontWeight: 800,
-              '& .MuiChip-label': { px: 0.6 },
-            }}
-          />
-        )}
-      </Button>
-
-      <Popover
-        open={Boolean(anchorEl)}
-        anchorEl={anchorEl}
-        onClose={() => setAnchorEl(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-        slotProps={{ paper: { sx: { mt: 0.75, p: 1, width: 260, maxHeight: 320, borderRadius: 2 } } }}
-      >
-        <Typography sx={{ px: 1, py: 0.75, fontSize: 12, fontWeight: 800, color: 'text.secondary', textTransform: 'uppercase' }}>
-          {label}
-        </Typography>
-        <Divider sx={{ mb: 0.5 }} />
-
-        {choices.length > 0 ? (
-          <Box sx={{ maxHeight: 250, overflowY: 'auto' }}>
-            {choices.map((choice, index) => {
-              const checked = selected.includes(choice.id);
-              const showGroup = choice.groupLabel && choice.groupLabel !== choices[index - 1]?.groupLabel;
-              return (
-                <Box key={choice.id}>
-                  {showGroup && (
-                    <Typography sx={{ px: 1, pt: index === 0 ? 0.75 : 1.25, pb: 0.25, fontSize: 10.5, color: 'text.disabled', fontWeight: 800, textTransform: 'uppercase' }}>
-                      {choice.groupLabel}
-                    </Typography>
-                  )}
-                  <Box
-                    onClick={() => onToggle(choice.id)}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1,
-                      px: 0.75,
-                      py: 0.5,
-                      borderRadius: 1.25,
-                      cursor: 'pointer',
-                      '&:hover': { bgcolor: 'action.hover' },
-                    }}
-                  >
-                    <Checkbox checked={checked} size="small" sx={{ p: 0.25 }} />
-                    {choice.color && <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: choice.color, flexShrink: 0 }} />}
-                    <Typography sx={{ fontSize: 12.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {choice.label}
-                    </Typography>
-                  </Box>
-                </Box>
-              );
-            })}
-          </Box>
-        ) : (
-          <Typography sx={{ px: 1, py: 1.5, fontSize: 12.5, color: 'text.secondary' }}>
-            No filter values available.
-          </Typography>
-        )}
-      </Popover>
-    </>
-  );
-}
-
 export default function CalendarView() {
-  const { tasks, groups, users, boardConfig, openPanel } = useTaskBoard();
+  const { tasks, groups, boardConfig, openPanel, updateTask } = useTaskBoard();
   const filterStorageKey = `taskboard:${boardConfig.workspaceId}:calendarFilters`;
   const modeStorageKey = `taskboard:${boardConfig.workspaceId}:calendarMode`;
-  const [filters, setFilters] = useState<TaskFilterState>(() => readStoredFilters(filterStorageKey));
+  const [filters, setFilters] = useState<TaskFilterState>(() => readStoredTaskFilters(filterStorageKey));
   const [calendarMode, setCalendarMode] = useState<CalendarMode>(() => readStoredMode(modeStorageKey));
+  const [createMenu, setCreateMenu] = useState<{ mouseX: number; mouseY: number; dueDate: string } | null>(null);
+  const [taskMenu, setTaskMenu] = useState<{ mouseX: number; mouseY: number; taskId: string } | null>(null);
 
   const [currentDate, setCurrentDate] = useState(() => new Date(2026, 4, 1));
 
@@ -235,31 +105,6 @@ export default function CalendarView() {
     [taskList, filters, boardConfig]
   );
   const visibleTasksWithDates = useMemo(() => visibleTasks.filter((task) => task.dueDate), [visibleTasks]);
-  const activeFilterCount = getFilterCount(filters);
-
-  const groupChoices = useMemo<FilterChoice[]>(
-    () => groups.map((group) => ({ id: group.id, label: group.name, color: group.color })),
-    [groups]
-  );
-  const assigneeChoices = useMemo(() => getAssigneeFilterChoices(taskList, users), [taskList, users]);
-  const priorityChoices = useMemo<FilterChoice[]>(
-    () => boardConfig.priorityOptions.map((option) => ({ id: option.id, label: option.label, color: option.color })),
-    [boardConfig.priorityOptions]
-  );
-  const tagChoices = useMemo(() => getTagFilterChoices(boardConfig), [boardConfig]);
-
-  const toggleFilter = (key: FilterKey, id: string) => {
-    setFilters((prev) => {
-      const current = prev[key] as string[];
-      const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
-      return { ...prev, [key]: next };
-    });
-  };
-
-  const clearFilters = () => {
-    window.sessionStorage.removeItem(filterStorageKey);
-    setFilters(EMPTY_TASK_FILTERS);
-  };
 
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
   const firstDayOfWeek = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
@@ -291,30 +136,22 @@ export default function CalendarView() {
 
   const getDayTasks = (date: Date) => tasksByDate[formatDateKey(date)] || [];
 
-  const rangeTaskCount = useMemo(() => {
-    if (calendarMode === 'day') {
-      return getDayTasks(currentDate).length;
-    }
-    if (calendarMode === 'week') {
-      return weekDates.reduce((sum, date) => sum + getDayTasks(date).length, 0);
-    }
-    return Array.from({ length: daysInMonth }, (_, index) => (
-      getDayTasks(new Date(currentDate.getFullYear(), currentDate.getMonth(), index + 1)).length
-    )).reduce((sum, count) => sum + count, 0);
-  }, [calendarMode, currentDate, daysInMonth, tasksByDate, weekDates]);
-
-  const emptyLabel = calendarMode === 'day'
-    ? 'No scheduled tasks for this day'
-    : calendarMode === 'week'
-      ? 'No scheduled tasks for this week'
-      : 'No scheduled tasks for this month';
-
   const renderTask = (task: typeof visibleTasks[number]) => {
     const groupColor = groups.find((group) => group.id === task.groupId)?.color || '#5F0229';
     return (
       <Box
         key={task.id}
+        draggable
+        onDragStart={(event) => {
+          event.dataTransfer.setData('text/task-id', task.id);
+          event.dataTransfer.effectAllowed = 'move';
+        }}
         onClick={() => openPanel(task.id)}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          setTaskMenu({ mouseX: event.clientX + 2, mouseY: event.clientY - 6, taskId: task.id });
+        }}
         sx={{
           bgcolor: groupColor,
           color: '#fff',
@@ -323,7 +160,7 @@ export default function CalendarView() {
           px: 1,
           py: 0.25,
           borderRadius: 1,
-          cursor: 'pointer',
+          cursor: 'grab',
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
@@ -335,12 +172,28 @@ export default function CalendarView() {
     );
   };
 
-  const renderDayCell = (date: Date, options?: { minHeight?: number; showWeekday?: boolean }) => {
+  const renderDayCell = (date: Date, options?: { minHeight?: number; showWeekday?: boolean; isOutsideMonth?: boolean }) => {
     const dayTasks = getDayTasks(date);
     const isToday = isSameDay(date, new Date());
+    const dateKey = formatDateKey(date);
     return (
       <Box
-        key={formatDateKey(date)}
+        key={dateKey}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          setCreateMenu({ mouseX: event.clientX + 2, mouseY: event.clientY - 6, dueDate: dateKey });
+        }}
+        onDragOver={(event) => {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = 'move';
+        }}
+        onDrop={(event) => {
+          event.preventDefault();
+          const taskId = event.dataTransfer.getData('text/task-id');
+          if (taskId && tasks[taskId]?.dueDate !== dateKey) {
+            updateTask(taskId, { dueDate: dateKey });
+          }
+        }}
         sx={{
           minHeight: options?.minHeight ?? 120,
           borderRight: '1px solid',
@@ -350,14 +203,16 @@ export default function CalendarView() {
           display: 'flex',
           flexDirection: 'column',
           gap: 0.5,
-          bgcolor: 'background.paper',
+          bgcolor: options?.isOutsideMonth ? 'background.default' : 'background.paper',
+          opacity: options?.isOutsideMonth ? 0.62 : 1,
+          '&:hover': { bgcolor: 'action.hover' },
         }}
       >
         <Typography
           sx={{
             fontSize: 12,
             fontWeight: 700,
-            color: isToday ? 'primary.main' : 'text.secondary',
+            color: isToday ? 'primary.main' : options?.isOutsideMonth ? 'text.disabled' : 'text.secondary',
             mb: 0.5,
           }}
         >
@@ -372,30 +227,18 @@ export default function CalendarView() {
 
   const monthCells: ReactNode[] = [];
   for (let i = 0; i < firstDayOfWeek; i++) {
-    monthCells.push(<Box key={`empty-${i}`} sx={{ minHeight: 120, borderRight: '1px solid', borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'background.default' }} />);
+    const dayOffset = i - firstDayOfWeek + 1;
+    monthCells.push(renderDayCell(new Date(currentDate.getFullYear(), currentDate.getMonth(), dayOffset), { isOutsideMonth: true }));
   }
   for (let day = 1; day <= daysInMonth; day++) {
     monthCells.push(renderDayCell(new Date(currentDate.getFullYear(), currentDate.getMonth(), day)));
   }
   const remaining = (7 - (monthCells.length % 7)) % 7;
   for (let i = 0; i < remaining; i++) {
-    monthCells.push(<Box key={`empty-end-${i}`} sx={{ minHeight: 120, borderRight: '1px solid', borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'background.default' }} />);
+    monthCells.push(renderDayCell(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, i + 1), { isOutsideMonth: true }));
   }
 
   const renderCalendarContent = () => {
-    if (rangeTaskCount === 0) {
-      return (
-        <Paper elevation={0} sx={{ p: 4, borderRadius: 2, border: '1px solid', borderColor: 'divider', textAlign: 'center' }}>
-          <Typography sx={{ fontSize: 15, fontWeight: 700, mb: 0.5 }}>
-            {emptyLabel}
-          </Typography>
-          <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
-            Clear filters, adjust the selection, or move to another {calendarMode === 'day' ? 'day' : calendarMode === 'week' ? 'week' : 'month'}.
-          </Typography>
-        </Paper>
-      );
-    }
-
     if (calendarMode === 'day') {
       return (
         <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRight: 0, borderBottom: 0 }}>
@@ -490,50 +333,26 @@ export default function CalendarView() {
         </Box>
       </Box>
 
-      <Paper
-        elevation={0}
-        sx={{
-          mb: 2,
-          p: 1.25,
-          borderRadius: 2,
-          border: '1px solid',
-          borderColor: 'divider',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 1.5,
-          flexWrap: 'wrap',
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-          <FilterButton label="Groups" choices={groupChoices} selected={filters.groupIds} onToggle={(id) => toggleFilter('groupIds', id)} />
-          <FilterButton label="Assignees" choices={assigneeChoices} selected={filters.assigneeIds} onToggle={(id) => toggleFilter('assigneeIds', id)} />
-          <FilterButton label="Priority" choices={priorityChoices} selected={filters.priorityIds} onToggle={(id) => toggleFilter('priorityIds', id)} />
-          <FilterButton label="Workflow" choices={WORKFLOW_FILTER_CHOICES} selected={filters.workflowStates} onToggle={(id) => toggleFilter('workflowStates', id)} />
-          <FilterButton label="Tags" choices={tagChoices} selected={filters.tagIds} onToggle={(id) => toggleFilter('tagIds', id)} />
-        </Box>
-
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Chip
-            size="small"
-            label={`${visibleTasksWithDates.length} scheduled`}
-            sx={{ height: 26, fontSize: 11.5, fontWeight: 700, bgcolor: alpha('#5F0229', 0.08), color: 'primary.main' }}
-          />
-          {activeFilterCount > 0 && (
-            <Button
-              size="small"
-              variant="text"
-              startIcon={<RestartAltIcon sx={{ fontSize: 16 }} />}
-              onClick={clearFilters}
-              sx={{ textTransform: 'none', fontSize: 12, fontWeight: 700 }}
-            >
-              Clear
-            </Button>
-          )}
-        </Box>
-      </Paper>
+      <TaskFilterBar
+        filters={filters}
+        setFilters={setFilters}
+        resultLabel={`${visibleTasksWithDates.length} scheduled`}
+        storageKey={filterStorageKey}
+      />
 
       {renderCalendarContent()}
+
+      <TaskCreateContextMenu
+        position={createMenu}
+        dueDate={createMenu?.dueDate}
+        onClose={() => setCreateMenu(null)}
+      />
+      <TaskActionContextMenu
+        taskId={taskMenu?.taskId ?? null}
+        position={taskMenu}
+        showDateActions
+        onClose={() => setTaskMenu(null)}
+      />
     </Box>
   );
 }

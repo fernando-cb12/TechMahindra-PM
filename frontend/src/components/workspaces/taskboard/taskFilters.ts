@@ -26,6 +26,8 @@ export const EMPTY_TASK_FILTERS: TaskFilterState = {
   tagIds: [],
 };
 
+export type TaskFilterKey = keyof TaskFilterState;
+
 export const WORKFLOW_FILTER_CHOICES: FilterChoice[] = [
   { id: 'new', label: 'New' },
   { id: 'in_progress', label: 'Progress' },
@@ -39,6 +41,36 @@ export function getFilterCount(filters: TaskFilterState) {
     + filters.priorityIds.length
     + filters.workflowStates.length
     + filters.tagIds.length;
+}
+
+function readStringArray(value: unknown) {
+  return Array.isArray(value) ? value.map(String) : [];
+}
+
+function readWorkflowArray(value: unknown): TaskFilterState['workflowStates'] {
+  return readStringArray(value).filter((item): item is TaskFilterState['workflowStates'][number] => (
+    item === 'new' || item === 'in_progress' || item === 'done' || item === 'unclassified'
+  ));
+}
+
+export function readStoredTaskFilters(storageKey: string): TaskFilterState {
+  if (typeof window === 'undefined') return EMPTY_TASK_FILTERS;
+
+  try {
+    const raw = window.sessionStorage.getItem(storageKey);
+    if (!raw) return EMPTY_TASK_FILTERS;
+
+    const parsed = JSON.parse(raw) as Partial<Record<TaskFilterKey, unknown>>;
+    return {
+      groupIds: readStringArray(parsed.groupIds),
+      assigneeIds: readStringArray(parsed.assigneeIds),
+      priorityIds: readStringArray(parsed.priorityIds),
+      workflowStates: readWorkflowArray(parsed.workflowStates),
+      tagIds: readStringArray(parsed.tagIds),
+    };
+  } catch {
+    return EMPTY_TASK_FILTERS;
+  }
 }
 
 export function createTagFilterId(columnId: string, optionId: string) {

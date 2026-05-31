@@ -334,7 +334,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
     setTasks(updatedTasks);
     setGroups(updatedGroups);
     syncStorage(boardConfig, updatedGroups, updatedTasks, manualGroupOrder);
-    void createTaskRequest(workspaceId, boardId, task.groupId, { name: task.name })
+    void createTaskRequest(workspaceId, boardId, task.groupId, { name: task.name, dueDate: task.dueDate })
       .then((created) => {
         setTasks((prev) => {
           const rest = { ...prev };
@@ -349,6 +349,31 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to create task'));
   }, [workspaceId, boardId, tasks, groups, boardConfig, manualGroupOrder, syncStorage]);
+
+  const addTaskToGroup = useCallback((groupId: string, defaults?: Partial<Pick<Task, 'name' | 'dueDate'>>) => {
+    const targetGroup = groups.find((group) => group.id === groupId);
+    if (!targetGroup) return;
+
+    const newTask: Task = {
+      id: `task_${Date.now()}`,
+      name: defaults?.name?.trim() || 'New Task',
+      groupId: targetGroup.id,
+      workspaceId: boardId,
+      assigneeId: null,
+      assigneeIds: [],
+      status: boardConfig.statusOptions[0]?.id || '',
+      priority: boardConfig.priorityOptions[0]?.id || '',
+      dueDate: defaults?.dueDate ?? null,
+      progress: 0,
+      budget: null,
+      files: [],
+      updates: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    addTask(newTask);
+  }, [groups, boardId, boardConfig, addTask]);
 
   // Computed visibleGroups selector
   const visibleGroups = useMemo(() => {
@@ -426,29 +451,8 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
   const addTaskToFirstGroup = useCallback(() => {
     const activeGroups = visibleGroups;
     if (activeGroups.length === 0) return;
-    const targetGroup = activeGroups[0];
-
-    const newTaskId = `task_${Date.now()}`;
-    const newTask: Task = {
-      id: newTaskId,
-      name: 'New Task',
-      groupId: targetGroup.id,
-      workspaceId: boardId,
-      assigneeId: null,
-      assigneeIds: [],
-      status: boardConfig.statusOptions[0]?.id || '',
-      priority: boardConfig.priorityOptions[0]?.id || '',
-      dueDate: null,
-      progress: 0,
-      budget: null,
-      files: [],
-      updates: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    addTask(newTask);
-  }, [visibleGroups, boardId, boardConfig, addTask]);
+    addTaskToGroup(activeGroups[0].id);
+  }, [visibleGroups, addTaskToGroup]);
 
   // Insert an empty group in the second position of the board
   const addGroupAtSecondPosition = useCallback(() => {
@@ -486,12 +490,19 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
   const moveTask = useCallback(
     (taskId: string, fromGroupId: string, toGroupId: string, newIndex: number) => {
       const updatedGroups = groups.map((g) => {
+        if (fromGroupId === toGroupId && g.id === fromGroupId) {
+          const ids = g.taskIds.filter((id) => id !== taskId);
+          const safeIndex = Math.max(0, Math.min(newIndex, ids.length));
+          ids.splice(safeIndex, 0, taskId);
+          return { ...g, taskIds: ids };
+        }
         if (g.id === fromGroupId) {
           return { ...g, taskIds: g.taskIds.filter((id) => id !== taskId) };
         }
         if (g.id === toGroupId) {
           const ids = g.taskIds.filter((id) => id !== taskId);
-          ids.splice(newIndex, 0, taskId);
+          const safeIndex = Math.max(0, Math.min(newIndex, ids.length));
+          ids.splice(safeIndex, 0, taskId);
           return { ...g, taskIds: ids };
         }
         return g;
@@ -512,7 +523,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       void moveTaskRequest(workspaceId, boardId, taskId, {
         toBoardId: boardId,
         toGroupId,
-        position: newIndex,
+        position: Math.max(0, newIndex),
       }).catch((e) => setError(e instanceof Error ? e.message : 'Failed to move task'));
     },
     [workspaceId, boardId, groups, tasks, boardConfig, manualGroupOrder, syncStorage]
@@ -889,6 +900,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       updateTask,
       postTaskUpdate,
       addTask,
+      addTaskToGroup,
       addTaskToFirstGroup,
       moveTask,
       moveTaskToGroup,
@@ -931,6 +943,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       updateTask,
       postTaskUpdate,
       addTask,
+      addTaskToGroup,
       addTaskToFirstGroup,
       moveTask,
       moveTaskToGroup,

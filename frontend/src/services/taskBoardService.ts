@@ -95,7 +95,7 @@ export async function createTask(
   workspaceId: string,
   boardId: string,
   groupId: string,
-  payload: { name: string }
+  payload: { name: string; dueDate?: string | null }
 ): Promise<Task> {
   try {
     const { data } = await apiClient.post<Task>(

@@ -200,6 +200,9 @@ public class TaskBoardService {
         task.setPriority("medium");
         task.setStatusOption(statusOptions.get("todo"));
         task.setPriorityOption(priorityOptions.get("medium"));
+        if (request.dueDate() != null && !request.dueDate().isBlank()) {
+            task.setDueDate(parseDate(request.dueDate()));
+        }
         task.setPosition(taskRepository.findByGroupIdAndDeletedAtIsNullOrderByPositionAscIdAsc(groupId).size());
         taskRepository.save(task);
         recordActivity(board, task, user, "task_created", "task", null, task.getTitle(), "user");

@@ -75,10 +75,7 @@ export default function TaskRow({ task, columns, groupColor }: TaskRowProps) {
 
   const requestDelete = () => {
     closeContextMenu();
-    const shouldDelete = window.confirm(`Delete "${task.name}"?`);
-    if (shouldDelete) {
-      deleteTask(task.id);
-    }
+    deleteTask(task.id);
   };
 
   const targetBoards = availableBoards.filter((board) => board.id !== task.workspaceId);
