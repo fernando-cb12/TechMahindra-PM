@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -30,7 +31,10 @@ import {
   moveTask as moveTaskRequest,
   patchTask,
   replaceColumns,
+  restoreTask as restoreTaskRequest,
   type BoardMoveTarget,
+  type TaskBoardPayload,
+  updateBoard as updateBoardRequest,
   updateTaskGroup,
 } from '../../../services/taskBoardService';
 
@@ -43,6 +47,18 @@ interface StoredBoardState {
   groups: TaskGroup[];
   tasks: Record<string, Task>;
   manualGroupOrder: string[];
+}
+
+interface DeletedTaskSnapshot {
+  task: Task;
+  groupId: string;
+  index: number;
+  deletePromise: Promise<void>;
+}
+
+interface TaskCreateOptions {
+  openDetails?: boolean;
+  renameInDetails?: boolean;
 }
 
 function loadBoardState(boardId: string, fallback: ReturnType<typeof getMockWorkspaceData>): StoredBoardState | null {
@@ -172,6 +188,10 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
   });
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
+  const [deleteNotice, setDeleteNotice] = useState<{ taskName: string } | null>(null);
+  const [deletedTaskSnapshot, setDeletedTaskSnapshot] = useState<DeletedTaskSnapshot | null>(null);
+  const [taskRenameRequestId, setTaskRenameRequestId] = useState<string | null>(null);
+  const pendingRenameIdRef = useRef<string | null>(null);
 
   // Live filter & sorting state
   const [searchQuery, setSearchQuery] = useState('');
@@ -204,6 +224,10 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
     setPanel({ isOpen: false, taskId: null, activeTab: 'updates' });
     setCollapsedGroups(new Set());
     setCompletedTasks(new Set());
+    setDeleteNotice(null);
+    setDeletedTaskSnapshot(null);
+    setTaskRenameRequestId(null);
+    pendingRenameIdRef.current = null;
     setSearchQuery('');
     setSortMode('none');
     setSortDirection('desc');
@@ -248,6 +272,21 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
   }, [storageBoardId]);
 
   // ─── Actions ───
+  const applyBoardPayload = useCallback((payload: TaskBoardPayload) => {
+    setBoardConfig(payload.boardConfig);
+    setGroups(payload.groups);
+    setTasks(payload.tasks);
+    setUsers(payload.users);
+    setManualGroupOrder(payload.groups.map((g) => g.id));
+    setAvailableBoards(payload.availableBoards);
+  }, []);
+
+  const refreshBoardPayload = useCallback(() => {
+    void getTaskBoard(workspaceId, boardId)
+      .then(applyBoardPayload)
+      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to refresh task board'));
+  }, [workspaceId, boardId, applyBoardPayload]);
+
   const openPanel = useCallback((taskId: string) => {
     setPanel({ isOpen: true, taskId, activeTab: 'updates' });
   }, []);
@@ -288,9 +327,13 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       syncStorage(boardConfig, groups, updated, manualGroupOrder);
       return updated;
     });
-    void patchTask(workspaceId, boardId, taskId, patch).catch((e) => {
-      setError(e instanceof Error ? e.message : 'Failed to update task');
-    });
+    void patchTask(workspaceId, boardId, taskId, patch)
+      .then((savedTask) => {
+        setTasks((prev) => ({ ...prev, [savedTask.id]: savedTask }));
+      })
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : 'Failed to update task');
+      });
   }, [workspaceId, boardId, boardConfig, groups, manualGroupOrder, syncStorage]);
 
   const postTaskUpdate = useCallback((taskId: string, content: string, attachments: Task['files'], mentions: string[]) => {
@@ -325,7 +368,9 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to create update'));
   }, [workspaceId, boardId, tasks, users, updateTask]);
 
-  const addTask = useCallback((task: Task) => {
+  const addTask = useCallback((task: Task, options: TaskCreateOptions = {}) => {
+    const shouldOpenDetails = options.openDetails === true;
+    const shouldRenameInDetails = shouldOpenDetails && options.renameInDetails === true;
     const updatedTasks = { ...tasks, [task.id]: task };
     const updatedGroups = groups.map((g) =>
       g.id === task.groupId ? { ...g, taskIds: [...g.taskIds, task.id] } : g
@@ -333,6 +378,13 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
 
     setTasks(updatedTasks);
     setGroups(updatedGroups);
+    if (shouldOpenDetails) {
+      setPanel({ isOpen: true, taskId: task.id, activeTab: 'updates' });
+    }
+    if (shouldRenameInDetails) {
+      setTaskRenameRequestId(task.id);
+      pendingRenameIdRef.current = task.id;
+    }
     syncStorage(boardConfig, updatedGroups, updatedTasks, manualGroupOrder);
     void createTaskRequest(workspaceId, boardId, task.groupId, { name: task.name, dueDate: task.dueDate })
       .then((created) => {
@@ -346,11 +398,20 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
             ? { ...g, taskIds: g.taskIds.map((id) => (id === task.id ? created.id : id)) }
             : g
         )));
+        if (pendingRenameIdRef.current === task.id) {
+          pendingRenameIdRef.current = created.id;
+          setTaskRenameRequestId(created.id);
+        }
+        setPanel((prev) => (prev.taskId === task.id ? { ...prev, taskId: created.id } : prev));
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to create task'));
   }, [workspaceId, boardId, tasks, groups, boardConfig, manualGroupOrder, syncStorage]);
 
-  const addTaskToGroup = useCallback((groupId: string, defaults?: Partial<Pick<Task, 'name' | 'dueDate'>>) => {
+  const addTaskToGroup = useCallback((
+    groupId: string,
+    defaults?: Partial<Pick<Task, 'name' | 'dueDate'>>,
+    options?: TaskCreateOptions
+  ) => {
     const targetGroup = groups.find((group) => group.id === groupId);
     if (!targetGroup) return;
 
@@ -372,7 +433,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       updatedAt: new Date().toISOString(),
     };
 
-    addTask(newTask);
+    addTask(newTask, options);
   }, [groups, boardId, boardConfig, addTask]);
 
   // Computed visibleGroups selector
@@ -479,13 +540,14 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
     setGroups(updatedGroups);
     setManualGroupOrder(updatedOrder);
     syncStorage(boardConfig, updatedGroups, tasks, updatedOrder);
-    void createTaskGroup(workspaceId, boardId, { name: newGroup.name, color: newGroup.color })
-      .then((created) => {
-        setGroups((prev) => prev.map((g) => (g.id === newGroupId ? { ...created, taskIds: [] } : g)));
-        setManualGroupOrder((prev) => prev.map((id) => (id === newGroupId ? created.id : id)));
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to create group'));
-  }, [workspaceId, boardId, groups, manualGroupOrder, tasks, boardConfig, syncStorage]);
+      void createTaskGroup(workspaceId, boardId, { name: newGroup.name, color: newGroup.color })
+        .then((created) => {
+          setGroups((prev) => prev.map((g) => (g.id === newGroupId ? { ...created, taskIds: [] } : g)));
+          setManualGroupOrder((prev) => prev.map((id) => (id === newGroupId ? created.id : id)));
+          refreshBoardPayload();
+        })
+        .catch((e) => setError(e instanceof Error ? e.message : 'Failed to create group'));
+  }, [workspaceId, boardId, groups, manualGroupOrder, tasks, boardConfig, syncStorage, refreshBoardPayload]);
 
   const moveTask = useCallback(
     (taskId: string, fromGroupId: string, toGroupId: string, newIndex: number) => {
@@ -524,9 +586,11 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
         toBoardId: boardId,
         toGroupId,
         position: Math.max(0, newIndex),
-      }).catch((e) => setError(e instanceof Error ? e.message : 'Failed to move task'));
+      })
+        .then(refreshBoardPayload)
+        .catch((e) => setError(e instanceof Error ? e.message : 'Failed to move task'));
     },
-    [workspaceId, boardId, groups, tasks, boardConfig, manualGroupOrder, syncStorage]
+    [workspaceId, boardId, groups, tasks, boardConfig, manualGroupOrder, syncStorage, refreshBoardPayload]
   );
 
   const moveTaskToGroup = useCallback(
@@ -560,9 +624,11 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
         toBoardId: boardId,
         toGroupId,
         position: groups.find((g) => g.id === toGroupId)?.taskIds.length ?? 0,
-      }).catch((e) => setError(e instanceof Error ? e.message : 'Failed to move task'));
+      })
+        .then(refreshBoardPayload)
+        .catch((e) => setError(e instanceof Error ? e.message : 'Failed to move task'));
     },
-    [workspaceId, boardId, tasks, groups, boardConfig, manualGroupOrder, syncStorage]
+    [workspaceId, boardId, tasks, groups, boardConfig, manualGroupOrder, syncStorage, refreshBoardPayload]
   );
 
   const moveTaskToBoardGroup = useCallback(
@@ -621,9 +687,11 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
         toBoardId,
         toGroupId,
         position: targetState.groups.find((g) => g.id === toGroupId)?.taskIds.length ?? 0,
-      }).catch((e) => setError(e instanceof Error ? e.message : 'Failed to move task'));
+      })
+        .then(refreshBoardPayload)
+        .catch((e) => setError(e instanceof Error ? e.message : 'Failed to move task'));
     },
-    [workspaceId, boardId, moveTaskToGroup, tasks, groups, boardConfig, manualGroupOrder, syncStorage]
+    [workspaceId, boardId, moveTaskToGroup, tasks, groups, boardConfig, manualGroupOrder, syncStorage, refreshBoardPayload]
   );
 
   const toggleTaskComplete = useCallback((taskId: string) => {
@@ -637,6 +705,10 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
 
   const deleteTask = useCallback(
     (taskId: string) => {
+      const taskToDelete = tasks[taskId];
+      if (!taskToDelete) return;
+      const sourceGroup = groups.find((group) => group.taskIds.includes(taskId));
+      const sourceIndex = sourceGroup ? sourceGroup.taskIds.indexOf(taskId) : -1;
       const updatedTasks = { ...tasks };
       delete updatedTasks[taskId];
       const updatedGroups = groups.map((g) => ({
@@ -646,6 +718,17 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
 
       setTasks(updatedTasks);
       setGroups(updatedGroups);
+      const deletePromise = deleteTaskRequest(workspaceId, boardId, taskId).catch((e) => {
+        setError(e instanceof Error ? e.message : 'Failed to delete task');
+      });
+
+      setDeletedTaskSnapshot({
+        task: taskToDelete,
+        groupId: sourceGroup?.id ?? taskToDelete.groupId,
+        index: Math.max(0, sourceIndex),
+        deletePromise,
+      });
+      setDeleteNotice({ taskName: taskToDelete.name });
       setPanel((prev) => (prev.taskId === taskId ? { isOpen: false, taskId: null, activeTab: 'updates' } : prev));
       setCompletedTasks((prev) => {
         const next = new Set(prev);
@@ -653,12 +736,41 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
         return next;
       });
       syncStorage(boardConfig, updatedGroups, updatedTasks, manualGroupOrder);
-      void deleteTaskRequest(workspaceId, boardId, taskId).catch((e) => {
-        setError(e instanceof Error ? e.message : 'Failed to delete task');
-      });
     },
     [workspaceId, boardId, tasks, groups, boardConfig, manualGroupOrder, syncStorage]
   );
+
+  const dismissDeleteNotice = useCallback(() => {
+    setDeleteNotice(null);
+  }, []);
+
+  const undoTaskDelete = useCallback(() => {
+    if (!deletedTaskSnapshot) return;
+    const { task, groupId, index, deletePromise } = deletedTaskSnapshot;
+
+    setTasks((prev) => ({ ...prev, [task.id]: task }));
+    setGroups((prev) => prev.map((group) => {
+      if (group.id !== groupId || group.taskIds.includes(task.id)) return group;
+      const nextIds = [...group.taskIds];
+      nextIds.splice(Math.max(0, Math.min(index, nextIds.length)), 0, task.id);
+      return { ...group, taskIds: nextIds };
+    }));
+    setDeleteNotice(null);
+    setDeletedTaskSnapshot(null);
+    void deletePromise
+      .then(() => restoreTaskRequest(workspaceId, boardId, task.id))
+      .then((restored) => {
+        setTasks((prev) => ({ ...prev, [restored.id]: restored }));
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to restore task'));
+  }, [workspaceId, boardId, deletedTaskSnapshot]);
+
+  const consumeTaskRenameRequest = useCallback((taskId: string) => {
+    setTaskRenameRequestId((prev) => (prev === taskId ? null : prev));
+    if (pendingRenameIdRef.current === taskId) {
+      pendingRenameIdRef.current = null;
+    }
+  }, []);
 
   const updateColumns = useCallback(
     (columns: ColumnDefinition[]) => {
@@ -668,10 +780,11 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       void replaceColumns(workspaceId, boardId, columns)
         .then((savedColumns) => {
           setBoardConfig((prev) => ({ ...prev, columns: savedColumns }));
+          refreshBoardPayload();
         })
         .catch((e) => setError(e instanceof Error ? e.message : 'Failed to update columns'));
     },
-    [workspaceId, boardId, boardConfig, groups, tasks, manualGroupOrder, syncStorage]
+    [workspaceId, boardId, boardConfig, groups, tasks, manualGroupOrder, syncStorage, refreshBoardPayload]
   );
 
   const addColumn = useCallback(
@@ -686,10 +799,11 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
             ...prev,
             columns: prev.columns.map((c) => (c.id === col.id ? created : c)),
           }));
+          refreshBoardPayload();
         })
         .catch((e) => setError(e instanceof Error ? e.message : 'Failed to create column'));
     },
-    [workspaceId, boardId, boardConfig, groups, tasks, manualGroupOrder, syncStorage]
+    [workspaceId, boardId, boardConfig, groups, tasks, manualGroupOrder, syncStorage, refreshBoardPayload]
   );
 
   const reorderGroups = useCallback(
@@ -699,10 +813,11 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       syncStorage(boardConfig, groups, tasks, updatedOrder);
       newGroups.forEach((group, index) => {
         void updateTaskGroup(workspaceId, boardId, group.id, { order: index })
+          .then(refreshBoardPayload)
           .catch((e) => setError(e instanceof Error ? e.message : 'Failed to reorder groups'));
       });
     },
-    [workspaceId, boardId, boardConfig, groups, tasks, syncStorage]
+    [workspaceId, boardId, boardConfig, groups, tasks, syncStorage, refreshBoardPayload]
   );
 
   const updateGroupColor = useCallback(
@@ -713,9 +828,10 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       setGroups(updatedGroups);
       syncStorage(boardConfig, updatedGroups, tasks, manualGroupOrder);
       void updateTaskGroup(workspaceId, boardId, groupId, { color })
+        .then(refreshBoardPayload)
         .catch((e) => setError(e instanceof Error ? e.message : 'Failed to update group'));
     },
-    [workspaceId, boardId, groups, boardConfig, tasks, manualGroupOrder, syncStorage]
+    [workspaceId, boardId, groups, boardConfig, tasks, manualGroupOrder, syncStorage, refreshBoardPayload]
   );
 
   const updateGroupName = useCallback(
@@ -726,9 +842,10 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       setGroups(updatedGroups);
       syncStorage(boardConfig, updatedGroups, tasks, manualGroupOrder);
       void updateTaskGroup(workspaceId, boardId, groupId, { name })
+        .then(refreshBoardPayload)
         .catch((e) => setError(e instanceof Error ? e.message : 'Failed to update group'));
     },
-    [workspaceId, boardId, groups, boardConfig, tasks, manualGroupOrder, syncStorage]
+    [workspaceId, boardId, groups, boardConfig, tasks, manualGroupOrder, syncStorage, refreshBoardPayload]
   );
 
   const moveGroupToBoard = useCallback(
@@ -847,10 +964,11 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       void replaceColumns(workspaceId, boardId, columns)
         .then((savedColumns) => {
           setBoardConfig((prev) => ({ ...prev, columns: savedColumns }));
+          refreshBoardPayload();
         })
         .catch((e) => setError(e instanceof Error ? e.message : 'Failed to update status options'));
     },
-    [workspaceId, boardId, boardConfig, groups, tasks, manualGroupOrder, syncStorage]
+    [workspaceId, boardId, boardConfig, groups, tasks, manualGroupOrder, syncStorage, refreshBoardPayload]
   );
 
   const updatePriorityOptions = useCallback(
@@ -864,11 +982,38 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       void replaceColumns(workspaceId, boardId, columns)
         .then((savedColumns) => {
           setBoardConfig((prev) => ({ ...prev, columns: savedColumns }));
+          refreshBoardPayload();
         })
         .catch((e) => setError(e instanceof Error ? e.message : 'Failed to update priority options'));
     },
-    [workspaceId, boardId, boardConfig, groups, tasks, manualGroupOrder, syncStorage]
+    [workspaceId, boardId, boardConfig, groups, tasks, manualGroupOrder, syncStorage, refreshBoardPayload]
   );
+
+  const renameBoard = useCallback((name: string) => {
+    const nextName = name.trim();
+    if (!nextName || nextName === boardConfig.boardName) return;
+    const previousConfig = boardConfig;
+    const updatedConfig = { ...boardConfig, boardName: nextName };
+    setBoardConfig(updatedConfig);
+    syncStorage(updatedConfig, groups, tasks, manualGroupOrder);
+    void updateBoardRequest(workspaceId, boardId, { name: nextName })
+      .then((payload) => {
+        setBoardConfig(payload.boardConfig);
+        setGroups(payload.groups);
+        setTasks(payload.tasks);
+        setUsers(payload.users);
+        setManualGroupOrder(payload.groups.map((g) => g.id));
+        setAvailableBoards(payload.availableBoards);
+        window.dispatchEvent(new CustomEvent('taskboard:board-renamed', {
+          detail: { workspaceId, boardId, name: payload.boardConfig.boardName ?? nextName },
+        }));
+      })
+      .catch((e) => {
+        setBoardConfig(previousConfig);
+        syncStorage(previousConfig, groups, tasks, manualGroupOrder);
+        setError(e instanceof Error ? e.message : 'Failed to rename board');
+      });
+  }, [workspaceId, boardId, boardConfig, groups, tasks, manualGroupOrder, syncStorage]);
 
   // ─── Memoized Context Value ───
   const value = useMemo<TaskBoardContextValue>(
@@ -917,6 +1062,12 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       deleteGroup,
       updateStatusOptions,
       updatePriorityOptions,
+      renameBoard,
+      deleteNotice,
+      undoTaskDelete,
+      dismissDeleteNotice,
+      taskRenameRequestId,
+      consumeTaskRenameRequest,
     }),
     [
       boardConfig,
@@ -960,6 +1111,12 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       deleteGroup,
       updateStatusOptions,
       updatePriorityOptions,
+      renameBoard,
+      deleteNotice,
+      undoTaskDelete,
+      dismissDeleteNotice,
+      taskRenameRequestId,
+      consumeTaskRenameRequest,
     ]
   );
 

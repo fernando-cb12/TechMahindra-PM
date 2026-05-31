@@ -19,7 +19,7 @@ export default function TaskCreateContextMenu({ position, onClose, groupId, dueD
   const targetGroups = groupId ? groups.filter((group) => group.id === groupId) : groups;
 
   const handleCreate = (targetGroupId: string) => {
-    addTaskToGroup(targetGroupId, { dueDate });
+    addTaskToGroup(targetGroupId, { dueDate }, { openDetails: true, renameInDetails: true });
     onClose();
   };
 

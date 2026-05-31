@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { Box, Chip, Paper, Typography } from '@mui/material';
+import { useMemo, useState } from 'react';
+import { Box, Button, Chip, Paper, Typography } from '@mui/material';
 import {
   PieChart,
   Pie,
@@ -39,10 +39,36 @@ function isStale(updatedAt: string) {
   return Number.isFinite(updated) && Date.now() - updated > 7 * DAY_MS;
 }
 
-function InsightCard({ label, value, tone = 'default' }: { label: string; value: number; tone?: 'default' | 'risk' | 'success' }) {
+function InsightCard({
+  label,
+  value,
+  tone = 'default',
+  active = false,
+  onClick,
+}: {
+  label: string;
+  value: number;
+  tone?: 'default' | 'risk' | 'success';
+  active?: boolean;
+  onClick?: () => void;
+}) {
   const color = tone === 'risk' ? '#FB485B' : tone === 'success' ? '#4CAF50' : '#5F0229';
   return (
-    <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider', minWidth: 150, flex: '1 1 150px' }}>
+    <Paper
+      elevation={0}
+      onClick={onClick}
+      sx={{
+        p: 2,
+        borderRadius: 2,
+        border: '1px solid',
+        borderColor: active ? '#5F0229' : 'divider',
+        minWidth: 150,
+        flex: '1 1 150px',
+        cursor: onClick ? 'pointer' : 'default',
+        bgcolor: active ? 'rgba(95, 2, 41, 0.04)' : 'background.paper',
+        '&:hover': onClick ? { borderColor: '#5F0229' } : undefined,
+      }}
+    >
       <Typography sx={{ fontSize: 12, color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase' }}>
         {label}
       </Typography>
@@ -55,6 +81,7 @@ function InsightCard({ label, value, tone = 'default' }: { label: string; value:
 
 export default function ChartView() {
   const { tasks, groups, boardConfig, users, openPanel } = useTaskBoard();
+  const [selectedInsight, setSelectedInsight] = useState<string | null>(null);
   const taskList = Object.values(tasks);
 
   const taskInsights = useMemo(() => taskList.map((task) => ({
@@ -140,6 +167,19 @@ export default function ChartView() {
       .slice(0, 6)
   ), [taskInsights]);
 
+  const insightDefinitions = useMemo(() => [
+    { id: 'total', label: 'Total tasks', value: summary.total, tasks: taskInsights.map((item) => item.task) },
+    { id: 'open', label: 'Open', value: summary.open, tasks: taskInsights.filter((item) => item.workflow !== 'done').map((item) => item.task) },
+    { id: 'completed', label: 'Completed', value: summary.completed, tone: 'success' as const, tasks: taskInsights.filter((item) => item.workflow === 'done').map((item) => item.task) },
+    { id: 'new', label: 'New', value: summary.newlyCreated, tasks: taskInsights.filter((item) => item.workflow === 'new').map((item) => item.task) },
+    { id: 'in_progress', label: 'In progress', value: summary.inProgress, tasks: taskInsights.filter((item) => item.workflow === 'in_progress').map((item) => item.task) },
+    { id: 'overdue', label: 'Overdue', value: summary.overdue, tone: 'risk' as const, tasks: taskInsights.filter((item) => item.workflow !== 'done' && isBeforeToday(item.task.dueDate)).map((item) => item.task) },
+    { id: 'due_soon', label: 'Due soon', value: summary.dueSoon, tasks: taskInsights.filter((item) => item.workflow !== 'done' && isDueSoon(item.task.dueDate)).map((item) => item.task) },
+    { id: 'unclassified', label: 'Unclassified', value: summary.unclassified, tasks: taskInsights.filter((item) => item.workflow === 'unclassified').map((item) => item.task) },
+  ], [summary, taskInsights]);
+
+  const selectedInsightData = insightDefinitions.find((item) => item.id === selectedInsight);
+
   return (
     <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
       <Box>
@@ -152,15 +192,42 @@ export default function ChartView() {
       </Box>
 
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-        <InsightCard label="Total tasks" value={summary.total} />
-        <InsightCard label="Open" value={summary.open} />
-        <InsightCard label="Completed" value={summary.completed} tone="success" />
-        <InsightCard label="New" value={summary.newlyCreated} />
-        <InsightCard label="In progress" value={summary.inProgress} />
-        <InsightCard label="Overdue" value={summary.overdue} tone="risk" />
-        <InsightCard label="Due soon" value={summary.dueSoon} />
-        <InsightCard label="Unclassified" value={summary.unclassified} />
+        {insightDefinitions.map((insight) => (
+          <InsightCard
+            key={insight.id}
+            label={insight.label}
+            value={insight.value}
+            tone={insight.tone}
+            active={selectedInsight === insight.id}
+            onClick={() => setSelectedInsight((current) => (current === insight.id ? null : insight.id))}
+          />
+        ))}
       </Box>
+
+      {selectedInsightData && (
+        <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+            <Typography sx={{ fontSize: 15, fontWeight: 700 }}>{selectedInsightData.label}</Typography>
+            <Button size="small" onClick={() => setSelectedInsight(null)} sx={{ textTransform: 'none' }}>
+              Clear
+            </Button>
+          </Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+            {selectedInsightData.tasks.slice(0, 10).map((task) => (
+              <Box
+                key={task.id}
+                onClick={() => openPanel(task.id)}
+                sx={{ px: 1, py: 0.75, borderRadius: 1, cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+              >
+                <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{task.name}</Typography>
+              </Box>
+            ))}
+            {selectedInsightData.tasks.length === 0 && (
+              <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>No tasks in this insight.</Typography>
+            )}
+          </Box>
+        </Paper>
+      )}
 
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
         <Paper elevation={0} sx={{ flex: '1 1 300px', p: 3, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>

@@ -28,6 +28,7 @@ import com.mahindra.backend.dto.taskboard.TaskDto;
 import com.mahindra.backend.dto.taskboard.TaskGroupDto;
 import com.mahindra.backend.dto.taskboard.TaskPatchRequest;
 import com.mahindra.backend.dto.taskboard.TaskUpdateDto;
+import com.mahindra.backend.dto.taskboard.UpdateBoardRequest;
 import com.mahindra.backend.dto.taskboard.UpdateGroupRequest;
 import com.mahindra.backend.service.TaskBoardService;
 
@@ -51,6 +52,14 @@ public class TaskBoardController {
             @PathVariable Long workspaceId,
             @PathVariable Long boardId) {
         return ResponseEntity.ok(taskBoardService.getBoard(authentication, workspaceId, boardId));
+    }
+
+    @PatchMapping
+    public ResponseEntity<TaskBoardPayloadDto> updateBoard(Authentication authentication,
+            @PathVariable Long workspaceId,
+            @PathVariable Long boardId,
+            @RequestBody UpdateBoardRequest request) {
+        return ResponseEntity.ok(taskBoardService.updateBoard(authentication, workspaceId, boardId, request));
     }
 
     @PostMapping("/groups")
@@ -97,6 +106,14 @@ public class TaskBoardController {
             @PathVariable Long taskId) {
         taskBoardService.deleteTask(authentication, workspaceId, boardId, taskId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/tasks/{taskId}/restore")
+    public ResponseEntity<TaskDto> restoreTask(Authentication authentication,
+            @PathVariable Long workspaceId,
+            @PathVariable Long boardId,
+            @PathVariable Long taskId) {
+        return ResponseEntity.ok(taskBoardService.restoreTask(authentication, workspaceId, boardId, taskId));
     }
 
     @PostMapping("/columns")

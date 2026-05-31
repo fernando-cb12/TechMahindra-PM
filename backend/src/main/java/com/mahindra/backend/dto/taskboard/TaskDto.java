@@ -18,6 +18,7 @@ public record TaskDto(
         BigDecimal budget,
         List<FileAttachmentDto> files,
         List<TaskUpdateDto> updates,
+        List<TaskActivityDto> activities,
         String createdAt,
         String updatedAt,
         Map<String, Object> values) {

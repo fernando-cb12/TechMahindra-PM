@@ -61,6 +61,26 @@ function MainLayout() {
     };
   }, []);
 
+  useEffect(() => {
+    const handleBoardRenamed = (event: Event) => {
+      const detail = (event as CustomEvent<{ workspaceId: string; boardId: string; name: string }>).detail;
+      if (!detail?.workspaceId || !detail.boardId || !detail.name) return;
+      setSidebarProjects((projects) => projects.map((project) => (
+        project.id === detail.workspaceId
+          ? {
+              ...project,
+              subsections: project.subsections.map((board) => (
+                board.id === detail.boardId ? { ...board, label: detail.name } : board
+              )),
+            }
+          : project
+      )));
+    };
+
+    window.addEventListener('taskboard:board-renamed', handleBoardRenamed);
+    return () => window.removeEventListener('taskboard:board-renamed', handleBoardRenamed);
+  }, []);
+
   return (
   <Box sx={{ display: 'flex', minHeight: '100vh' }}>
     <Sidebar
