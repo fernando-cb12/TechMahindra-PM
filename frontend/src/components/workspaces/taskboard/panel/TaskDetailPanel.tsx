@@ -687,12 +687,13 @@ export default function TaskDetailPanel() {
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!task) return;
-    setDraftTitle(task.name);
-    if (taskRenameRequestId === task.id) {
+    if (!task || taskRenameRequestId !== task.id) return;
+    const timeoutId = window.setTimeout(() => {
+      setDraftTitle(task.name);
       setIsRenamingTitle(true);
       consumeTaskRenameRequest(task.id);
-    }
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, [task, taskRenameRequestId, consumeTaskRenameRequest]);
 
   useEffect(() => {
@@ -763,7 +764,10 @@ export default function TaskDetailPanel() {
               ) : (
                 <Typography
                   variant="h5"
-                  onClick={() => setIsRenamingTitle(true)}
+                  onClick={() => {
+                    setDraftTitle(task.name);
+                    setIsRenamingTitle(true);
+                  }}
                   sx={{
                     fontWeight: 600,
                     fontSize: 22,

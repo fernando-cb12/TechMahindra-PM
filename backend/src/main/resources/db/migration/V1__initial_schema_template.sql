@@ -32,6 +32,10 @@ CREATE TABLE workspaces (
                      CHECK (status IN ('draft', 'active', 'on_hold', 'completed', 'archived')),
     created_by       BIGINT NOT NULL REFERENCES users(id),
     created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at       TIMESTAMPTZ,
+    deleted_by       BIGINT REFERENCES users(id),
+    purge_after      TIMESTAMPTZ,
     banner_image_url VARCHAR(500),
     budget_label     VARCHAR(50),
     card_due_date    DATE
@@ -245,6 +249,7 @@ CREATE INDEX idx_user_email ON users(email);
 CREATE INDEX idx_user_status ON users(status);
 CREATE INDEX idx_workspace_created_by ON workspaces(created_by);
 CREATE INDEX idx_workspace_status ON workspaces(status);
+CREATE INDEX idx_workspaces_deleted_created ON workspaces(deleted_at, created_at DESC);
 CREATE INDEX idx_workspace_member_workspace ON workspace_member(workspace_id);
 CREATE INDEX idx_workspace_member_user ON workspace_member(user_id);
 CREATE INDEX idx_board_workspace ON boards(workspace_id);

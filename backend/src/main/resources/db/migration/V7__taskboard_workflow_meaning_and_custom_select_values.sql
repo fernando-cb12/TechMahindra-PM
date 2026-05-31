@@ -21,3 +21,15 @@ UPDATE board_views
 SET name = 'Insights',
     type = 'insights'
 WHERE type = 'chart';
+
+ALTER TABLE task
+    DROP CONSTRAINT IF EXISTS task_status_check;
+
+ALTER TABLE task
+    DROP CONSTRAINT IF EXISTS task_priority_check;
+
+ALTER TABLE task
+    ALTER COLUMN status TYPE VARCHAR(100);
+
+ALTER TABLE task
+    ALTER COLUMN priority TYPE VARCHAR(100);

@@ -17,11 +17,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.mahindra.backend.dto.AssignableUserDto;
-import com.mahindra.backend.dto.CreateBoardRequest;
 import com.mahindra.backend.dto.CreateWorkspaceRequest;
 import com.mahindra.backend.dto.UpdateWorkspaceRequest;
 import com.mahindra.backend.dto.WorkspaceBoardDto;
 import com.mahindra.backend.dto.WorkspaceCardDto;
+import com.mahindra.backend.dto.taskboard.CreateBoardRequest;
 import com.mahindra.backend.service.WorkspaceService;
 
 import io.swagger.v3.oas.annotations.tags.Tag;

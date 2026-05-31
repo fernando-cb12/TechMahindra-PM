@@ -19,7 +19,6 @@ import type {
   TaskGroup,
   TaskBoardState,
 } from './types';
-import { getMockWorkspaceBoards, getMockWorkspaceData, getMockUsers } from '../../../mocks/taskBoard';
 import { TaskBoardContext, type TaskBoardContextValue } from './TaskBoardContextDefinition';
 import {
   createColumn as createColumnRequest,
@@ -42,16 +41,6 @@ import {
 } from '../../../services/taskBoardService';
 
 // ─── localStorage helpers (Section 18 of spec) ───
-const STORAGE_VERSION = 2;
-
-interface StoredBoardState {
-  version: number;
-  config: BoardConfig;
-  groups: TaskGroup[];
-  tasks: Record<string, Task>;
-  manualGroupOrder: string[];
-}
-
 interface DeletedTaskSnapshot {
   task: Task;
   groupId: string;
@@ -71,74 +60,6 @@ interface TaskCreateOptions {
   renameInDetails?: boolean;
 }
 
-function loadBoardState(boardId: string, fallback: ReturnType<typeof getMockWorkspaceData>): StoredBoardState | null {
-  try {
-    const raw = localStorage.getItem(`task_board_state_${boardId}`);
-    if (raw) {
-      const parsed = JSON.parse(raw) as StoredBoardState;
-      if (parsed.version !== STORAGE_VERSION) {
-        localStorage.removeItem(`task_board_state_${boardId}`);
-        return null;
-      }
-      // Ensure each task has assigneeIds array for backwards compatibility
-      if (parsed.tasks) {
-        Object.keys(parsed.tasks).forEach((id) => {
-          const task = parsed.tasks[id];
-          if (!task.assigneeIds) {
-            task.assigneeIds = task.assigneeId ? [task.assigneeId] : [];
-          }
-        });
-      }
-      return parsed;
-    }
-  } catch (e) {
-    console.error('Failed to load board state', e);
-  }
-
-  if (!fallback) return null;
-
-  // Process fallback mock data
-  const groups = fallback.groups;
-  const tasks = { ...fallback.tasks };
-  Object.keys(tasks).forEach((id) => {
-    const task = tasks[id];
-    if (!task.assigneeIds) {
-      task.assigneeIds = task.assigneeId ? [task.assigneeId] : [];
-    }
-  });
-
-  const manualGroupOrder = groups.map((g) => g.id);
-
-  return {
-    version: 1,
-    config: fallback.config,
-    groups,
-    tasks,
-    manualGroupOrder,
-  };
-}
-
-function saveBoardState(boardId: string, state: Omit<StoredBoardState, 'version'>) {
-  try {
-    localStorage.setItem(`task_board_state_${boardId}`, JSON.stringify({
-      version: STORAGE_VERSION,
-      ...state,
-    }));
-  } catch (e) {
-    console.error('Failed to save board state', e);
-  }
-}
-
-function buildBoardState(boardId: string): StoredBoardState | null {
-  return loadBoardState(boardId, getMockWorkspaceData(boardId));
-}
-
-function cloneTaskRecord(tasks: Record<string, Task>): Record<string, Task> {
-  return Object.fromEntries(
-    Object.entries(tasks).map(([taskId, task]) => [taskId, { ...task, files: [...task.files], updates: [...task.updates] }])
-  );
-}
-
 // ─── Provider ───
 interface TaskBoardProviderProps {
   workspaceId: string;
@@ -147,46 +68,18 @@ interface TaskBoardProviderProps {
 }
 
 export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardProviderProps) {
-  const storageBoardId = `${workspaceId}_${boardId}`;
-  const workspaceRootId = workspaceId;
-
   // ─── Base States ───
-  const [boardConfig, setBoardConfig] = useState<BoardConfig>(() => {
-    const fallback = getMockWorkspaceData(storageBoardId);
-    const loaded = loadBoardState(storageBoardId, fallback);
-    return loaded?.config ?? { workspaceId: boardId, columns: [], statusOptions: [], priorityOptions: [] };
-  });
+  const [boardConfig, setBoardConfig] = useState<BoardConfig>({ workspaceId: boardId, columns: [], statusOptions: [], priorityOptions: [] });
 
-  const [groups, setGroups] = useState<TaskGroup[]>(() => {
-    const fallback = getMockWorkspaceData(storageBoardId);
-    const loaded = loadBoardState(storageBoardId, fallback);
-    return loaded?.groups ?? [];
-  });
+  const [groups, setGroups] = useState<TaskGroup[]>([]);
 
-  const [tasks, setTasks] = useState<Record<string, Task>>(() => {
-    const fallback = getMockWorkspaceData(storageBoardId);
-    const loaded = loadBoardState(storageBoardId, fallback);
-    return loaded?.tasks ?? {};
-  });
+  const [tasks, setTasks] = useState<Record<string, Task>>({});
 
-  const [manualGroupOrder, setManualGroupOrder] = useState<string[]>(() => {
-    const fallback = getMockWorkspaceData(storageBoardId);
-    const loaded = loadBoardState(storageBoardId, fallback);
-    return loaded?.manualGroupOrder ?? [];
-  });
+  const [manualGroupOrder, setManualGroupOrder] = useState<string[]>([]);
 
-  const [users, setUsers] = useState<Record<string, TaskBoardState['users'][string]>>(() => getMockUsers());
-  const [availableBoards, setAvailableBoards] = useState<BoardMoveTarget[]>(() => (
-    getMockWorkspaceBoards(workspaceRootId).map((board) => {
-      const stored = buildBoardState(board.id);
-      return {
-        id: board.id,
-        name: stored?.config.boardName ?? board.name,
-        groups: stored?.groups ?? board.groups,
-      };
-    })
-  ));
-  const [isLoading, setIsLoading] = useState(false);
+  const [users, setUsers] = useState<Record<string, TaskBoardState['users'][string]>>({});
+  const [availableBoards, setAvailableBoards] = useState<BoardMoveTarget[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // UI state
@@ -216,21 +109,12 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
     setIsLoading(true);
     setError(null);
 
-    const fallback = getMockWorkspaceData(storageBoardId);
-    const loaded = loadBoardState(storageBoardId, fallback);
-    setBoardConfig(loaded?.config ?? { workspaceId: boardId, columns: [], statusOptions: [], priorityOptions: [] });
-    setGroups(loaded?.groups ?? []);
-    setTasks(loaded?.tasks ?? {});
-    setManualGroupOrder(loaded?.manualGroupOrder ?? []);
-    setUsers(getMockUsers());
-    setAvailableBoards(getMockWorkspaceBoards(workspaceRootId).map((board) => {
-      const stored = buildBoardState(board.id);
-      return {
-        id: board.id,
-        name: stored?.config.boardName ?? board.name,
-        groups: stored?.groups ?? board.groups,
-      };
-    }));
+    setBoardConfig({ workspaceId: boardId, columns: [], statusOptions: [], priorityOptions: [] });
+    setGroups([]);
+    setTasks({});
+    setManualGroupOrder([]);
+    setUsers({});
+    setAvailableBoards([]);
 
     setPanel({ isOpen: false, taskId: null, activeTab: 'updates' });
     setCollapsedGroups(new Set());
@@ -265,23 +149,13 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, boardId, storageBoardId, workspaceRootId]);
+  }, [workspaceId, boardId]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  // Sync to localStorage helper
-  const syncStorage = useCallback((
-    updatedConfig: BoardConfig,
-    updatedGroups: TaskGroup[],
-    updatedTasks: Record<string, Task>,
-    updatedOrder: string[]
-  ) => {
-    saveBoardState(storageBoardId, {
-      config: updatedConfig,
-      groups: updatedGroups,
-      tasks: updatedTasks,
-      manualGroupOrder: updatedOrder,
-    });
-  }, [storageBoardId]);
+  // Backend is the source of truth; this keeps optimistic update call sites simple.
+  const syncStorage = useCallback((...args: unknown[]) => {
+    void args;
+  }, []);
 
   // ─── Actions ───
   const applyBoardPayload = useCallback((payload: TaskBoardPayload) => {
@@ -651,26 +525,9 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       }
 
       const task = tasks[taskId];
-      const targetState = buildBoardState(toBoardId);
-      if (!task || !targetState || !targetState.groups.some((g) => g.id === toGroupId)) return;
-
-      const targetTasks = cloneTaskRecord(targetState.tasks);
-      const nextTaskId = targetTasks[taskId] ? `${taskId}_${Date.now()}` : taskId;
-      const movedTask: Task = {
-        ...task,
-        id: nextTaskId,
-        groupId: toGroupId,
-        workspaceId: toBoardId,
-        updatedAt: new Date().toISOString(),
-      };
-
-      const updatedTargetTasks = {
-        ...targetTasks,
-        [nextTaskId]: movedTask,
-      };
-      const updatedTargetGroups = targetState.groups.map((g) =>
-        g.id === toGroupId ? { ...g, taskIds: [...g.taskIds, nextTaskId] } : g
-      );
+      const targetBoard = availableBoards.find((board) => board.id === toBoardId);
+      const targetGroup = targetBoard?.groups.find((group) => group.id === toGroupId);
+      if (!task || !targetBoard || !targetGroup) return;
 
       const updatedCurrentTasks = { ...tasks };
       delete updatedCurrentTasks[taskId];
@@ -688,22 +545,16 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
         return next;
       });
 
-      saveBoardState(toBoardId, {
-        config: targetState.config,
-        groups: updatedTargetGroups,
-        tasks: updatedTargetTasks,
-        manualGroupOrder: targetState.manualGroupOrder,
-      });
       syncStorage(boardConfig, updatedCurrentGroups, updatedCurrentTasks, manualGroupOrder);
       void moveTaskRequest(workspaceId, boardId, taskId, {
         toBoardId,
         toGroupId,
-        position: targetState.groups.find((g) => g.id === toGroupId)?.taskIds.length ?? 0,
+        position: targetGroup.taskIds.length,
       })
         .then(refreshBoardPayload)
         .catch((e) => setError(e instanceof Error ? e.message : 'Failed to move task'));
     },
-    [workspaceId, boardId, moveTaskToGroup, tasks, groups, boardConfig, manualGroupOrder, syncStorage, refreshBoardPayload]
+    [workspaceId, boardId, moveTaskToGroup, tasks, groups, availableBoards, boardConfig, manualGroupOrder, syncStorage, refreshBoardPayload]
   );
 
   const toggleTaskComplete = useCallback((taskId: string) => {

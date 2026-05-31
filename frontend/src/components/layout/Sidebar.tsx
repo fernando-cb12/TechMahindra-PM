@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { useMemo, useState, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -109,30 +109,6 @@ function Sidebar({
   const menuIconSx = { fontSize: 18, mr: 1.25, color: 'text.secondary' };
   const dangerIconSx = { fontSize: 18, mr: 1.25 };
 
-  useEffect(() => {
-    setPinnedIds(readStoredIds(pinnedStorageKey));
-    setRecentIds(readStoredIds(recentStorageKey));
-  }, [pinnedStorageKey, recentStorageKey]);
-
-  useEffect(() => {
-    if (!activeProject || manualToggles.has(activeProject)) return;
-    setExpandedProjects((prev) => ({ ...prev, [activeProject]: true }));
-  }, [activeProject, manualToggles]);
-
-  useEffect(() => {
-    if (!activeProject || !projects.some((project) => project.id === activeProject)) return;
-    setRecentIds((prev) => {
-      if (pinnedIds.includes(activeProject)) {
-        const next = prev.filter((id) => id !== activeProject);
-        writeStoredIds(recentStorageKey, next);
-        return next;
-      }
-      const next = [activeProject, ...prev.filter((id) => id !== activeProject)].slice(0, 5);
-      writeStoredIds(recentStorageKey, next);
-      return next;
-    });
-  }, [activeProject, pinnedIds, projects, recentStorageKey]);
-
   const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
   const pinnedIdSet = useMemo(() => new Set(pinnedIds), [pinnedIds]);
   const pinnedProjects = pinnedIds.map((id) => projectById.get(id)).filter((project): project is Project => Boolean(project));
@@ -142,8 +118,22 @@ function Sidebar({
     .filter((project): project is Project => Boolean(project));
   const recentIdSet = useMemo(() => new Set(recentProjects.map((project) => project.id)), [recentProjects]);
   const allProjects = projects.filter((project) => !pinnedIdSet.has(project.id) && !recentIdSet.has(project.id));
+  const visibleExpandedProjects = useMemo(() => {
+    if (!activeProject || manualToggles.has(activeProject)) return expandedProjects;
+    return { ...expandedProjects, [activeProject]: true };
+  }, [activeProject, expandedProjects, manualToggles]);
+
+  const rememberRecent = (projectId: string) => {
+    if (pinnedIds.includes(projectId) || !projectById.has(projectId)) return;
+    setRecentIds((prev) => {
+      const next = [projectId, ...prev.filter((id) => id !== projectId)].slice(0, 5);
+      writeStoredIds(recentStorageKey, next);
+      return next;
+    });
+  };
 
   const handleProjectToggle = (projectId: string) => {
+    rememberRecent(projectId);
     setManualToggles((prev) => new Set(prev).add(projectId));
     setExpandedProjects((prev) => ({ ...prev, [projectId]: !prev[projectId] }));
     onProjectClick?.(projectId);
@@ -208,7 +198,14 @@ function Sidebar({
   const renderWorkspaceRow = (project: Project, options?: { compact?: boolean; showBoards?: boolean }) => (
     <Box key={`${options?.compact ? 'compact' : 'all'}-${project.id}`}>
       <ListItemButton
-        onClick={() => options?.showBoards ? handleProjectToggle(project.id) : onWorkspaceOpen?.(project.id)}
+        onClick={() => {
+          if (options?.showBoards) {
+            handleProjectToggle(project.id);
+            return;
+          }
+          rememberRecent(project.id);
+          onWorkspaceOpen?.(project.id);
+        }}
         onContextMenu={(event) => openWorkspaceMenu(event, project)}
         selected={project.id === activeProject}
         sx={{
@@ -242,17 +239,20 @@ function Sidebar({
         />
         {isPinned(project.id) && <PushPinIcon sx={{ fontSize: 12, mr: 0.5, opacity: 0.75 }} />}
         {options?.showBoards && (
-          expandedProjects[project.id] ? <ExpandLessIcon sx={{ fontSize: 18, ml: 0.5 }} /> : <ExpandMoreIcon sx={{ fontSize: 18, ml: 0.5 }} />
+          visibleExpandedProjects[project.id] ? <ExpandLessIcon sx={{ fontSize: 18, ml: 0.5 }} /> : <ExpandMoreIcon sx={{ fontSize: 18, ml: 0.5 }} />
         )}
       </ListItemButton>
 
       {options?.showBoards && (
-        <Collapse in={Boolean(expandedProjects[project.id])} timeout="auto" unmountOnExit>
+        <Collapse in={Boolean(visibleExpandedProjects[project.id])} timeout="auto" unmountOnExit>
           <List disablePadding>
             {project.subsections.map((subsection) => (
               <ListItemButton
                 key={subsection.id}
-                onClick={() => onSubsectionClick?.(project.id, subsection.id)}
+                onClick={() => {
+                  rememberRecent(project.id);
+                  onSubsectionClick?.(project.id, subsection.id);
+                }}
                 onContextMenu={(event) => openBoardMenu(event, project, subsection)}
                 selected={project.id === activeProject && subsection.id === activeSubsection}
                 sx={{
@@ -395,7 +395,7 @@ function Sidebar({
       </Box>
 
       <Menu open={Boolean(workspaceMenu)} anchorEl={workspaceMenu?.anchor ?? null} onClose={() => setWorkspaceMenu(null)} slotProps={contextMenuSlotProps}>
-        <MenuItem onClick={() => { if (workspaceMenu) onWorkspaceOpen?.(workspaceMenu.project.id); setWorkspaceMenu(null); }}>
+        <MenuItem onClick={() => { if (workspaceMenu) { rememberRecent(workspaceMenu.project.id); onWorkspaceOpen?.(workspaceMenu.project.id); } setWorkspaceMenu(null); }}>
           <OpenInNewIcon sx={menuIconSx} />
           <Typography sx={{ fontSize: 13 }}>Open workspace</Typography>
         </MenuItem>

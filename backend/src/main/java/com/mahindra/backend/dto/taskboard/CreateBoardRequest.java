@@ -1,4 +1,4 @@
-package com.mahindra.backend.dto;
+package com.mahindra.backend.dto.taskboard;
 
 public record CreateBoardRequest(
         String name,

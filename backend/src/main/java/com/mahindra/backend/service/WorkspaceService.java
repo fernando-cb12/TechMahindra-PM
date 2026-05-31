@@ -17,11 +17,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.mahindra.backend.dto.AssignableUserDto;
-import com.mahindra.backend.dto.CreateBoardRequest;
 import com.mahindra.backend.dto.CreateWorkspaceRequest;
 import com.mahindra.backend.dto.UpdateWorkspaceRequest;
 import com.mahindra.backend.dto.WorkspaceBoardDto;
 import com.mahindra.backend.dto.WorkspaceCardDto;
+import com.mahindra.backend.dto.taskboard.CreateBoardRequest;
 import com.mahindra.backend.entity.Board;
 import com.mahindra.backend.entity.BoardMember;
 import com.mahindra.backend.entity.User;
