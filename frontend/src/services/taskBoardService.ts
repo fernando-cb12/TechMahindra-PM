@@ -61,6 +61,36 @@ export async function getTaskBoard(workspaceId: string, boardId: string): Promis
   }
 }
 
+export async function updateBoard(
+  workspaceId: string,
+  boardId: string,
+  payload: { name?: string }
+): Promise<TaskBoardPayload> {
+  try {
+    const { data } = await apiClient.patch<TaskBoardPayload>(`/api/workspaces/${workspaceId}/boards/${boardId}`, payload);
+    return data;
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
+export async function deleteBoard(workspaceId: string, boardId: string): Promise<void> {
+  try {
+    await apiClient.delete(`/api/workspaces/${workspaceId}/boards/${boardId}`);
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
+export async function restoreBoard(workspaceId: string, boardId: string): Promise<TaskBoardPayload> {
+  try {
+    const { data } = await apiClient.post<TaskBoardPayload>(`/api/workspaces/${workspaceId}/boards/${boardId}/restore`);
+    return data;
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
 export async function createTaskGroup(
   workspaceId: string,
   boardId: string,
@@ -91,11 +121,46 @@ export async function updateTaskGroup(
   }
 }
 
+export async function deleteTaskGroup(workspaceId: string, boardId: string, groupId: string): Promise<void> {
+  try {
+    await apiClient.delete(`/api/workspaces/${workspaceId}/boards/${boardId}/groups/${groupId}`);
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
+export async function restoreTaskGroup(workspaceId: string, boardId: string, groupId: string): Promise<TaskGroup> {
+  try {
+    const { data } = await apiClient.post<TaskGroup>(
+      `/api/workspaces/${workspaceId}/boards/${boardId}/groups/${groupId}/restore`
+    );
+    return data;
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
+export async function moveTaskGroup(
+  workspaceId: string,
+  boardId: string,
+  groupId: string,
+  payload: { toBoardId: string; position?: number }
+): Promise<void> {
+  try {
+    await apiClient.put(`/api/workspaces/${workspaceId}/boards/${boardId}/groups/${groupId}/move`, {
+      toBoardId: Number(payload.toBoardId),
+      position: payload.position,
+    });
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
 export async function createTask(
   workspaceId: string,
   boardId: string,
   groupId: string,
-  payload: { name: string }
+  payload: { name: string; dueDate?: string | null }
 ): Promise<Task> {
   try {
     const { data } = await apiClient.post<Task>(
@@ -125,6 +190,15 @@ export async function patchTask(
 export async function deleteTask(workspaceId: string, boardId: string, taskId: string): Promise<void> {
   try {
     await apiClient.delete(`/api/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}`);
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
+export async function restoreTask(workspaceId: string, boardId: string, taskId: string): Promise<Task> {
+  try {
+    const { data } = await apiClient.post<Task>(`/api/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/restore`);
+    return data;
   } catch (e) {
     throw new Error(getErrorMessage(e));
   }

@@ -22,7 +22,12 @@ export interface TaskBoardContextValue extends Omit<TaskBoardState, 'manualGroup
   toggleGroupCollapse: (groupId: string) => void;
   updateTask: (taskId: string, patch: Partial<Task>) => void;
   postTaskUpdate: (taskId: string, content: string, attachments: Task['files'], mentions: string[]) => void;
-  addTask: (task: Task) => void;
+  addTask: (task: Task, options?: { openDetails?: boolean; renameInDetails?: boolean }) => void;
+  addTaskToGroup: (
+    groupId: string,
+    defaults?: Partial<Pick<Task, 'name' | 'dueDate'>>,
+    options?: { openDetails?: boolean; renameInDetails?: boolean }
+  ) => void;
   addTaskToFirstGroup: () => void;
   moveTask: (taskId: string, fromGroupId: string, toGroupId: string, newIndex: number) => void;
   moveTaskToGroup: (taskId: string, toGroupId: string) => void;
@@ -33,6 +38,7 @@ export interface TaskBoardContextValue extends Omit<TaskBoardState, 'manualGroup
   addColumn: (col: ColumnDefinition) => void;
   updateStatusOptions: (options: SelectOption[]) => void;
   updatePriorityOptions: (options: SelectOption[]) => void;
+  renameBoard: (name: string) => void;
   reorderGroups: (newGroups: TaskGroup[]) => void;
   addGroupAtSecondPosition: () => void;
   updateGroupColor: (groupId: string, color: string) => void;
@@ -47,6 +53,11 @@ export interface TaskBoardContextValue extends Omit<TaskBoardState, 'manualGroup
   setSortDirection: (dir: 'asc' | 'desc') => void;
   visibleGroups: TaskGroup[];
   completedTasks: Set<string>;
+  deleteNotice: { label: string; type: 'task' | 'group' } | null;
+  undoTaskDelete: () => void;
+  dismissDeleteNotice: () => void;
+  taskRenameRequestId: string | null;
+  consumeTaskRenameRequest: (taskId: string) => void;
 }
 
 export const TaskBoardContext = createContext<TaskBoardContextValue | null>(null);

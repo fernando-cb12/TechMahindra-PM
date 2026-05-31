@@ -24,4 +24,6 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     List<Task> findByBoardIdAndDeletedAtIsNullOrderByGroupPositionAscPositionAscIdAsc(Long boardId);
 
     List<Task> findByGroupIdAndDeletedAtIsNullOrderByPositionAscIdAsc(Long groupId);
+
+    List<Task> findByGroupIdOrderByPositionAscIdAsc(Long groupId);
 }

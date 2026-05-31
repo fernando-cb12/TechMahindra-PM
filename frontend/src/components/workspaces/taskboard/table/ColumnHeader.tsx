@@ -26,12 +26,12 @@ interface ColumnHeaderProps {
   groupColor?: string;
 }
 
-const QUICK_COLUMNS = [
+const QUICK_COLUMNS: { label: string; type: ColumnType; options?: SelectOption[] }[] = [
   { label: 'Status', type: 'status' as ColumnType, options: [
-    { id: 'todo', label: 'To Do', color: '#B3B3B3' },
-    { id: 'in_progress', label: 'In Progress', color: '#EAC24F' },
+    { id: 'todo', label: 'To Do', color: '#B3B3B3', workflowMeaning: 'new' },
+    { id: 'in_progress', label: 'In Progress', color: '#EAC24F', workflowMeaning: 'in_progress' },
     { id: 'review', label: 'Review', color: '#A3334D' },
-    { id: 'done', label: 'Done', color: '#4CAF50' },
+    { id: 'done', label: 'Done', color: '#4CAF50', workflowMeaning: 'done' },
     { id: 'blocked', label: 'Blocked', color: '#FB485B' },
   ]},
   { label: 'Priority', type: 'priority' as ColumnType, options: [

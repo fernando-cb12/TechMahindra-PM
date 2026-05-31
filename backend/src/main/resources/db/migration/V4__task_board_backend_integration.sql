@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS board_column_options (
     key VARCHAR(100) NOT NULL,
     label VARCHAR(255) NOT NULL,
     color VARCHAR(20) NOT NULL,
+    workflow_meaning VARCHAR(20) NOT NULL DEFAULT 'none',
     position INT NOT NULL DEFAULT 0,
     archived BOOLEAN NOT NULL DEFAULT FALSE,
     deleted_at TIMESTAMPTZ,

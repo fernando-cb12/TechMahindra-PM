@@ -32,6 +32,10 @@ CREATE TABLE workspaces (
                      CHECK (status IN ('draft', 'active', 'on_hold', 'completed', 'archived')),
     created_by       BIGINT NOT NULL REFERENCES users(id),
     created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at       TIMESTAMPTZ,
+    deleted_by       BIGINT REFERENCES users(id),
+    purge_after      TIMESTAMPTZ,
     banner_image_url VARCHAR(500),
     budget_label     VARCHAR(50),
     card_due_date    DATE
@@ -84,10 +88,8 @@ CREATE TABLE task (
     board_id     BIGINT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
     title        VARCHAR(255) NOT NULL,
     description  TEXT,
-    status       VARCHAR(20) NOT NULL DEFAULT 'todo'
-                 CHECK (status IN ('todo', 'in_progress', 'review', 'done', 'overdue')),
-    priority     VARCHAR(10) NOT NULL DEFAULT 'medium'
-                 CHECK (priority IN ('low', 'medium', 'high', 'critical')),
+    status       VARCHAR(100) NOT NULL DEFAULT 'todo',
+    priority     VARCHAR(100) NOT NULL DEFAULT 'medium',
     points_value INT NOT NULL DEFAULT 10 CHECK (points_value IN (10, 25, 50, 100)),
     due_date     TIMESTAMPTZ,
     completed_at TIMESTAMPTZ,
@@ -245,6 +247,7 @@ CREATE INDEX idx_user_email ON users(email);
 CREATE INDEX idx_user_status ON users(status);
 CREATE INDEX idx_workspace_created_by ON workspaces(created_by);
 CREATE INDEX idx_workspace_status ON workspaces(status);
+CREATE INDEX idx_workspaces_deleted_created ON workspaces(deleted_at, created_at DESC);
 CREATE INDEX idx_workspace_member_workspace ON workspace_member(workspace_id);
 CREATE INDEX idx_workspace_member_user ON workspace_member(user_id);
 CREATE INDEX idx_board_workspace ON boards(workspace_id);

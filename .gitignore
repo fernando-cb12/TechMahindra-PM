@@ -1,2 +1,5 @@
 .env
 frontend/docs/
+docs/
+docs/specs/
+docs/specs/taskboard-views-insights-calendar-kanban.md

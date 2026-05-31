@@ -22,12 +22,14 @@ import com.mahindra.backend.dto.taskboard.ColumnUpsertRequest;
 import com.mahindra.backend.dto.taskboard.CreateGroupRequest;
 import com.mahindra.backend.dto.taskboard.CreateTaskRequest;
 import com.mahindra.backend.dto.taskboard.CreateUpdateRequest;
+import com.mahindra.backend.dto.taskboard.MoveGroupRequest;
 import com.mahindra.backend.dto.taskboard.MoveTaskRequest;
 import com.mahindra.backend.dto.taskboard.TaskBoardPayloadDto;
 import com.mahindra.backend.dto.taskboard.TaskDto;
 import com.mahindra.backend.dto.taskboard.TaskGroupDto;
 import com.mahindra.backend.dto.taskboard.TaskPatchRequest;
 import com.mahindra.backend.dto.taskboard.TaskUpdateDto;
+import com.mahindra.backend.dto.taskboard.UpdateBoardRequest;
 import com.mahindra.backend.dto.taskboard.UpdateGroupRequest;
 import com.mahindra.backend.service.TaskBoardService;
 
@@ -53,6 +55,29 @@ public class TaskBoardController {
         return ResponseEntity.ok(taskBoardService.getBoard(authentication, workspaceId, boardId));
     }
 
+    @PatchMapping
+    public ResponseEntity<TaskBoardPayloadDto> updateBoard(Authentication authentication,
+            @PathVariable Long workspaceId,
+            @PathVariable Long boardId,
+            @RequestBody UpdateBoardRequest request) {
+        return ResponseEntity.ok(taskBoardService.updateBoard(authentication, workspaceId, boardId, request));
+    }
+
+    @DeleteMapping
+    public ResponseEntity<Void> deleteBoard(Authentication authentication,
+            @PathVariable Long workspaceId,
+            @PathVariable Long boardId) {
+        taskBoardService.deleteBoard(authentication, workspaceId, boardId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/restore")
+    public ResponseEntity<TaskBoardPayloadDto> restoreBoard(Authentication authentication,
+            @PathVariable Long workspaceId,
+            @PathVariable Long boardId) {
+        return ResponseEntity.ok(taskBoardService.restoreBoard(authentication, workspaceId, boardId));
+    }
+
     @PostMapping("/groups")
     public ResponseEntity<TaskGroupDto> createGroup(Authentication authentication,
             @PathVariable Long workspaceId,
@@ -69,6 +94,33 @@ public class TaskBoardController {
             @PathVariable Long groupId,
             @RequestBody UpdateGroupRequest request) {
         return ResponseEntity.ok(taskBoardService.updateGroup(authentication, workspaceId, boardId, groupId, request));
+    }
+
+    @DeleteMapping("/groups/{groupId}")
+    public ResponseEntity<Void> deleteGroup(Authentication authentication,
+            @PathVariable Long workspaceId,
+            @PathVariable Long boardId,
+            @PathVariable Long groupId) {
+        taskBoardService.deleteGroup(authentication, workspaceId, boardId, groupId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/groups/{groupId}/restore")
+    public ResponseEntity<TaskGroupDto> restoreGroup(Authentication authentication,
+            @PathVariable Long workspaceId,
+            @PathVariable Long boardId,
+            @PathVariable Long groupId) {
+        return ResponseEntity.ok(taskBoardService.restoreGroup(authentication, workspaceId, boardId, groupId));
+    }
+
+    @PutMapping("/groups/{groupId}/move")
+    public ResponseEntity<Void> moveGroup(Authentication authentication,
+            @PathVariable Long workspaceId,
+            @PathVariable Long boardId,
+            @PathVariable Long groupId,
+            @Valid @RequestBody MoveGroupRequest request) {
+        taskBoardService.moveGroup(authentication, workspaceId, boardId, groupId, request);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/groups/{groupId}/tasks")
@@ -97,6 +149,14 @@ public class TaskBoardController {
             @PathVariable Long taskId) {
         taskBoardService.deleteTask(authentication, workspaceId, boardId, taskId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/tasks/{taskId}/restore")
+    public ResponseEntity<TaskDto> restoreTask(Authentication authentication,
+            @PathVariable Long workspaceId,
+            @PathVariable Long boardId,
+            @PathVariable Long taskId) {
+        return ResponseEntity.ok(taskBoardService.restoreTask(authentication, workspaceId, boardId, taskId));
     }
 
     @PostMapping("/columns")

@@ -9,8 +9,10 @@ import DriveFileMoveIcon from '@mui/icons-material/DriveFileMove';
 import DashboardCustomizeIcon from '@mui/icons-material/DashboardCustomize';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
+import LinkIcon from '@mui/icons-material/Link';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useParams } from 'react-router-dom';
 import type { Task, ColumnDefinition } from '../types';
 import TaskCell from './TaskCell';
 import { useTaskBoard } from '../useTaskBoard';
@@ -22,6 +24,7 @@ interface TaskRowProps {
 }
 
 export default function TaskRow({ task, columns, groupColor }: TaskRowProps) {
+  const { workspaceId = '', boardId = '' } = useParams();
   const {
     groups,
     availableBoards,
@@ -75,10 +78,18 @@ export default function TaskRow({ task, columns, groupColor }: TaskRowProps) {
 
   const requestDelete = () => {
     closeContextMenu();
-    const shouldDelete = window.confirm(`Delete "${task.name}"?`);
-    if (shouldDelete) {
-      deleteTask(task.id);
+    deleteTask(task.id);
+  };
+
+  const copyTaskLink = async () => {
+    const url = `${window.location.origin}/workspaces/${workspaceId}/boards/${boardId}?task=${task.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      window.dispatchEvent(new CustomEvent('app:feedback', { detail: { message: 'Link copied' } }));
+    } catch {
+      window.dispatchEvent(new CustomEvent('app:feedback', { detail: { message: url } }));
     }
+    closeContextMenu();
   };
 
   const targetBoards = availableBoards.filter((board) => board.id !== task.workspaceId);
@@ -248,6 +259,10 @@ export default function TaskRow({ task, columns, groupColor }: TaskRowProps) {
           <DashboardCustomizeIcon sx={{ fontSize: 18, mr: 1.25, color: 'text.secondary' }} />
           <Typography sx={{ fontSize: 13 }}>Change board</Typography>
           <KeyboardArrowRightIcon sx={{ fontSize: 16, ml: 'auto', color: 'text.secondary' }} />
+        </MenuItem>
+        <MenuItem onClick={copyTaskLink}>
+          <LinkIcon sx={{ fontSize: 18, mr: 1.25, color: 'text.secondary' }} />
+          <Typography sx={{ fontSize: 13 }}>Copy task link</Typography>
         </MenuItem>
         <Divider sx={{ my: 0.5 }} />
         <MenuItem onClick={requestDelete} sx={{ color: 'error.main' }}>

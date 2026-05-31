@@ -26,6 +26,12 @@ export type WorkspaceBoard = {
   color: string;
 };
 
+export type CreateBoardPayload = {
+  name?: string;
+  description?: string;
+  color?: string;
+};
+
 type WorkspaceProjectCardApi = {
   id: string;
   title: string;
@@ -90,6 +96,44 @@ export async function getWorkspaceBoards(workspaceId: string): Promise<Workspace
   try {
     const { data } = await apiClient.get<WorkspaceBoard[]>(`/api/workspaces/${workspaceId}/boards`);
     return data;
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
+export async function createWorkspaceBoard(workspaceId: string, payload: CreateBoardPayload = {}): Promise<WorkspaceBoard> {
+  try {
+    const { data } = await apiClient.post<WorkspaceBoard>(`/api/workspaces/${workspaceId}/boards`, payload);
+    return data;
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
+export async function updateWorkspaceProject(
+  workspaceId: string,
+  payload: Partial<Pick<CreateWorkspaceProjectPayload, 'title' | 'description' | 'dueDate' | 'budgetLabel' | 'imageUrl' | 'status'>>
+): Promise<WorkspaceProjectCardData> {
+  try {
+    const { data } = await apiClient.patch<WorkspaceProjectCardApi>(`/api/workspaces/${workspaceId}`, payload);
+    return mapCard(data);
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
+export async function deleteWorkspaceProject(workspaceId: string): Promise<void> {
+  try {
+    await apiClient.delete(`/api/workspaces/${workspaceId}`);
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
+export async function restoreWorkspaceProject(workspaceId: string): Promise<WorkspaceProjectCardData> {
+  try {
+    const { data } = await apiClient.post<WorkspaceProjectCardApi>(`/api/workspaces/${workspaceId}/restore`);
+    return mapCard(data);
   } catch (e) {
     throw new Error(getErrorMessage(e));
   }

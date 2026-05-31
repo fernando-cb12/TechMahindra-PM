@@ -81,6 +81,20 @@ function Workspaces() {
   }, [loadProjects]);
 
   useEffect(() => {
+    const refresh = () => void loadProjects();
+    window.addEventListener('workspace:created', refresh);
+    window.addEventListener('workspace:renamed', refresh);
+    window.addEventListener('workspace:deleted', refresh);
+    window.addEventListener('workspace:restored', refresh);
+    return () => {
+      window.removeEventListener('workspace:created', refresh);
+      window.removeEventListener('workspace:renamed', refresh);
+      window.removeEventListener('workspace:deleted', refresh);
+      window.removeEventListener('workspace:restored', refresh);
+    };
+  }, [loadProjects]);
+
+  useEffect(() => {
     if (!canCreateWorkspaces) {
       setAssignableUsers([]);
       return;
@@ -167,6 +181,7 @@ function Workspaces() {
       setProjects((prev) => [newProject, ...prev]);
       setIsCreateOpen(false);
       setAISelectedFileName(null);
+      window.dispatchEvent(new CustomEvent('workspace:created', { detail: { workspaceId: newProject.id } }));
     } catch (e) {
       setActionError(e instanceof Error ? e.message : 'Create failed');
     } finally {

@@ -29,10 +29,13 @@ export type ColumnType =
   | 'formula';
 
 // Status and priority options / custom select options
+export type WorkflowMeaning = 'none' | 'new' | 'in_progress' | 'done';
+
 export interface SelectOption {
   id: string;
   label: string;
   color: string;       // hex from theme tokens or preset colors
+  workflowMeaning?: WorkflowMeaning;
 }
 
 export type StatusOption = SelectOption;
@@ -73,6 +76,20 @@ export interface TaskUpdate {
   mentions: string[];  // User.id array
 }
 
+export interface TaskActivity {
+  id: string;
+  taskId: string;
+  actorId: string;
+  actorName: string;
+  actorInitials: string;
+  eventType: string;
+  fieldKey: string;
+  oldValue: unknown;
+  newValue: unknown;
+  createdAt: string;
+  metadata?: Record<string, unknown>;
+}
+
 // A single task
 export interface Task {
   id: string;
@@ -88,6 +105,7 @@ export interface Task {
   budget: number | null;
   files: FileAttachment[];
   updates: TaskUpdate[];
+  activities?: TaskActivity[];
   createdAt: string;
   updatedAt: string;
   values?: Record<string, unknown>; // Custom column values e.g. { columnId: value }
@@ -129,7 +147,7 @@ export interface PanelState {
 }
 
 // Active view
-export type BoardView = 'table' | 'chart' | 'calendar';
+export type BoardView = 'table' | 'insights' | 'calendar' | 'kanban';
 
 // Full board state
 export interface TaskBoardState {

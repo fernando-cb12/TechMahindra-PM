@@ -147,13 +147,7 @@ export default function TaskGroup({ group }: TaskGroupProps) {
 
   const requestGroupDelete = () => {
     closeContextMenu();
-    const taskCount = group.taskIds.length;
-    const message = taskCount > 0
-      ? `Delete "${group.name}" and its ${taskCount} item${taskCount === 1 ? '' : 's'}?`
-      : `Delete "${group.name}"?`;
-    if (window.confirm(message)) {
-      deleteGroup(group.id);
-    }
+    deleteGroup(group.id);
   };
 
   const targetBoards = availableBoards.filter((board) => board.id !== group.workspaceId);

@@ -30,13 +30,16 @@ import com.mahindra.backend.dto.taskboard.CreateTaskRequest;
 import com.mahindra.backend.dto.taskboard.CreateUpdateRequest;
 import com.mahindra.backend.dto.taskboard.FileAttachmentDto;
 import com.mahindra.backend.dto.taskboard.FileAttachmentInputDto;
+import com.mahindra.backend.dto.taskboard.MoveGroupRequest;
 import com.mahindra.backend.dto.taskboard.MoveTaskRequest;
 import com.mahindra.backend.dto.taskboard.SelectOptionDto;
 import com.mahindra.backend.dto.taskboard.TaskBoardPayloadDto;
+import com.mahindra.backend.dto.taskboard.TaskActivityDto;
 import com.mahindra.backend.dto.taskboard.TaskDto;
 import com.mahindra.backend.dto.taskboard.TaskGroupDto;
 import com.mahindra.backend.dto.taskboard.TaskPatchRequest;
 import com.mahindra.backend.dto.taskboard.TaskUpdateDto;
+import com.mahindra.backend.dto.taskboard.UpdateBoardRequest;
 import com.mahindra.backend.dto.taskboard.UpdateGroupRequest;
 import com.mahindra.backend.dto.taskboard.UserSummaryDto;
 import com.mahindra.backend.entity.Board;
@@ -71,10 +74,10 @@ import com.mahindra.backend.repository.WorkspaceRepository;
 public class TaskBoardService {
 
     private static final List<SelectOptionDto> DEFAULT_STATUS = List.of(
-            new SelectOptionDto("todo", "To Do", "#B3B3B3"),
-            new SelectOptionDto("in_progress", "In Progress", "#EAC24F"),
+            new SelectOptionDto("todo", "To Do", "#B3B3B3", "new"),
+            new SelectOptionDto("in_progress", "In Progress", "#EAC24F", "in_progress"),
             new SelectOptionDto("review", "Review", "#A3334D"),
-            new SelectOptionDto("done", "Done", "#4CAF50"),
+            new SelectOptionDto("done", "Done", "#4CAF50", "done"),
             new SelectOptionDto("blocked", "Blocked", "#FB485B"));
 
     private static final List<SelectOptionDto> DEFAULT_PRIORITY = List.of(
@@ -126,6 +129,45 @@ public class TaskBoardService {
         return toPayload(user, board);
     }
 
+    @Transactional
+    public TaskBoardPayloadDto updateBoard(Authentication authentication, Long workspaceId, Long boardId,
+            UpdateBoardRequest request) {
+        User user = resolveUser(authentication);
+        Board board = resolveBoardManager(user, workspaceId, boardId);
+        if (request.name() != null && !request.name().isBlank()) {
+            board.setName(request.name().trim());
+            board.setUpdatedAt(Instant.now());
+            boardRepository.save(board);
+            recordActivity(board, null, user, "board_renamed", "board", null, board.getName(), "user");
+        }
+        return toPayload(user, board);
+    }
+
+    @Transactional
+    public void deleteBoard(Authentication authentication, Long workspaceId, Long boardId) {
+        User user = resolveUser(authentication);
+        Board board = resolveBoardManager(user, workspaceId, boardId);
+        board.setDeletedAt(Instant.now());
+        board.setDeletedBy(user);
+        board.setPurgeAfter(Instant.now().plusSeconds(30L * 24 * 60 * 60));
+        board.setUpdatedAt(Instant.now());
+        boardRepository.save(board);
+        recordActivity(board, null, user, "board_deleted", "board", board.getName(), null, "user");
+    }
+
+    @Transactional
+    public TaskBoardPayloadDto restoreBoard(Authentication authentication, Long workspaceId, Long boardId) {
+        User user = resolveUser(authentication);
+        Board board = resolveBoardManagerIncludingDeleted(user, workspaceId, boardId);
+        board.setDeletedAt(null);
+        board.setDeletedBy(null);
+        board.setPurgeAfter(null);
+        board.setUpdatedAt(Instant.now());
+        boardRepository.save(board);
+        recordActivity(board, null, user, "board_restored", "board", null, board.getName(), "user");
+        return toPayload(user, board);
+    }
+
     @Transactional(readOnly = true)
     public void assertCanEditTask(Authentication authentication, Long workspaceId, Long boardId, Long taskId) {
         User user = resolveUser(authentication);
@@ -152,8 +194,7 @@ public class TaskBoardService {
             UpdateGroupRequest request) {
         User user = resolveUser(authentication);
         Board board = resolveEditableBoard(user, workspaceId, boardId);
-        TaskGroup group = taskGroupRepository.findById(groupId)
-                .filter(g -> g.getDeletedAt() == null && g.getBoard().getId().equals(boardId))
+        TaskGroup group = taskGroupRepository.findByIdAndBoardIdAndDeletedAtIsNull(groupId, boardId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task group not found"));
         Map<String, Object> before = new LinkedHashMap<>();
         before.put("name", group.getName());
@@ -180,6 +221,82 @@ public class TaskBoardService {
     }
 
     @Transactional
+    public void deleteGroup(Authentication authentication, Long workspaceId, Long boardId, Long groupId) {
+        User user = resolveUser(authentication);
+        Board board = resolveEditableBoard(user, workspaceId, boardId);
+        TaskGroup group = taskGroupRepository.findByIdAndBoardIdAndDeletedAtIsNull(groupId, boardId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task group not found"));
+        Instant now = Instant.now();
+        Instant purgeAfter = now.plusSeconds(30L * 24 * 60 * 60);
+        group.setDeletedAt(now);
+        group.setDeletedBy(user);
+        group.setPurgeAfter(purgeAfter);
+        group.setUpdatedAt(now);
+        List<Task> tasks = taskRepository.findByGroupIdAndDeletedAtIsNullOrderByPositionAscIdAsc(groupId);
+        for (Task task : tasks) {
+            task.setDeletedAt(now);
+            task.setDeletedBy(user);
+            task.setPurgeAfter(purgeAfter);
+            task.setUpdatedAt(now);
+        }
+        taskGroupRepository.save(group);
+        taskRepository.saveAll(tasks);
+        recordActivity(board, null, user, "group_deleted", "group", group.getName(), null, "user");
+    }
+
+    @Transactional
+    public TaskGroupDto restoreGroup(Authentication authentication, Long workspaceId, Long boardId, Long groupId) {
+        User user = resolveUser(authentication);
+        Board board = resolveEditableBoard(user, workspaceId, boardId);
+        TaskGroup group = taskGroupRepository.findByIdAndBoardId(groupId, boardId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task group not found"));
+        group.setDeletedAt(null);
+        group.setDeletedBy(null);
+        group.setPurgeAfter(null);
+        Instant now = Instant.now();
+        group.setUpdatedAt(now);
+        List<Task> tasks = taskRepository.findByGroupIdOrderByPositionAscIdAsc(groupId);
+        for (Task task : tasks) {
+            task.setDeletedAt(null);
+            task.setDeletedBy(null);
+            task.setPurgeAfter(null);
+            task.setUpdatedAt(now);
+        }
+        taskGroupRepository.save(group);
+        taskRepository.saveAll(tasks);
+        recordActivity(board, null, user, "group_restored", "group", null, group.getName(), "user");
+        return toGroupDto(group, taskRepository.findByGroupIdAndDeletedAtIsNullOrderByPositionAscIdAsc(groupId));
+    }
+
+    @Transactional
+    public void moveGroup(Authentication authentication, Long workspaceId, Long boardId, Long groupId, MoveGroupRequest request) {
+        User user = resolveUser(authentication);
+        Board sourceBoard = resolveEditableBoard(user, workspaceId, boardId);
+        Board targetBoard = resolveEditableBoard(user, workspaceId, request.toBoardId());
+        TaskGroup group = taskGroupRepository.findByIdAndBoardIdAndDeletedAtIsNull(groupId, boardId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task group not found"));
+        if (sourceBoard.getId().equals(targetBoard.getId())) {
+            return;
+        }
+        int targetPosition = request.position() != null
+                ? Math.max(0, request.position())
+                : taskGroupRepository.findByBoardIdAndDeletedAtIsNullOrderByPositionAscIdAsc(targetBoard.getId()).size();
+        Map<String, Object> before = Map.of("board", sourceBoard.getName(), "group", group.getName());
+        group.setBoard(targetBoard);
+        group.setPosition(targetPosition);
+        group.setUpdatedAt(Instant.now());
+        List<Task> tasks = taskRepository.findByGroupIdAndDeletedAtIsNullOrderByPositionAscIdAsc(groupId);
+        for (Task task : tasks) {
+            task.setBoard(targetBoard);
+            task.setUpdatedAt(Instant.now());
+        }
+        taskGroupRepository.save(group);
+        taskRepository.saveAll(tasks);
+        Map<String, Object> after = Map.of("board", targetBoard.getName(), "group", group.getName());
+        recordActivity(targetBoard, null, user, "group_moved", "board", before, after, "user");
+    }
+
+    @Transactional
     public TaskDto createTask(Authentication authentication, Long workspaceId, Long boardId, Long groupId,
             CreateTaskRequest request) {
         User user = resolveUser(authentication);
@@ -200,10 +317,14 @@ public class TaskBoardService {
         task.setPriority("medium");
         task.setStatusOption(statusOptions.get("todo"));
         task.setPriorityOption(priorityOptions.get("medium"));
+        if (request.dueDate() != null && !request.dueDate().isBlank()) {
+            task.setDueDate(parseDate(request.dueDate()));
+        }
         task.setPosition(taskRepository.findByGroupIdAndDeletedAtIsNullOrderByPositionAscIdAsc(groupId).size());
         taskRepository.save(task);
         recordActivity(board, task, user, "task_created", "task", null, task.getTitle(), "user");
-        return toTaskDto(task, List.of(), List.of(), List.of());
+        return toTaskDto(task, List.of(), List.of(), List.of(),
+                taskActivityRepository.findTop100ByBoardIdAndVisibilityOrderByCreatedAtDesc(boardId, "user"));
     }
 
     @Transactional
@@ -251,11 +372,12 @@ public class TaskBoardService {
         }
         task.setUpdatedAt(Instant.now());
         taskRepository.save(task);
-        recordActivity(task.getBoard(), task, user, "task_updated", "task", before, taskSnapshot(task), "user");
+        recordChangedTaskFields(task, user, before, taskSnapshot(task));
         return toTaskDto(task,
                 taskCustomValueRepository.findByTaskBoardIdAndTaskDeletedAtIsNull(boardId),
                 taskUpdateRepository.findByTaskBoardIdAndDeletedAtIsNullOrderByCreatedAtAsc(boardId),
-                taskFileRepository.findByTaskBoardIdAndDeletedAtIsNullOrderByUploadedAtAsc(boardId));
+                taskFileRepository.findByTaskBoardIdAndDeletedAtIsNullOrderByUploadedAtAsc(boardId),
+                taskActivityRepository.findTop100ByBoardIdAndVisibilityOrderByCreatedAtDesc(boardId, "user"));
     }
 
     @Transactional
@@ -268,6 +390,26 @@ public class TaskBoardService {
         task.setPurgeAfter(Instant.now().plusSeconds(30L * 24 * 60 * 60));
         taskRepository.save(task);
         recordActivity(task.getBoard(), task, user, "task_deleted", "task", task.getTitle(), null, "user");
+    }
+
+    @Transactional
+    public TaskDto restoreTask(Authentication authentication, Long workspaceId, Long boardId, Long taskId) {
+        User user = resolveUser(authentication);
+        resolveEditableBoard(user, workspaceId, boardId);
+        Task task = taskRepository.findById(taskId)
+                .filter(t -> t.getBoard().getId().equals(boardId))
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found"));
+        task.setDeletedAt(null);
+        task.setDeletedBy(null);
+        task.setPurgeAfter(null);
+        task.setUpdatedAt(Instant.now());
+        taskRepository.save(task);
+        recordActivity(task.getBoard(), task, user, "task_restored", "task", null, task.getTitle(), "user");
+        return toTaskDto(task,
+                taskCustomValueRepository.findByTaskBoardIdAndTaskDeletedAtIsNull(boardId),
+                taskUpdateRepository.findByTaskBoardIdAndDeletedAtIsNullOrderByCreatedAtAsc(boardId),
+                taskFileRepository.findByTaskBoardIdAndDeletedAtIsNullOrderByUploadedAtAsc(boardId),
+                taskActivityRepository.findTop100ByBoardIdAndVisibilityOrderByCreatedAtDesc(boardId, "user"));
     }
 
     @Transactional
@@ -287,7 +429,7 @@ public class TaskBoardService {
         if (request.options() != null) {
             int index = 0;
             for (SelectOptionDto option : request.options()) {
-                column.addOption(option(option.id(), option.label(), option.color(), index++));
+                column.addOption(option(option.id(), option.label(), option.color(), option.workflowMeaning(), column.getType(), index++));
             }
         }
         boardColumnRepository.save(column);
@@ -398,6 +540,7 @@ public class TaskBoardService {
                 .filter(g -> g.getBoard().getId().equals(targetBoard.getId()) && g.getDeletedAt() == null)
                 .orElseThrow(() -> new ResourceNotFoundException("Target group not found"));
         Long sourceGroupId = task.getGroup() != null ? task.getGroup().getId() : null;
+        String sourceGroupName = task.getGroup() != null ? task.getGroup().getName() : "No group";
 
         if (!sourceBoard.getId().equals(targetBoard.getId())) {
             discardIncompatibleCustomValues(task, targetBoard, user);
@@ -411,7 +554,15 @@ public class TaskBoardService {
             normalizeTaskPositions(sourceGroupId, null, null);
         }
         normalizeTaskPositions(targetGroup.getId(), task, request.position());
-        recordActivity(targetBoard, task, user, "task_moved", "board", sourceBoard.getId(), targetBoard.getId(), "user");
+        Map<String, Object> before = new LinkedHashMap<>();
+        before.put("board", sourceBoard.getName());
+        before.put("group", sourceGroupName);
+        Map<String, Object> after = new LinkedHashMap<>();
+        after.put("board", targetBoard.getName());
+        after.put("group", targetGroup.getName());
+        recordActivity(targetBoard, task, user, "task_moved",
+                sourceBoard.getId().equals(targetBoard.getId()) ? "group" : "board",
+                before, after, "user");
     }
 
     private TaskBoardPayloadDto toPayload(User user, Board board) {
@@ -424,6 +575,7 @@ public class TaskBoardService {
         List<TaskCustomValue> values = taskCustomValueRepository.findByTaskBoardIdAndTaskDeletedAtIsNull(boardId);
         List<TaskUpdate> updates = taskUpdateRepository.findByTaskBoardIdAndDeletedAtIsNullOrderByCreatedAtAsc(boardId);
         List<TaskFile> files = taskFileRepository.findByTaskBoardIdAndDeletedAtIsNullOrderByUploadedAtAsc(boardId);
+        List<TaskActivity> activities = taskActivityRepository.findTop100ByBoardIdAndVisibilityOrderByCreatedAtDesc(boardId, "user");
         List<BoardView> views = boardViewRepository.findByBoardIdAndDeletedAtIsNullOrderByPositionAscIdAsc(boardId);
         Map<String, UserSummaryDto> users = loadBoardUsers(board);
 
@@ -436,7 +588,7 @@ public class TaskBoardService {
                 .toList();
 
         Map<String, TaskDto> taskDtos = tasks.stream()
-                .collect(Collectors.toMap(t -> String.valueOf(t.getId()), t -> toTaskDto(t, values, updates, files),
+                .collect(Collectors.toMap(t -> String.valueOf(t.getId()), t -> toTaskDto(t, values, updates, files, activities),
                         (a, b) -> a, LinkedHashMap::new));
 
         List<ColumnDefinitionDto> columnDtos = columns.stream().map(this::toColumnDto).toList();
@@ -471,7 +623,7 @@ public class TaskBoardService {
         }
         if (boardViewRepository.findByBoardIdAndDeletedAtIsNullOrderByPositionAscIdAsc(board.getId()).isEmpty()) {
             boardViewRepository.save(view(board, "Main Table", "table", 0, true, actor));
-            boardViewRepository.save(view(board, "Charts", "chart", 1, false, actor));
+            boardViewRepository.save(view(board, "Insights", "insights", 1, false, actor));
             boardViewRepository.save(view(board, "Calendar", "calendar", 2, false, actor));
         }
     }
@@ -482,12 +634,12 @@ public class TaskBoardService {
         BoardColumn status = column(board, "col_status", "Status", "status", 2, true);
         int idx = 0;
         for (SelectOptionDto option : DEFAULT_STATUS) {
-            status.addOption(option(option.id(), option.label(), option.color(), idx++));
+            status.addOption(option(option.id(), option.label(), option.color(), option.workflowMeaning(), status.getType(), idx++));
         }
         BoardColumn priority = column(board, "col_priority", "Priority", "priority", 3, true);
         idx = 0;
         for (SelectOptionDto option : DEFAULT_PRIORITY) {
-            priority.addOption(option(option.id(), option.label(), option.color(), idx++));
+            priority.addOption(option(option.id(), option.label(), option.color(), option.workflowMeaning(), priority.getType(), idx++));
         }
         boardColumnRepository.saveAll(List.of(
                 name,
@@ -511,13 +663,31 @@ public class TaskBoardService {
         return column;
     }
 
-    private BoardColumnOption option(String key, String label, String color, int position) {
+    private BoardColumnOption option(String key, String label, String color, String workflowMeaning, String columnType, int position) {
         BoardColumnOption option = new BoardColumnOption();
         option.setKey(key);
         option.setLabel(label);
         option.setColor(color);
+        option.setWorkflowMeaning(normalizeWorkflowMeaning(workflowMeaning, columnType));
         option.setPosition(position);
         return option;
+    }
+
+    private String normalizeWorkflowMeaning(String workflowMeaning, String columnType) {
+        if (!supportsWorkflowMeaning(columnType)) {
+            return "none";
+        }
+        if (workflowMeaning == null || workflowMeaning.isBlank()) {
+            return "none";
+        }
+        return switch (workflowMeaning) {
+            case "new", "in_progress", "done" -> workflowMeaning;
+            default -> "none";
+        };
+    }
+
+    private boolean supportsWorkflowMeaning(String columnType) {
+        return "status".equals(columnType) || "singleSelect".equals(columnType) || "multiSelect".equals(columnType);
     }
 
     private void applyColumnOptions(BoardColumn column, List<SelectOptionDto> options, User user) {
@@ -534,11 +704,12 @@ public class TaskBoardService {
             }
             BoardColumnOption option = existingByKey.get(input.id());
             if (option == null) {
-                option = option(input.id(), input.label(), input.color(), index);
+                option = option(input.id(), input.label(), input.color(), input.workflowMeaning(), column.getType(), index);
                 column.addOption(option);
             } else {
                 option.setLabel(input.label());
                 option.setColor(input.color());
+                option.setWorkflowMeaning(normalizeWorkflowMeaning(input.workflowMeaning(), column.getType()));
                 option.setPosition(index);
                 option.setDeletedAt(null);
                 option.setDeletedBy(null);
@@ -594,12 +765,47 @@ public class TaskBoardService {
         return board;
     }
 
+    private Board resolveBoardManager(User user, Long workspaceId, Long boardId) {
+        Board board = resolveAccessibleBoard(user, workspaceId, boardId);
+        assertCanManageBoard(user, boardId);
+        return board;
+    }
+
+    private Board resolveBoardManagerIncludingDeleted(User user, Long workspaceId, Long boardId) {
+        Board board = boardRepository.findAnyByWorkspaceIdAndId(workspaceId, boardId)
+                .orElseThrow(() -> new ResourceNotFoundException("Board not found"));
+        if (!canReadBoard(user, board)) {
+            throw new ResourceNotFoundException("Board not found");
+        }
+        assertCanManageBoard(user, boardId);
+        return board;
+    }
+
+    private void assertCanManageBoard(User user, Long boardId) {
+        if (isAdmin(user)) {
+            return;
+        }
+        if (!isTeamLead(user)) {
+            throw new IllegalArgumentException("User cannot manage this board");
+        }
+        BoardMember member = boardMemberRepository.findByBoardIdAndUserId(boardId, user.getId())
+                .filter(m -> m.getDeletedAt() == null)
+                .orElseThrow(() -> new ResourceNotFoundException("Board not found"));
+        if (!"owner".equals(member.getRoleInBoard()) && !"editor".equals(member.getRoleInBoard())) {
+            throw new IllegalArgumentException("User cannot manage this board");
+        }
+    }
+
     private boolean canReadBoard(User user, Board board) {
         return isAdmin(user) || boardMemberRepository.existsByBoardIdAndUserIdAndDeletedAtIsNull(board.getId(), user.getId());
     }
 
     private boolean isAdmin(User user) {
         return user.getRoles().stream().anyMatch(r -> "ADMIN".equals(r.getName()));
+    }
+
+    private boolean isTeamLead(User user) {
+        return user.getRoles().stream().anyMatch(r -> "TEAM_LEAD".equals(r.getName()));
     }
 
     private Task resolveTask(Long boardId, Long taskId) {
@@ -716,6 +922,15 @@ public class TaskBoardService {
         return map;
     }
 
+    private void recordChangedTaskFields(Task task, User user, Map<String, Object> before, Map<String, Object> after) {
+        after.forEach((field, newValue) -> {
+            Object oldValue = before.get(field);
+            if (!Objects.equals(oldValue, newValue)) {
+                recordActivity(task.getBoard(), task, user, "task_updated", field, oldValue, newValue, "user");
+            }
+        });
+    }
+
     private void recordActivity(Board board, Task task, User actor, String eventType, String fieldKey,
             Object oldValue, Object newValue, String visibility) {
         TaskActivity activity = new TaskActivity();
@@ -762,7 +977,7 @@ public class TaskBoardService {
     }
 
     private SelectOptionDto toOptionDto(BoardColumnOption option) {
-        return new SelectOptionDto(option.getKey(), option.getLabel(), option.getColor());
+        return new SelectOptionDto(option.getKey(), option.getLabel(), option.getColor(), option.getWorkflowMeaning());
     }
 
     private List<SelectOptionDto> findColumnOptions(List<BoardColumn> columns, String key) {
@@ -774,10 +989,14 @@ public class TaskBoardService {
                 .orElse(List.of());
     }
 
-    private TaskDto toTaskDto(Task task, List<TaskCustomValue> allValues, List<TaskUpdate> allUpdates, List<TaskFile> allFiles) {
+    private TaskDto toTaskDto(Task task, List<TaskCustomValue> allValues, List<TaskUpdate> allUpdates, List<TaskFile> allFiles,
+            List<TaskActivity> allActivities) {
         List<TaskCustomValue> values = allValues.stream().filter(v -> v.getTask().getId().equals(task.getId())).toList();
         List<TaskFile> files = allFiles.stream().filter(f -> f.getTask().getId().equals(task.getId())).toList();
         List<TaskUpdate> updates = allUpdates.stream().filter(u -> u.getTask().getId().equals(task.getId())).toList();
+        List<TaskActivity> activities = allActivities.stream()
+                .filter(a -> a.getTask() == null || a.getTask().getId().equals(task.getId()))
+                .toList();
         Map<Long, List<TaskFile>> filesByUpdate = files.stream()
                 .filter(f -> f.getUpdate() != null)
                 .collect(Collectors.groupingBy(f -> f.getUpdate().getId()));
@@ -798,9 +1017,25 @@ public class TaskBoardService {
                 task.getBudget(),
                 files.stream().map(this::toFileDto).toList(),
                 updates.stream().map(u -> toUpdateDto(u, filesByUpdate.getOrDefault(u.getId(), List.of()))).toList(),
+                activities.stream().map(this::toActivityDto).toList(),
                 task.getCreatedAt().toString(),
                 task.getUpdatedAt().toString(),
                 customValues);
+    }
+
+    private TaskActivityDto toActivityDto(TaskActivity activity) {
+        return new TaskActivityDto(
+                String.valueOf(activity.getId()),
+                activity.getTask() != null ? String.valueOf(activity.getTask().getId()) : null,
+                String.valueOf(activity.getActor().getId()),
+                activity.getActor().getName(),
+                initials(activity.getActor().getName()),
+                activity.getEventType(),
+                activity.getFieldKey(),
+                activity.getOldValue(),
+                activity.getNewValue(),
+                activity.getCreatedAt().toString(),
+                activity.getMetadata());
     }
 
     private TaskUpdateDto toUpdateDto(TaskUpdate update, List<TaskFile> files) {

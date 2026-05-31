@@ -1,5 +1,6 @@
 package com.mahindra.backend.service;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -11,13 +12,16 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.mahindra.backend.dto.AssignableUserDto;
 import com.mahindra.backend.dto.CreateWorkspaceRequest;
+import com.mahindra.backend.dto.UpdateWorkspaceRequest;
 import com.mahindra.backend.dto.WorkspaceBoardDto;
 import com.mahindra.backend.dto.WorkspaceCardDto;
+import com.mahindra.backend.dto.taskboard.CreateBoardRequest;
 import com.mahindra.backend.entity.Board;
 import com.mahindra.backend.entity.BoardMember;
 import com.mahindra.backend.entity.User;
@@ -42,16 +46,19 @@ public class WorkspaceService {
     private final UserRepository userRepository;
     private final TaskRepository taskRepository;
     private final MilestoneRepository milestoneRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     public WorkspaceService(WorkspaceRepository workspaceRepository, BoardRepository boardRepository,
             BoardMemberRepository boardMemberRepository,
-            UserRepository userRepository, TaskRepository taskRepository, MilestoneRepository milestoneRepository) {
+            UserRepository userRepository, TaskRepository taskRepository, MilestoneRepository milestoneRepository,
+            JdbcTemplate jdbcTemplate) {
         this.workspaceRepository = workspaceRepository;
         this.boardRepository = boardRepository;
         this.boardMemberRepository = boardMemberRepository;
         this.userRepository = userRepository;
         this.taskRepository = taskRepository;
         this.milestoneRepository = milestoneRepository;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Transactional(readOnly = true)
@@ -82,16 +89,15 @@ public class WorkspaceService {
 
     @Transactional(readOnly = true)
     public WorkspaceCardDto getForCurrentUser(Authentication authentication, Long workspaceId) {
-        return listForCurrentUser(authentication).stream()
-                .filter(w -> String.valueOf(workspaceId).equals(w.id()))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+        User user = resolveUser(authentication);
+        Workspace workspace = resolveAccessibleWorkspace(user, workspaceId);
+        return toDtos(List.of(workspace)).get(0);
     }
 
     @Transactional(readOnly = true)
     public List<WorkspaceBoardDto> listBoards(Authentication authentication, Long workspaceId) {
         User user = resolveUser(authentication);
-        getForCurrentUser(authentication, workspaceId);
+        resolveAccessibleWorkspace(user, workspaceId);
         boolean admin = hasGlobalRole(user, "ADMIN");
         return boardRepository.findByWorkspaceIdOrderByCreatedAtAsc(workspaceId).stream()
                 .filter(b -> admin || boardMemberRepository.existsByBoardIdAndUserIdAndDeletedAtIsNull(b.getId(), user.getId()))
@@ -135,9 +141,7 @@ public class WorkspaceService {
             workspace.addMember(member);
         }
 
-        workspace.addBoard(defaultBoard("Planning", "Scope, milestones, and intake", "#5F0229", creator, 0));
-        workspace.addBoard(defaultBoard("Delivery", "Active implementation tasks", "#1976D2", creator, 1));
-        workspace.addBoard(defaultBoard("Review", "Validation, QA, and release checks", "#2E7D32", creator, 2));
+        workspace.addBoard(defaultBoard("Task Board", "", "#5F0229", creator, 0));
 
         workspaceRepository.save(workspace);
         workspaceRepository.flush();
@@ -161,6 +165,109 @@ public class WorkspaceService {
         return toDtos(hydrated).get(0);
     }
 
+    @Transactional
+    public WorkspaceCardDto update(Authentication authentication, Long workspaceId, UpdateWorkspaceRequest request) {
+        User user = resolveUser(authentication);
+        Workspace workspace = resolveWorkspaceManager(user, workspaceId);
+        if (request.title() != null && !request.title().isBlank()) {
+            workspace.setName(request.title().trim());
+        }
+        if (request.description() != null) {
+            workspace.setDescription(request.description().trim());
+        }
+        if (request.status() != null) {
+            workspace.setStatus(toPersistedStatus(request.status()));
+        }
+        if (request.imageUrl() != null) {
+            workspace.setBannerImageUrl(trimToNull(request.imageUrl()));
+        }
+        if (request.budgetLabel() != null) {
+            workspace.setBudgetLabel(trimToNull(request.budgetLabel()));
+        }
+        if (request.dueDate() != null) {
+            workspace.setCardDueDate(parseDueDate(request.dueDate()));
+        }
+        workspace.setUpdatedAt(Instant.now());
+        workspaceRepository.save(workspace);
+        return toDtos(List.of(workspace)).get(0);
+    }
+
+    @Transactional
+    public void delete(Authentication authentication, Long workspaceId) {
+        User user = resolveUser(authentication);
+        Workspace workspace = resolveWorkspaceManager(user, workspaceId);
+        workspace.setDeletedAt(Instant.now());
+        workspace.setDeletedBy(user);
+        workspace.setPurgeAfter(Instant.now().plusSeconds(30L * 24 * 60 * 60));
+        workspace.setUpdatedAt(Instant.now());
+        workspaceRepository.save(workspace);
+    }
+
+    @Transactional
+    public WorkspaceCardDto restore(Authentication authentication, Long workspaceId) {
+        User user = resolveUser(authentication);
+        Workspace workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+        if (!canManageWorkspace(user, workspace)) {
+            throw new IllegalArgumentException("User cannot manage this workspace");
+        }
+        workspace.setDeletedAt(null);
+        workspace.setDeletedBy(null);
+        workspace.setPurgeAfter(null);
+        workspace.setUpdatedAt(Instant.now());
+        workspaceRepository.save(workspace);
+        return toDtos(List.of(workspace)).get(0);
+    }
+
+    @Transactional
+    public WorkspaceBoardDto createBoard(Authentication authentication, Long workspaceId, CreateBoardRequest request) {
+        User user = resolveUser(authentication);
+        lockWorkspaceBoardCreation(workspaceId);
+        Workspace workspace = resolveWorkspaceManager(user, workspaceId);
+        String name = request != null && request.name() != null && !request.name().isBlank() ? request.name().trim() : "Task Board";
+        String description = request != null && request.description() != null ? request.description().trim() : "";
+        String color = request != null && request.color() != null && !request.color().isBlank() ? request.color().trim() : "#5F0229";
+
+        var recentDuplicate = boardRepository.findFirstByWorkspaceIdAndCreatedByIdAndNameAndDescriptionAndColorAndDeletedAtIsNullAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
+                workspaceId,
+                user.getId(),
+                name,
+                description,
+                color,
+                Instant.now().minusSeconds(5));
+        if (recentDuplicate.isPresent()) {
+            return toBoardDto(recentDuplicate.get());
+        }
+
+        List<Board> existingBoards = boardRepository.findByWorkspaceIdOrderByCreatedAtAsc(workspaceId);
+        Board board = defaultBoard(
+                name,
+                description,
+                color,
+                user,
+                existingBoards.size());
+        workspace.addBoard(board);
+        boardRepository.saveAndFlush(board);
+        for (WorkspaceMember workspaceMember : workspace.getMembers()) {
+            BoardMember boardMember = new BoardMember();
+            boardMember.setBoard(board);
+            boardMember.setUser(workspaceMember.getUser());
+            boardMember.setAssignedBy(user);
+            boardMember.setRoleInBoard(switch (workspaceMember.getRoleInWorkspace()) {
+                case "owner" -> "owner";
+                case "viewer" -> "viewer";
+                default -> "editor";
+            });
+            boardMemberRepository.save(boardMember);
+        }
+        boardMemberRepository.flush();
+        return toBoardDto(board);
+    }
+
+    private void lockWorkspaceBoardCreation(Long workspaceId) {
+        jdbcTemplate.query("select pg_advisory_xact_lock(?)", rs -> null, workspaceId);
+    }
+
     private static Board defaultBoard(String name, String description, String color, User creator, int position) {
         Board board = new Board();
         board.setName(name);
@@ -175,6 +282,44 @@ public class WorkspaceService {
         String email = authentication.getName();
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalStateException("Authenticated user not found"));
+    }
+
+    private Workspace resolveAccessibleWorkspace(User user, Long workspaceId) {
+        Workspace workspace = workspaceRepository.findActiveWithMembersById(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+        if (hasGlobalRole(user, "ADMIN") || workspace.getMembers().stream().anyMatch(m -> m.getUser().getId().equals(user.getId()))) {
+            return workspace;
+        }
+        throw new IllegalArgumentException("Workspace not found");
+    }
+
+    private Workspace resolveWorkspaceManager(User user, Long workspaceId) {
+        Workspace workspace = resolveAccessibleWorkspace(user, workspaceId);
+        if (canManageWorkspace(user, workspace)) {
+            return workspace;
+        }
+        throw new IllegalArgumentException("User cannot manage this workspace");
+    }
+
+    private Workspace resolveWorkspaceManagerForUpdate(User user, Long workspaceId) {
+        Workspace workspace = workspaceRepository.findActiveWithMembersByIdForUpdate(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+        if (canManageWorkspace(user, workspace)) {
+            return workspace;
+        }
+        throw new IllegalArgumentException("User cannot manage this workspace");
+    }
+
+    private boolean canManageWorkspace(User user, Workspace workspace) {
+        if (hasGlobalRole(user, "ADMIN")) {
+            return true;
+        }
+        if (!hasGlobalRole(user, "TEAM_LEAD")) {
+            return false;
+        }
+        return workspace.getMembers().stream()
+                .anyMatch(m -> m.getUser().getId().equals(user.getId())
+                        && ("owner".equals(m.getRoleInWorkspace()) || "collaborator".equals(m.getRoleInWorkspace())));
     }
 
     private static boolean hasGlobalRole(User user, String roleName) {
@@ -218,6 +363,14 @@ public class WorkspaceService {
                     toUiStatus(w.getStatus())));
         }
         return out;
+    }
+
+    private WorkspaceBoardDto toBoardDto(Board board) {
+        return new WorkspaceBoardDto(
+                String.valueOf(board.getId()),
+                board.getName(),
+                board.getDescription() != null ? board.getDescription() : "",
+                board.getColor());
     }
 
     private Map<Long, long[]> loadTaskStats(List<Long> workspaceIds) {

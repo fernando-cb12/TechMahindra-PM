@@ -34,9 +34,10 @@ import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import ImageIcon from '@mui/icons-material/Image';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
+import HistoryIcon from '@mui/icons-material/History';
 import { useTaskBoard } from '../useTaskBoard';
-import { useState, useRef, useMemo } from 'react';
-import type { TaskUpdate, FileAttachment, User } from '../types';
+import { useState, useRef, useMemo, useEffect } from 'react';
+import type { TaskUpdate, FileAttachment, User, TaskActivity } from '../types';
 import { useParams } from 'react-router-dom';
 import { uploadTaskUpdateFile } from '../../../../services/taskBoardService';
 
@@ -540,18 +541,182 @@ function FilesTab({ taskId }: { taskId: string }) {
 }
 
 // ─── 3. ACTIVITY LOG TAB ───
-function ActivityTab() {
+function summarizeActivity(activity: TaskActivity) {
+  const FIELD_LABELS: Record<string, string> = {
+    name: 'name',
+    status: 'status',
+    priority: 'priority',
+    dueDate: 'due date',
+    progress: 'progress',
+    budget: 'budget',
+    assigneeIds: 'assignees',
+    group: 'group',
+    board: 'board',
+    columns: 'columns',
+  };
+
+  const valueLabel = (value: unknown) => {
+    if (value === null || value === undefined || value === '') return 'empty';
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value);
+    if (typeof value === 'object') {
+      const map = value as Record<string, unknown>;
+      if ('name' in map && typeof map.name === 'string') return map.name;
+      if ('label' in map && typeof map.label === 'string') return map.label;
+      if ('group' in map || 'board' in map) {
+        const board = typeof map.board === 'string' ? map.board : null;
+        const group = typeof map.group === 'string' ? map.group : null;
+        return [board, group].filter(Boolean).join(' / ') || 'multiple fields';
+      }
+      return Object.entries(map)
+        .filter(([, item]) => item !== null && item !== undefined && item !== '')
+        .slice(0, 3)
+        .map(([key, item]) => `${key}: ${String(item)}`)
+        .join(', ') || 'multiple fields';
+    }
+    return String(value);
+  };
+
+  const changedFieldSummaries = (oldValue: unknown, newValue: unknown) => {
+    if (!oldValue || !newValue || typeof oldValue !== 'object' || typeof newValue !== 'object') return [];
+    const before = oldValue as Record<string, unknown>;
+    const after = newValue as Record<string, unknown>;
+    return Object.entries(after)
+      .filter(([key, value]) => JSON.stringify(before[key]) !== JSON.stringify(value))
+      .map(([key, value]) => {
+        const label = FIELD_LABELS[key] ?? key;
+        return `${label} from ${valueLabel(before[key])} to ${valueLabel(value)}`;
+      });
+  };
+
+  const fieldLabel = FIELD_LABELS[activity.fieldKey] ?? activity.fieldKey ?? 'task';
+
+  switch (activity.eventType) {
+    case 'task_created':
+      return 'created this task';
+    case 'task_updated':
+      if (activity.fieldKey === 'task') {
+        const summaries = changedFieldSummaries(activity.oldValue, activity.newValue);
+        return summaries.length > 0 ? `updated ${summaries[0]}` : 'updated this task';
+      }
+      if (activity.fieldKey === 'name') {
+        return `renamed this task from ${valueLabel(activity.oldValue)} to ${valueLabel(activity.newValue)}`;
+      }
+      return `updated ${fieldLabel} from ${valueLabel(activity.oldValue)} to ${valueLabel(activity.newValue)}`;
+    case 'task_deleted':
+      return 'deleted this task';
+    case 'task_restored':
+      return 'restored this task';
+    case 'task_moved':
+      return `moved this task from ${valueLabel(activity.oldValue)} to ${valueLabel(activity.newValue)}`;
+    case 'update_created':
+      return 'posted an update';
+    case 'group_created':
+      return `created group ${valueLabel(activity.newValue)}`;
+    case 'group_updated': {
+      const summaries = changedFieldSummaries(activity.oldValue, activity.newValue);
+      return summaries.length > 0 ? `updated group ${summaries.join(', ')}` : 'updated a group';
+    }
+    case 'column_created':
+      return `created column ${valueLabel(activity.newValue)}`;
+    case 'columns_updated':
+      return 'updated board columns';
+    case 'board_renamed':
+      return `renamed this board to ${valueLabel(activity.newValue)}`;
+    case 'custom_values_discarded':
+      return 'discarded incompatible custom values';
+    default:
+      return activity.eventType.replace(/_/g, ' ');
+  }
+}
+
+function ActivityTab({ taskId }: { taskId: string }) {
+  const { tasks } = useTaskBoard();
+  const activities = tasks[taskId]?.activities ?? [];
+
   return (
-    <Box sx={{ p: 3, textAlign: 'center', color: 'text.secondary', pt: 8 }}>
-      <Typography sx={{ fontSize: 13.5 }}>Activity log coming soon.</Typography>
+    <Box sx={{ p: 3, height: '100%', boxSizing: 'border-box', overflowY: 'auto' }}>
+      {activities.length > 0 ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {activities.map((activity) => {
+            const date = new Date(activity.createdAt).toLocaleString([], {
+              month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
+            return (
+              <Box key={activity.id} sx={{ display: 'flex', gap: 1.5 }}>
+                <Avatar sx={{ width: 28, height: 28, fontSize: 11, bgcolor: '#5F0229' }}>
+                  {activity.actorInitials || '?'}
+                </Avatar>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography sx={{ fontSize: 13, color: 'text.primary' }}>
+                    <Box component="span" sx={{ fontWeight: 700 }}>{activity.actorName}</Box>{' '}
+                    {summarizeActivity(activity)}
+                  </Typography>
+                  <Typography sx={{ mt: 0.25, fontSize: 11.5, color: 'text.disabled' }}>
+                    {date}
+                  </Typography>
+                </Box>
+              </Box>
+            );
+          })}
+        </Box>
+      ) : (
+        <Box sx={{ textAlign: 'center', color: 'text.secondary', pt: 8 }}>
+          <HistoryIcon sx={{ fontSize: 40, mb: 1.5, opacity: 0.45 }} />
+          <Typography sx={{ fontSize: 13.5, fontWeight: 600 }}>No activity yet</Typography>
+          <Typography sx={{ fontSize: 11.5 }}>Task changes will appear here.</Typography>
+        </Box>
+      )}
     </Box>
   );
 }
 
 // ─── MAIN COMPONENT ───
 export default function TaskDetailPanel() {
-  const { panel, closePanel, setPanelTab, tasks } = useTaskBoard();
+  const {
+    panel,
+    closePanel,
+    setPanelTab,
+    tasks,
+    updateTask,
+    taskRenameRequestId,
+    consumeTaskRenameRequest,
+  } = useTaskBoard();
   const task = panel.taskId ? tasks[panel.taskId] : null;
+  const [isRenamingTitle, setIsRenamingTitle] = useState(false);
+  const [draftTitle, setDraftTitle] = useState('');
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!task || taskRenameRequestId !== task.id) return;
+    const timeoutId = window.setTimeout(() => {
+      setDraftTitle(task.name);
+      setIsRenamingTitle(true);
+      consumeTaskRenameRequest(task.id);
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [task, taskRenameRequestId, consumeTaskRenameRequest]);
+
+  useEffect(() => {
+    if (!isRenamingTitle) return;
+    window.setTimeout(() => {
+      titleInputRef.current?.focus();
+      titleInputRef.current?.select();
+    }, 0);
+  }, [isRenamingTitle]);
+
+  const saveTitle = () => {
+    if (!task) return;
+    const nextName = draftTitle.trim();
+    if (!nextName) {
+      setDraftTitle(task.name);
+      setIsRenamingTitle(false);
+      return;
+    }
+    if (nextName !== task.name) {
+      updateTask(task.id, { name: nextName });
+    }
+    setIsRenamingTitle(false);
+  };
 
   return (
     <Drawer
@@ -578,9 +743,44 @@ export default function TaskDetailPanel() {
           {/* Header */}
           <Box sx={{ p: 3, pb: 1 }}>
             <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
-              <Typography variant="h5" sx={{ fontWeight: 600, fontSize: 22, flex: 1, pr: 2 }}>
-                {task.name}
-              </Typography>
+              {isRenamingTitle ? (
+                <TextField
+                  inputRef={titleInputRef}
+                  value={draftTitle}
+                  onChange={(event) => setDraftTitle(event.target.value)}
+                  onBlur={saveTitle}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') saveTitle();
+                    if (event.key === 'Escape') {
+                      setDraftTitle(task.name);
+                      setIsRenamingTitle(false);
+                    }
+                  }}
+                  variant="standard"
+                  fullWidth
+                  InputProps={{ disableUnderline: true, sx: { fontSize: 22, fontWeight: 700, lineHeight: 1.25 } }}
+                  sx={{ flex: 1, pr: 2 }}
+                />
+              ) : (
+                <Typography
+                  variant="h5"
+                  onClick={() => {
+                    setDraftTitle(task.name);
+                    setIsRenamingTitle(true);
+                  }}
+                  sx={{
+                    fontWeight: 600,
+                    fontSize: 22,
+                    flex: 1,
+                    pr: 2,
+                    cursor: 'text',
+                    borderRadius: 1,
+                    '&:hover': { bgcolor: 'action.hover' },
+                  }}
+                >
+                  {task.name}
+                </Typography>
+              )}
               <IconButton onClick={closePanel} size="small" sx={{ ml: 'auto' }}>
                 <CloseIcon />
               </IconButton>
@@ -602,7 +802,7 @@ export default function TaskDetailPanel() {
           <Box sx={{ flex: 1, overflowY: 'hidden' }}>
             {panel.activeTab === 'updates' && <UpdatesTab taskId={task.id} />}
             {panel.activeTab === 'files' && <FilesTab taskId={task.id} />}
-            {panel.activeTab === 'activity' && <ActivityTab />}
+            {panel.activeTab === 'activity' && <ActivityTab taskId={task.id} />}
           </Box>
         </Box>
       )}
