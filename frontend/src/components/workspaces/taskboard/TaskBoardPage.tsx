@@ -64,8 +64,8 @@ function TaskBoardContent() {
             <Tab 
               icon={<InsertChartIcon sx={{ fontSize: 18 }} />} 
               iconPosition="start" 
-              label="Charts" 
-              value="chart" 
+              label="Insights" 
+              value="insights" 
               sx={{ textTransform: 'none', minHeight: 40, py: 0, fontWeight: 600 }} 
             />
             <Tab 
@@ -127,7 +127,7 @@ function TaskBoardContent() {
           <MainTableView />
         </Box>
         
-        {activeView === 'chart' && <ChartView />}
+        {activeView === 'insights' && <ChartView />}
         {activeView === 'calendar' && <CalendarView />}
       </Box>
 

@@ -29,10 +29,13 @@ export type ColumnType =
   | 'formula';
 
 // Status and priority options / custom select options
+export type WorkflowMeaning = 'none' | 'new' | 'in_progress' | 'done';
+
 export interface SelectOption {
   id: string;
   label: string;
   color: string;       // hex from theme tokens or preset colors
+  workflowMeaning?: WorkflowMeaning;
 }
 
 export type StatusOption = SelectOption;
@@ -129,7 +132,7 @@ export interface PanelState {
 }
 
 // Active view
-export type BoardView = 'table' | 'chart' | 'calendar';
+export type BoardView = 'table' | 'insights' | 'calendar' | 'kanban';
 
 // Full board state
 export interface TaskBoardState {

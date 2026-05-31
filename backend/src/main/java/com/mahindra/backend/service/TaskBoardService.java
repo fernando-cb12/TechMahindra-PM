@@ -71,10 +71,10 @@ import com.mahindra.backend.repository.WorkspaceRepository;
 public class TaskBoardService {
 
     private static final List<SelectOptionDto> DEFAULT_STATUS = List.of(
-            new SelectOptionDto("todo", "To Do", "#B3B3B3"),
-            new SelectOptionDto("in_progress", "In Progress", "#EAC24F"),
+            new SelectOptionDto("todo", "To Do", "#B3B3B3", "new"),
+            new SelectOptionDto("in_progress", "In Progress", "#EAC24F", "in_progress"),
             new SelectOptionDto("review", "Review", "#A3334D"),
-            new SelectOptionDto("done", "Done", "#4CAF50"),
+            new SelectOptionDto("done", "Done", "#4CAF50", "done"),
             new SelectOptionDto("blocked", "Blocked", "#FB485B"));
 
     private static final List<SelectOptionDto> DEFAULT_PRIORITY = List.of(
@@ -287,7 +287,7 @@ public class TaskBoardService {
         if (request.options() != null) {
             int index = 0;
             for (SelectOptionDto option : request.options()) {
-                column.addOption(option(option.id(), option.label(), option.color(), index++));
+                column.addOption(option(option.id(), option.label(), option.color(), option.workflowMeaning(), column.getType(), index++));
             }
         }
         boardColumnRepository.save(column);
@@ -471,7 +471,7 @@ public class TaskBoardService {
         }
         if (boardViewRepository.findByBoardIdAndDeletedAtIsNullOrderByPositionAscIdAsc(board.getId()).isEmpty()) {
             boardViewRepository.save(view(board, "Main Table", "table", 0, true, actor));
-            boardViewRepository.save(view(board, "Charts", "chart", 1, false, actor));
+            boardViewRepository.save(view(board, "Insights", "insights", 1, false, actor));
             boardViewRepository.save(view(board, "Calendar", "calendar", 2, false, actor));
         }
     }
@@ -482,12 +482,12 @@ public class TaskBoardService {
         BoardColumn status = column(board, "col_status", "Status", "status", 2, true);
         int idx = 0;
         for (SelectOptionDto option : DEFAULT_STATUS) {
-            status.addOption(option(option.id(), option.label(), option.color(), idx++));
+            status.addOption(option(option.id(), option.label(), option.color(), option.workflowMeaning(), status.getType(), idx++));
         }
         BoardColumn priority = column(board, "col_priority", "Priority", "priority", 3, true);
         idx = 0;
         for (SelectOptionDto option : DEFAULT_PRIORITY) {
-            priority.addOption(option(option.id(), option.label(), option.color(), idx++));
+            priority.addOption(option(option.id(), option.label(), option.color(), option.workflowMeaning(), priority.getType(), idx++));
         }
         boardColumnRepository.saveAll(List.of(
                 name,
@@ -511,13 +511,31 @@ public class TaskBoardService {
         return column;
     }
 
-    private BoardColumnOption option(String key, String label, String color, int position) {
+    private BoardColumnOption option(String key, String label, String color, String workflowMeaning, String columnType, int position) {
         BoardColumnOption option = new BoardColumnOption();
         option.setKey(key);
         option.setLabel(label);
         option.setColor(color);
+        option.setWorkflowMeaning(normalizeWorkflowMeaning(workflowMeaning, columnType));
         option.setPosition(position);
         return option;
+    }
+
+    private String normalizeWorkflowMeaning(String workflowMeaning, String columnType) {
+        if (!supportsWorkflowMeaning(columnType)) {
+            return "none";
+        }
+        if (workflowMeaning == null || workflowMeaning.isBlank()) {
+            return "none";
+        }
+        return switch (workflowMeaning) {
+            case "new", "in_progress", "done" -> workflowMeaning;
+            default -> "none";
+        };
+    }
+
+    private boolean supportsWorkflowMeaning(String columnType) {
+        return "status".equals(columnType) || "singleSelect".equals(columnType) || "multiSelect".equals(columnType);
     }
 
     private void applyColumnOptions(BoardColumn column, List<SelectOptionDto> options, User user) {
@@ -534,11 +552,12 @@ public class TaskBoardService {
             }
             BoardColumnOption option = existingByKey.get(input.id());
             if (option == null) {
-                option = option(input.id(), input.label(), input.color(), index);
+                option = option(input.id(), input.label(), input.color(), input.workflowMeaning(), column.getType(), index);
                 column.addOption(option);
             } else {
                 option.setLabel(input.label());
                 option.setColor(input.color());
+                option.setWorkflowMeaning(normalizeWorkflowMeaning(input.workflowMeaning(), column.getType()));
                 option.setPosition(index);
                 option.setDeletedAt(null);
                 option.setDeletedBy(null);
@@ -762,7 +781,7 @@ public class TaskBoardService {
     }
 
     private SelectOptionDto toOptionDto(BoardColumnOption option) {
-        return new SelectOptionDto(option.getKey(), option.getLabel(), option.getColor());
+        return new SelectOptionDto(option.getKey(), option.getLabel(), option.getColor(), option.getWorkflowMeaning());
     }
 
     private List<SelectOptionDto> findColumnOptions(List<BoardColumn> columns, String key) {

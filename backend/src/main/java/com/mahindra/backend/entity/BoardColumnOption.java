@@ -40,6 +40,9 @@ public class BoardColumnOption {
     @Column(nullable = false, length = 20)
     private String color;
 
+    @Column(name = "workflow_meaning", nullable = false, length = 20)
+    private String workflowMeaning = "none";
+
     @Column(nullable = false)
     private Integer position = 0;
 

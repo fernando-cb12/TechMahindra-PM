@@ -25,8 +25,9 @@ import EditIcon from '@mui/icons-material/Edit';
 import CheckIcon from '@mui/icons-material/Check';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import type { ColumnDefinition, SelectOption } from '../types';
+import type { ColumnDefinition, SelectOption, WorkflowMeaning } from '../types';
 import { useTaskBoard } from '../useTaskBoard';
+import { WORKFLOW_MEANING_LABELS, WORKFLOW_MEANING_OPTIONS, normalizeWorkflowMeaning, supportsWorkflowMeaning } from '../workflow';
 
 interface TaskCellProps {
   taskId: string;
@@ -68,6 +69,7 @@ export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellP
   const [isCreatingOption, setIsCreatingOption] = useState(false);
   const [newOptionLabel, setNewOptionLabel] = useState('');
   const [newOptionColor, setNewOptionColor] = useState(PRESET_COLORS[0]);
+  const [newOptionWorkflow, setNewOptionWorkflow] = useState<WorkflowMeaning>('none');
   const optionIdSequence = useRef(0);
 
   // Color picker for a specific option
@@ -281,11 +283,12 @@ export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellP
   }
 
   // ─── 2. SELECT CELLS EDITORS (Status, Priority, custom single/multiSelect) (Section 7.1/7.2 of spec) ───
-  const isStatus = column.id === 'col_status' || column.type === 'status';
-  const isPriority = column.id === 'col_priority' || column.type === 'priority';
-  const isSelect = isStatus || isPriority || column.type === 'singleSelect' || column.type === 'multiSelect';
+    const isStatus = column.id === 'col_status' || column.type === 'status';
+    const isPriority = column.id === 'col_priority' || column.type === 'priority';
+    const isSelect = isStatus || isPriority || column.type === 'singleSelect' || column.type === 'multiSelect';
 
   if (isSelect) {
+    const canUseWorkflowMeaning = supportsWorkflowMeaning(column.type);
     // Determine the options list
     let options: SelectOption[] = [];
     if (isStatus) options = boardConfig.statusOptions;
@@ -318,9 +321,11 @@ export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellP
         id: optId,
         label: newOptionLabel,
         color: newOptionColor,
+        workflowMeaning: canUseWorkflowMeaning ? newOptionWorkflow : 'none',
       };
       saveOptions([...options, newOpt]);
       setNewOptionLabel('');
+      setNewOptionWorkflow('none');
       setIsCreatingOption(false);
     };
 
@@ -333,6 +338,15 @@ export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellP
       const updated = options.map((o) => (o.id === optId ? { ...o, color } : o));
       saveOptions(updated);
       setOptionColorAnchor(null);
+    };
+
+    const handleUpdateOptionWorkflow = (optId: string, workflowMeaning: WorkflowMeaning) => {
+      const updated = options.map((o) => {
+        if (o.id !== optId) return o;
+        const current = normalizeWorkflowMeaning(o.workflowMeaning);
+        return { ...o, workflowMeaning: current === workflowMeaning ? 'none' : workflowMeaning };
+      });
+      saveOptions(updated);
     };
 
     const handleDeleteOption = (optId: string) => {
@@ -384,7 +398,7 @@ export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellP
           onClose={() => setAnchorEl(null)}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
           transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-          slotProps={{ paper: { sx: { mt: 0.5, width: 220, p: 1.5, borderRadius: 2, display: 'flex', flexDirection: 'column', gap: 1 } } }}
+          slotProps={{ paper: { sx: { mt: 0.5, width: isEditingOptions || isCreatingOption ? 300 : 220, p: 1.5, borderRadius: 2, display: 'flex', flexDirection: 'column', gap: 1 } } }}
         >
           {isEditingOptions ? (
             // OPTIONS EDITOR MODE
@@ -398,46 +412,67 @@ export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellP
 
               <Divider />
 
-              <Box sx={{ maxHeight: 180, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Box sx={{ maxHeight: 260, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 1.25 }}>
                 {options.map((opt) => (
-                  <Box key={opt.id} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                    {/* Circle Color Button */}
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        setActiveColorOptionId(opt.id);
-                        setOptionColorAnchor(e.currentTarget);
-                      }}
-                      sx={{
-                        width: 14,
-                        height: 14,
-                        bgcolor: opt.color,
-                        p: 0,
-                        border: '1px solid rgba(0,0,0,0.1)',
-                        '&:hover': { bgcolor: opt.color },
-                      }}
-                    />
+                  <Box key={opt.id}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                      {/* Circle Color Button */}
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          setActiveColorOptionId(opt.id);
+                          setOptionColorAnchor(e.currentTarget);
+                        }}
+                        sx={{
+                          width: 14,
+                          height: 14,
+                          bgcolor: opt.color,
+                          p: 0,
+                          border: '1px solid rgba(0,0,0,0.1)',
+                          '&:hover': { bgcolor: opt.color },
+                        }}
+                      />
 
-                    {/* Option Text Input */}
-                    <input
-                      value={opt.label}
-                      onChange={(e) => handleUpdateOptionLabel(opt.id, e.target.value)}
-                      style={{
-                        flex: 1,
-                        fontSize: 12,
-                        border: 'none',
-                        outline: 'none',
-                        borderBottom: '1px solid transparent',
-                        padding: '2px',
-                      }}
-                      onFocus={(e) => (e.target.style.borderBottom = '1px solid gray')}
-                      onBlur={(e) => (e.target.style.borderBottom = '1px solid transparent')}
-                    />
+                      {/* Option Text Input */}
+                      <input
+                        value={opt.label}
+                        onChange={(e) => handleUpdateOptionLabel(opt.id, e.target.value)}
+                        style={{
+                          flex: 1,
+                          fontSize: 12,
+                          border: 'none',
+                          outline: 'none',
+                          borderBottom: '1px solid transparent',
+                          padding: '2px',
+                        }}
+                        onFocus={(e) => (e.target.style.borderBottom = '1px solid gray')}
+                        onBlur={(e) => (e.target.style.borderBottom = '1px solid transparent')}
+                      />
 
-                    {/* Delete Option Icon */}
-                    <IconButton size="small" onClick={() => handleDeleteOption(opt.id)} sx={{ p: 0.25 }}>
-                      <DeleteIcon sx={{ fontSize: 15 }} />
-                    </IconButton>
+                      {/* Delete Option Icon */}
+                      <IconButton size="small" onClick={() => handleDeleteOption(opt.id)} sx={{ p: 0.25 }}>
+                        <DeleteIcon sx={{ fontSize: 15 }} />
+                      </IconButton>
+                    </Box>
+
+                    {canUseWorkflowMeaning && (
+                      <Box sx={{ display: 'flex', gap: 0.5, pl: 2.5, pt: 0.75 }}>
+                        {WORKFLOW_MEANING_OPTIONS.map((meaning) => {
+                          const isSelected = normalizeWorkflowMeaning(opt.workflowMeaning) === meaning.value;
+                          return (
+                            <Button
+                              key={meaning.value}
+                              size="small"
+                              variant={isSelected ? 'contained' : 'outlined'}
+                              onClick={() => handleUpdateOptionWorkflow(opt.id, meaning.value)}
+                              sx={{ minWidth: 0, px: 0.75, py: 0.15, textTransform: 'none', fontSize: 10.5, borderRadius: 1 }}
+                            >
+                              {meaning.label}
+                            </Button>
+                          );
+                        })}
+                      </Box>
+                    )}
                   </Box>
                 ))}
               </Box>
@@ -517,6 +552,30 @@ export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellP
                 </Box>
               </Box>
 
+              {canUseWorkflowMeaning && (
+                <Box sx={{ mb: 1 }}>
+                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: 'text.secondary', mb: 0.5 }}>
+                    Workflow Meaning
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 0.5 }}>
+                    {WORKFLOW_MEANING_OPTIONS.map((meaning) => {
+                      const isSelected = newOptionWorkflow === meaning.value;
+                      return (
+                        <Button
+                          key={meaning.value}
+                          size="small"
+                          variant={isSelected ? 'contained' : 'outlined'}
+                          onClick={() => setNewOptionWorkflow(isSelected ? 'none' : meaning.value)}
+                          sx={{ minWidth: 0, px: 0.85, py: 0.2, textTransform: 'none', fontSize: 11, borderRadius: 1 }}
+                        >
+                          {meaning.label}
+                        </Button>
+                      );
+                    })}
+                  </Box>
+                </Box>
+              )}
+
               <Button
                 size="small"
                 variant="contained"
@@ -532,23 +591,49 @@ export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellP
             <>
               <Box sx={{ maxHeight: 180, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
                 {options.map((opt) => (
-                  <MenuItem
-                    key={opt.id}
-                    onClick={() => commitValue(opt.id)}
-                    selected={opt.id === activeOptionId}
-                    sx={{
-                      py: 0.75,
-                      px: 1,
-                      borderRadius: 1.5,
-                      mb: 0.25,
-                      '&.Mui-selected': { bgcolor: alpha(opt.color, 0.15), '&:hover': { bgcolor: alpha(opt.color, 0.25) } },
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                      <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: opt.color }} />
-                      <Typography sx={{ fontSize: 12.5, fontWeight: 500 }}>{opt.label}</Typography>
-                    </Box>
-                  </MenuItem>
+                  (() => {
+                    const workflowMeaning = normalizeWorkflowMeaning(opt.workflowMeaning);
+                    const workflowLabel = workflowMeaning === 'none' ? null : WORKFLOW_MEANING_LABELS[workflowMeaning];
+
+                    return (
+                      <MenuItem
+                        key={opt.id}
+                        onClick={() => commitValue(opt.id)}
+                        selected={opt.id === activeOptionId}
+                        sx={{
+                          py: 0.75,
+                          px: 1,
+                          borderRadius: 1.5,
+                          mb: 0.25,
+                          '&.Mui-selected': { bgcolor: alpha(opt.color, 0.15), '&:hover': { bgcolor: alpha(opt.color, 0.25) } },
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%', minWidth: 0 }}>
+                          <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: opt.color, flexShrink: 0 }} />
+                          <Typography sx={{ fontSize: 12.5, fontWeight: 500, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {opt.label}
+                          </Typography>
+                          {workflowLabel && (
+                            <Chip
+                              size="small"
+                              label={workflowLabel}
+                              sx={{
+                                height: 20,
+                                borderRadius: 1,
+                                fontSize: 10.5,
+                                fontWeight: 700,
+                                color: 'primary.main',
+                                bgcolor: alpha('#5F0229', 0.08),
+                                border: '1px solid',
+                                borderColor: alpha('#5F0229', 0.18),
+                                '& .MuiChip-label': { px: 0.75 },
+                              }}
+                            />
+                          )}
+                        </Box>
+                      </MenuItem>
+                    );
+                  })()
                 ))}
               </Box>
 
@@ -558,7 +643,10 @@ export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellP
                 <Button
                   size="small"
                   startIcon={<AddIcon />}
-                  onClick={() => setIsCreatingOption(true)}
+                  onClick={() => {
+                    setNewOptionWorkflow('none');
+                    setIsCreatingOption(true);
+                  }}
                   sx={{ textTransform: 'none', fontSize: 11.5, py: 0.25 }}
                 >
                   New Option
