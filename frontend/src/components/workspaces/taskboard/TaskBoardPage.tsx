@@ -313,7 +313,7 @@ function TaskBoardContent() {
         open={Boolean(deleteNotice)}
         autoHideDuration={6000}
         onClose={dismissDeleteNotice}
-        message={deleteNotice ? `Deleted "${deleteNotice.taskName}"` : ''}
+        message={deleteNotice ? `Deleted ${deleteNotice.type} "${deleteNotice.label}"` : ''}
         action={
           <Button size="small" onClick={undoTaskDelete} sx={{ color: 'common.white', fontWeight: 700 }}>
             Undo

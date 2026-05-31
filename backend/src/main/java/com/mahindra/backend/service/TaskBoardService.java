@@ -30,6 +30,7 @@ import com.mahindra.backend.dto.taskboard.CreateTaskRequest;
 import com.mahindra.backend.dto.taskboard.CreateUpdateRequest;
 import com.mahindra.backend.dto.taskboard.FileAttachmentDto;
 import com.mahindra.backend.dto.taskboard.FileAttachmentInputDto;
+import com.mahindra.backend.dto.taskboard.MoveGroupRequest;
 import com.mahindra.backend.dto.taskboard.MoveTaskRequest;
 import com.mahindra.backend.dto.taskboard.SelectOptionDto;
 import com.mahindra.backend.dto.taskboard.TaskBoardPayloadDto;
@@ -193,8 +194,7 @@ public class TaskBoardService {
             UpdateGroupRequest request) {
         User user = resolveUser(authentication);
         Board board = resolveEditableBoard(user, workspaceId, boardId);
-        TaskGroup group = taskGroupRepository.findById(groupId)
-                .filter(g -> g.getDeletedAt() == null && g.getBoard().getId().equals(boardId))
+        TaskGroup group = taskGroupRepository.findByIdAndBoardIdAndDeletedAtIsNull(groupId, boardId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task group not found"));
         Map<String, Object> before = new LinkedHashMap<>();
         before.put("name", group.getName());
@@ -218,6 +218,82 @@ public class TaskBoardService {
         after.put("order", group.getPosition());
         recordActivity(board, null, user, "group_updated", "group", before, after, "user");
         return toGroupDto(group, taskRepository.findByGroupIdAndDeletedAtIsNullOrderByPositionAscIdAsc(groupId));
+    }
+
+    @Transactional
+    public void deleteGroup(Authentication authentication, Long workspaceId, Long boardId, Long groupId) {
+        User user = resolveUser(authentication);
+        Board board = resolveEditableBoard(user, workspaceId, boardId);
+        TaskGroup group = taskGroupRepository.findByIdAndBoardIdAndDeletedAtIsNull(groupId, boardId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task group not found"));
+        Instant now = Instant.now();
+        Instant purgeAfter = now.plusSeconds(30L * 24 * 60 * 60);
+        group.setDeletedAt(now);
+        group.setDeletedBy(user);
+        group.setPurgeAfter(purgeAfter);
+        group.setUpdatedAt(now);
+        List<Task> tasks = taskRepository.findByGroupIdAndDeletedAtIsNullOrderByPositionAscIdAsc(groupId);
+        for (Task task : tasks) {
+            task.setDeletedAt(now);
+            task.setDeletedBy(user);
+            task.setPurgeAfter(purgeAfter);
+            task.setUpdatedAt(now);
+        }
+        taskGroupRepository.save(group);
+        taskRepository.saveAll(tasks);
+        recordActivity(board, null, user, "group_deleted", "group", group.getName(), null, "user");
+    }
+
+    @Transactional
+    public TaskGroupDto restoreGroup(Authentication authentication, Long workspaceId, Long boardId, Long groupId) {
+        User user = resolveUser(authentication);
+        Board board = resolveEditableBoard(user, workspaceId, boardId);
+        TaskGroup group = taskGroupRepository.findByIdAndBoardId(groupId, boardId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task group not found"));
+        group.setDeletedAt(null);
+        group.setDeletedBy(null);
+        group.setPurgeAfter(null);
+        Instant now = Instant.now();
+        group.setUpdatedAt(now);
+        List<Task> tasks = taskRepository.findByGroupIdOrderByPositionAscIdAsc(groupId);
+        for (Task task : tasks) {
+            task.setDeletedAt(null);
+            task.setDeletedBy(null);
+            task.setPurgeAfter(null);
+            task.setUpdatedAt(now);
+        }
+        taskGroupRepository.save(group);
+        taskRepository.saveAll(tasks);
+        recordActivity(board, null, user, "group_restored", "group", null, group.getName(), "user");
+        return toGroupDto(group, taskRepository.findByGroupIdAndDeletedAtIsNullOrderByPositionAscIdAsc(groupId));
+    }
+
+    @Transactional
+    public void moveGroup(Authentication authentication, Long workspaceId, Long boardId, Long groupId, MoveGroupRequest request) {
+        User user = resolveUser(authentication);
+        Board sourceBoard = resolveEditableBoard(user, workspaceId, boardId);
+        Board targetBoard = resolveEditableBoard(user, workspaceId, request.toBoardId());
+        TaskGroup group = taskGroupRepository.findByIdAndBoardIdAndDeletedAtIsNull(groupId, boardId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task group not found"));
+        if (sourceBoard.getId().equals(targetBoard.getId())) {
+            return;
+        }
+        int targetPosition = request.position() != null
+                ? Math.max(0, request.position())
+                : taskGroupRepository.findByBoardIdAndDeletedAtIsNullOrderByPositionAscIdAsc(targetBoard.getId()).size();
+        Map<String, Object> before = Map.of("board", sourceBoard.getName(), "group", group.getName());
+        group.setBoard(targetBoard);
+        group.setPosition(targetPosition);
+        group.setUpdatedAt(Instant.now());
+        List<Task> tasks = taskRepository.findByGroupIdAndDeletedAtIsNullOrderByPositionAscIdAsc(groupId);
+        for (Task task : tasks) {
+            task.setBoard(targetBoard);
+            task.setUpdatedAt(Instant.now());
+        }
+        taskGroupRepository.save(group);
+        taskRepository.saveAll(tasks);
+        Map<String, Object> after = Map.of("board", targetBoard.getName(), "group", group.getName());
+        recordActivity(targetBoard, null, user, "group_moved", "board", before, after, "user");
     }
 
     @Transactional

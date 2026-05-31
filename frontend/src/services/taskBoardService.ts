@@ -121,6 +121,41 @@ export async function updateTaskGroup(
   }
 }
 
+export async function deleteTaskGroup(workspaceId: string, boardId: string, groupId: string): Promise<void> {
+  try {
+    await apiClient.delete(`/api/workspaces/${workspaceId}/boards/${boardId}/groups/${groupId}`);
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
+export async function restoreTaskGroup(workspaceId: string, boardId: string, groupId: string): Promise<TaskGroup> {
+  try {
+    const { data } = await apiClient.post<TaskGroup>(
+      `/api/workspaces/${workspaceId}/boards/${boardId}/groups/${groupId}/restore`
+    );
+    return data;
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
+export async function moveTaskGroup(
+  workspaceId: string,
+  boardId: string,
+  groupId: string,
+  payload: { toBoardId: string; position?: number }
+): Promise<void> {
+  try {
+    await apiClient.put(`/api/workspaces/${workspaceId}/boards/${boardId}/groups/${groupId}/move`, {
+      toBoardId: Number(payload.toBoardId),
+      position: payload.position,
+    });
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
 export async function createTask(
   workspaceId: string,
   boardId: string,

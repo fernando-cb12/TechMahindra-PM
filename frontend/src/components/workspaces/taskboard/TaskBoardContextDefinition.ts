@@ -53,7 +53,7 @@ export interface TaskBoardContextValue extends Omit<TaskBoardState, 'manualGroup
   setSortDirection: (dir: 'asc' | 'desc') => void;
   visibleGroups: TaskGroup[];
   completedTasks: Set<string>;
-  deleteNotice: { taskName: string } | null;
+  deleteNotice: { label: string; type: 'task' | 'group' } | null;
   undoTaskDelete: () => void;
   dismissDeleteNotice: () => void;
   taskRenameRequestId: string | null;

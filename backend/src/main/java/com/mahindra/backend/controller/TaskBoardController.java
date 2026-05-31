@@ -22,6 +22,7 @@ import com.mahindra.backend.dto.taskboard.ColumnUpsertRequest;
 import com.mahindra.backend.dto.taskboard.CreateGroupRequest;
 import com.mahindra.backend.dto.taskboard.CreateTaskRequest;
 import com.mahindra.backend.dto.taskboard.CreateUpdateRequest;
+import com.mahindra.backend.dto.taskboard.MoveGroupRequest;
 import com.mahindra.backend.dto.taskboard.MoveTaskRequest;
 import com.mahindra.backend.dto.taskboard.TaskBoardPayloadDto;
 import com.mahindra.backend.dto.taskboard.TaskDto;
@@ -93,6 +94,33 @@ public class TaskBoardController {
             @PathVariable Long groupId,
             @RequestBody UpdateGroupRequest request) {
         return ResponseEntity.ok(taskBoardService.updateGroup(authentication, workspaceId, boardId, groupId, request));
+    }
+
+    @DeleteMapping("/groups/{groupId}")
+    public ResponseEntity<Void> deleteGroup(Authentication authentication,
+            @PathVariable Long workspaceId,
+            @PathVariable Long boardId,
+            @PathVariable Long groupId) {
+        taskBoardService.deleteGroup(authentication, workspaceId, boardId, groupId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/groups/{groupId}/restore")
+    public ResponseEntity<TaskGroupDto> restoreGroup(Authentication authentication,
+            @PathVariable Long workspaceId,
+            @PathVariable Long boardId,
+            @PathVariable Long groupId) {
+        return ResponseEntity.ok(taskBoardService.restoreGroup(authentication, workspaceId, boardId, groupId));
+    }
+
+    @PutMapping("/groups/{groupId}/move")
+    public ResponseEntity<Void> moveGroup(Authentication authentication,
+            @PathVariable Long workspaceId,
+            @PathVariable Long boardId,
+            @PathVariable Long groupId,
+            @Valid @RequestBody MoveGroupRequest request) {
+        taskBoardService.moveGroup(authentication, workspaceId, boardId, groupId, request);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/groups/{groupId}/tasks")
