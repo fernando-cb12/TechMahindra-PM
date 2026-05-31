@@ -1,5 +1,5 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Snackbar, Stack, Typography } from '@mui/material';
+import { Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Snackbar, Stack, Typography } from '@mui/material';
 import AddCircleOutlinedIcon from '@mui/icons-material/AddCircleOutlined';
 import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -22,6 +22,7 @@ import {
 } from '../services/workspacesService';
 import { deleteBoard, restoreBoard, updateBoard } from '../services/taskBoardService';
 import { CreateWorkspaceModal } from '../components/workspaces/CreateWorkspaceModal';
+import { processAiWorkspacePdf } from '../services/aiWorkspaceService';
 
 type DeleteNotice =
   | { type: 'workspace'; id: string; label: string }
@@ -37,7 +38,9 @@ function MainLayout() {
   const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
   const [isCreateChoiceOpen, setIsCreateChoiceOpen] = useState(false);
   const [isAIUploadOpen, setIsAIUploadOpen] = useState(false);
+  const [aiSelectedFile, setAISelectedFile] = useState<File | null>(null);
   const [aiSelectedFileName, setAISelectedFileName] = useState<string | null>(null);
+  const [isAIProcessing, setIsAIProcessing] = useState(false);
   const [deleteNotice, setDeleteNotice] = useState<DeleteNotice>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const creatingBoardWorkspaceRef = useRef<string | null>(null);
@@ -203,17 +206,30 @@ function MainLayout() {
   };
 
   const handleAIFileChange = (file: File | null) => {
+    setAISelectedFile(file);
     setAISelectedFileName(file?.name ?? null);
   };
 
-  const handleAIContinue = () => {
-    if (!aiSelectedFileName) return;
-    setIsAIUploadOpen(false);
-    setIsCreateWorkspaceOpen(true);
+  const handleAIContinue = async () => {
+    if (!aiSelectedFile || isAIProcessing) return;
+    setIsAIProcessing(true);
+    try {
+      const draft = await processAiWorkspacePdf(aiSelectedFile);
+      setIsAIUploadOpen(false);
+      setAISelectedFile(null);
+      setAISelectedFileName(null);
+      navigate(`/workspaces/ai-draft/${draft.id}`);
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'Failed to process PDF with AI');
+    } finally {
+      setIsAIProcessing(false);
+    }
   };
 
   const handleAIUploadClose = () => {
+    if (isAIProcessing) return;
     setIsAIUploadOpen(false);
+    setAISelectedFile(null);
     setAISelectedFileName(null);
   };
 
@@ -296,6 +312,7 @@ function MainLayout() {
       open={isCreateWorkspaceOpen}
       onClose={() => {
         setIsCreateWorkspaceOpen(false);
+        setAISelectedFile(null);
         setAISelectedFileName(null);
       }}
       onSave={handleCreateWorkspace}
@@ -374,7 +391,7 @@ function MainLayout() {
       <DialogContent sx={{ pt: 0, pb: 0 }}>
         <Box sx={{ pt: 1, pb: 2 }}>
           <Typography sx={{ fontFamily: 'Montserrat, sans-serif', color: 'text.secondary', mb: 2 }}>
-            Upload a requirements file so the AI can help you generate the project structure.
+            Upload a LaTeX-generated PDF so the AI can generate draft boards and tasks for review.
           </Typography>
           <Button
             component="label"
@@ -391,12 +408,12 @@ function MainLayout() {
               fontWeight: 700,
             }}
           >
-            {aiSelectedFileName ? aiSelectedFileName : 'Select file (PDF, DOCX, TXT, MD)'}
+            {aiSelectedFileName ? aiSelectedFileName : 'Select PDF'}
             <UploadFileOutlinedIcon />
             <input
               type="file"
               hidden
-              accept=".pdf,.doc,.docx,.txt,.md"
+              accept=".pdf,application/pdf"
               onChange={(event) => {
                 const file = event.target.files?.[0] ?? null;
                 handleAIFileChange(file);
@@ -404,18 +421,19 @@ function MainLayout() {
             />
           </Button>
           <Typography sx={{ mt: 1, fontFamily: 'Montserrat, sans-serif', fontSize: 13, color: 'text.secondary' }}>
-            If you upload a file, you can continue creating the workspace in the next step.
+            The next step is a draft review screen where you can approve or discard the generated boards.
           </Typography>
         </Box>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 3, pt: 1 }}>
-        <Button onClick={handleAIUploadClose} sx={{ fontFamily: 'Montserrat, sans-serif', textTransform: 'none', color: 'text.primary' }}>
+        <Button disabled={isAIProcessing} onClick={handleAIUploadClose} sx={{ fontFamily: 'Montserrat, sans-serif', textTransform: 'none', color: 'text.primary' }}>
           Cancel
         </Button>
         <Button
           variant="contained"
           onClick={handleAIContinue}
-          disabled={!aiSelectedFileName}
+          disabled={!aiSelectedFileName || isAIProcessing}
+          startIcon={isAIProcessing ? <CircularProgress size={18} color="inherit" /> : undefined}
           sx={{
             bgcolor: 'primary.main',
             '&:hover': { bgcolor: 'primary.dark' },
@@ -424,7 +442,7 @@ function MainLayout() {
             fontWeight: 700,
           }}
         >
-          Continue
+          {isAIProcessing ? 'Processing' : 'Generate Draft'}
         </Button>
       </DialogActions>
     </Dialog>

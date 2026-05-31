@@ -15,6 +15,8 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
@@ -78,6 +80,43 @@ public class FileUploadService {
         }
     }
 
+    public PresignedUploadResponse createAiImportUpload(String fileName, String contentType, Long sizeBytes) {
+        validateConfiguration();
+        validateAiImportFile(fileName, contentType, sizeBytes);
+
+        String key = "ai-imports/%s-%s".formatted(
+                Instant.now().toEpochMilli(),
+                sanitizeFileName(fileName));
+        PutObjectRequest objectRequest = PutObjectRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .contentType(contentType)
+                .build();
+        PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofSeconds(presignedUrlExpirationSeconds))
+                .putObjectRequest(objectRequest)
+                .build();
+
+        try (S3Presigner presigner = buildPresigner()) {
+            String uploadUrl = presigner.presignPutObject(presignRequest).url().toString();
+            return new PresignedUploadResponse(uploadUrl, publicUrlFor(key), key);
+        }
+    }
+
+    public byte[] downloadAiImport(String key) {
+        validateConfiguration();
+        if (key == null || !key.startsWith("ai-imports/")) {
+            throw new IllegalArgumentException("Invalid AI import file key");
+        }
+        GetObjectRequest request = GetObjectRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .build();
+        try (S3Client client = buildS3Client()) {
+            return client.getObjectAsBytes(request).asByteArray();
+        }
+    }
+
     public PresignedUploadResponse createTaskUpdateUpload(Long workspaceId, Long boardId, Long taskId,
             String fileName, String contentType, Long sizeBytes) {
         validateConfiguration();
@@ -130,6 +169,19 @@ public class FileUploadService {
         }
     }
 
+    private void validateAiImportFile(String fileName, String contentType, Long sizeBytes) {
+        if (sizeBytes != null && sizeBytes > 20L * 1024L * 1024L) {
+            throw new IllegalArgumentException("AI import PDF exceeds the 20 MB limit");
+        }
+        if (!"pdf".equals(extension(fileName))) {
+            throw new IllegalArgumentException("AI import file must be a PDF");
+        }
+        String type = contentType == null ? "" : contentType.toLowerCase(Locale.ROOT);
+        if (!type.equals("application/pdf") && !type.equals("application/octet-stream")) {
+            throw new IllegalArgumentException("AI import file must be a PDF");
+        }
+    }
+
     private static String extension(String fileName) {
         if (fileName == null) {
             return "";
@@ -143,6 +195,14 @@ public class FileUploadService {
 
     private S3Presigner buildPresigner() {
         return S3Presigner.builder()
+                .region(Region.of(region))
+                .credentialsProvider(StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(accessKey, secretKey)))
+                .build();
+    }
+
+    private S3Client buildS3Client() {
+        return S3Client.builder()
                 .region(Region.of(region))
                 .credentialsProvider(StaticCredentialsProvider.create(
                         AwsBasicCredentials.create(accessKey, secretKey)))

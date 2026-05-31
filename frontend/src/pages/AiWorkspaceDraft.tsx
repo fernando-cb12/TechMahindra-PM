@@ -1,0 +1,392 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  IconButton,
+  MenuItem,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
+import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
+import {
+  approveAiWorkspaceDraft,
+  discardAiWorkspaceDraft,
+  getAiWorkspaceDraft,
+  type AiWorkspaceDraft as AiWorkspaceDraftType,
+  type DraftTask,
+} from '../services/aiWorkspaceService';
+
+const priorityOptions = ['low', 'medium', 'high', 'critical'] as const;
+const statusOptions = ['todo', 'in_progress', 'review', 'done', 'blocked'] as const;
+
+function AiWorkspaceDraft() {
+  const { draftId } = useParams();
+  const navigate = useNavigate();
+  const [draft, setDraft] = useState<AiWorkspaceDraftType | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!draftId) {
+      setError('Draft not found');
+      setLoading(false);
+      return;
+    }
+    void getAiWorkspaceDraft(draftId)
+      .then((payload) => {
+        if (!cancelled) setDraft(payload);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load AI draft');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [draftId]);
+
+  const totals = useMemo(() => {
+    const boards = draft?.boards.length ?? 0;
+    const groups = draft?.boards.reduce((sum, board) => sum + board.groups.length, 0) ?? 0;
+    const tasks = draft?.boards.reduce(
+      (sum, board) => sum + board.groups.reduce((groupSum, group) => groupSum + group.tasks.length, 0),
+      0
+    ) ?? 0;
+    return { boards, groups, tasks };
+  }, [draft]);
+
+  const updateWorkspace = (field: keyof AiWorkspaceDraftType['workspace'], value: string) => {
+    setDraft((current) => current ? {
+      ...current,
+      workspace: { ...current.workspace, [field]: value },
+    } : current);
+  };
+
+  const updateBoard = (boardIndex: number, field: 'name' | 'description', value: string) => {
+    setDraft((current) => current ? {
+      ...current,
+      boards: current.boards.map((board, index) => index === boardIndex ? { ...board, [field]: value } : board),
+    } : current);
+  };
+
+  const updateGroup = (boardIndex: number, groupIndex: number, value: string) => {
+    setDraft((current) => current ? {
+      ...current,
+      boards: current.boards.map((board, index) => index === boardIndex ? {
+        ...board,
+        groups: board.groups.map((group, nestedIndex) => nestedIndex === groupIndex ? { ...group, name: value } : group),
+      } : board),
+    } : current);
+  };
+
+  const updateTask = (
+    boardIndex: number,
+    groupIndex: number,
+    taskIndex: number,
+    field: keyof DraftTask,
+    value: string
+  ) => {
+    setDraft((current) => current ? {
+      ...current,
+      boards: current.boards.map((board, index) => index === boardIndex ? {
+        ...board,
+        groups: board.groups.map((group, nestedIndex) => nestedIndex === groupIndex ? {
+          ...group,
+          tasks: group.tasks.map((task, taskNestedIndex) => taskNestedIndex === taskIndex
+            ? { ...task, [field]: value || null }
+            : task),
+        } : group),
+      } : board),
+    } : current);
+  };
+
+  const removeBoard = (boardIndex: number) => {
+    setDraft((current) => current ? {
+      ...current,
+      boards: current.boards.filter((_, index) => index !== boardIndex),
+    } : current);
+  };
+
+  const removeGroup = (boardIndex: number, groupIndex: number) => {
+    setDraft((current) => current ? {
+      ...current,
+      boards: current.boards.map((board, index) => index === boardIndex ? {
+        ...board,
+        groups: board.groups.filter((_, nestedIndex) => nestedIndex !== groupIndex),
+      } : board),
+    } : current);
+  };
+
+  const removeTask = (boardIndex: number, groupIndex: number, taskIndex: number) => {
+    setDraft((current) => current ? {
+      ...current,
+      boards: current.boards.map((board, index) => index === boardIndex ? {
+        ...board,
+        groups: board.groups.map((group, nestedIndex) => nestedIndex === groupIndex ? {
+          ...group,
+          tasks: group.tasks.filter((_, taskNestedIndex) => taskNestedIndex !== taskIndex),
+        } : group),
+      } : board),
+    } : current);
+  };
+
+  const handleApprove = async () => {
+    if (!draft) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const response = await approveAiWorkspaceDraft(draft);
+      window.dispatchEvent(new CustomEvent('workspace:created', { detail: { workspaceId: response.workspaceId } }));
+      window.dispatchEvent(new CustomEvent('app:feedback', { detail: { message: 'AI workspace created' } }));
+      navigate(response.firstBoardId
+        ? `/workspaces/${response.workspaceId}/boards/${response.firstBoardId}`
+        : `/workspaces/${response.workspaceId}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not approve AI draft');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDiscard = async () => {
+    if (draft?.id) {
+      await discardAiWorkspaceDraft(draft.id).catch(() => undefined);
+    }
+    navigate('/workspaces');
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!draft) {
+    return (
+      <Box sx={{ p: 4 }}>
+        <Typography sx={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: 24 }}>
+          {error ?? 'Draft not found'}
+        </Typography>
+        <Button onClick={() => navigate('/workspaces')} sx={{ mt: 2, textTransform: 'none' }}>
+          Back to workspaces
+        </Button>
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ minHeight: '100vh', bgcolor: '#F7F8FA', p: { xs: 2, md: 4 } }}>
+      <Stack spacing={3} sx={{ maxWidth: 1180, mx: 'auto' }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ xs: 'stretch', md: 'center' }}>
+          <Box>
+            <Typography sx={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, fontSize: { xs: 26, md: 32 } }}>
+              Review AI Draft
+            </Typography>
+            <Typography sx={{ color: 'text.secondary', fontFamily: 'Montserrat, sans-serif', mt: 0.5 }}>
+              {draft.sourceFileName || 'Imported PDF'}
+            </Typography>
+          </Box>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Chip label={`${totals.boards} boards`} />
+            <Chip label={`${totals.groups} groups`} />
+            <Chip label={`${totals.tasks} tasks`} />
+          </Stack>
+        </Stack>
+
+        {error && (
+          <Paper sx={{ p: 2, borderRadius: 2, border: '1px solid #F1B8B8', bgcolor: '#FFF5F5' }}>
+            <Typography sx={{ color: '#A3334D', fontFamily: 'Montserrat, sans-serif' }}>{error}</Typography>
+          </Paper>
+        )}
+
+        <Paper sx={{ p: 3, borderRadius: 2, border: '1px solid #E4E7EC' }}>
+          <Stack spacing={2}>
+            <TextField
+              label="Workspace title"
+              value={draft.workspace.title}
+              onChange={(event) => updateWorkspace('title', event.target.value)}
+              fullWidth
+            />
+            <TextField
+              label="Description"
+              value={draft.workspace.description}
+              onChange={(event) => updateWorkspace('description', event.target.value)}
+              multiline
+              minRows={3}
+              fullWidth
+            />
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+              <TextField
+                label="Due date"
+                type="date"
+                value={draft.workspace.dueDate ?? ''}
+                onChange={(event) => updateWorkspace('dueDate', event.target.value)}
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+              />
+              <TextField
+                label="Budget"
+                value={draft.workspace.budgetLabel ?? ''}
+                onChange={(event) => updateWorkspace('budgetLabel', event.target.value)}
+                fullWidth
+              />
+            </Stack>
+          </Stack>
+        </Paper>
+
+        <Stack spacing={2}>
+          {draft.boards.map((board, boardIndex) => (
+            <Accordion key={`${board.name}-${boardIndex}`} defaultExpanded={boardIndex === 0} sx={{ borderRadius: 2, '&:before': { display: 'none' } }}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ width: '100%', pr: 1 }}>
+                  <Typography sx={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, flex: 1 }}>
+                    {board.name || 'Untitled board'}
+                  </Typography>
+                  <Chip size="small" label={`${board.groups.length} groups`} />
+                  <IconButton
+                    aria-label="Remove board"
+                    size="small"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      removeBoard(boardIndex);
+                    }}
+                  >
+                    <DeleteOutlineIcon fontSize="small" />
+                  </IconButton>
+                </Stack>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Stack spacing={2}>
+                  <TextField
+                    label="Board name"
+                    value={board.name}
+                    onChange={(event) => updateBoard(boardIndex, 'name', event.target.value)}
+                    fullWidth
+                  />
+                  <TextField
+                    label="Board description"
+                    value={board.description}
+                    onChange={(event) => updateBoard(boardIndex, 'description', event.target.value)}
+                    fullWidth
+                    multiline
+                    minRows={2}
+                  />
+                  {board.groups.map((group, groupIndex) => (
+                    <Paper key={`${group.name}-${groupIndex}`} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                      <Stack spacing={2}>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <TextField
+                            label="Group name"
+                            value={group.name}
+                            onChange={(event) => updateGroup(boardIndex, groupIndex, event.target.value)}
+                            fullWidth
+                          />
+                          <IconButton aria-label="Remove group" onClick={() => removeGroup(boardIndex, groupIndex)}>
+                            <DeleteOutlineIcon />
+                          </IconButton>
+                        </Stack>
+                        {group.tasks.map((task, taskIndex) => (
+                          <Paper key={`${task.name}-${taskIndex}`} sx={{ p: 2, borderRadius: 2, bgcolor: '#FFFFFF', border: '1px solid #EAECF0' }}>
+                            <Stack spacing={1.5}>
+                              <Stack direction="row" spacing={1} alignItems="center">
+                                <TextField
+                                  label="Task"
+                                  value={task.name}
+                                  onChange={(event) => updateTask(boardIndex, groupIndex, taskIndex, 'name', event.target.value)}
+                                  fullWidth
+                                />
+                                <IconButton aria-label="Remove task" onClick={() => removeTask(boardIndex, groupIndex, taskIndex)}>
+                                  <DeleteOutlineIcon />
+                                </IconButton>
+                              </Stack>
+                              <TextField
+                                label="Description"
+                                value={task.description ?? ''}
+                                onChange={(event) => updateTask(boardIndex, groupIndex, taskIndex, 'description', event.target.value)}
+                                fullWidth
+                                multiline
+                                minRows={2}
+                              />
+                              <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
+                                <TextField
+                                  select
+                                  label="Status"
+                                  value={task.status}
+                                  onChange={(event) => updateTask(boardIndex, groupIndex, taskIndex, 'status', event.target.value)}
+                                  fullWidth
+                                >
+                                  {statusOptions.map((option) => <MenuItem key={option} value={option}>{option.replace('_', ' ')}</MenuItem>)}
+                                </TextField>
+                                <TextField
+                                  select
+                                  label="Priority"
+                                  value={task.priority}
+                                  onChange={(event) => updateTask(boardIndex, groupIndex, taskIndex, 'priority', event.target.value)}
+                                  fullWidth
+                                >
+                                  {priorityOptions.map((option) => <MenuItem key={option} value={option}>{option}</MenuItem>)}
+                                </TextField>
+                                <TextField
+                                  label="Due date"
+                                  type="date"
+                                  value={task.dueDate ?? ''}
+                                  onChange={(event) => updateTask(boardIndex, groupIndex, taskIndex, 'dueDate', event.target.value)}
+                                  InputLabelProps={{ shrink: true }}
+                                  fullWidth
+                                />
+                              </Stack>
+                            </Stack>
+                          </Paper>
+                        ))}
+                      </Stack>
+                    </Paper>
+                  ))}
+                </Stack>
+              </AccordionDetails>
+            </Accordion>
+          ))}
+        </Stack>
+
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="flex-end">
+          <Button
+            variant="outlined"
+            startIcon={<CloseOutlinedIcon />}
+            onClick={handleDiscard}
+            disabled={saving}
+            sx={{ textTransform: 'none', fontWeight: 700 }}
+          >
+            Discard
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={saving ? <CircularProgress size={18} color="inherit" /> : <SaveOutlinedIcon />}
+            onClick={handleApprove}
+            disabled={saving || !draft.workspace.title.trim() || draft.boards.length === 0}
+            sx={{ textTransform: 'none', fontWeight: 700, bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' } }}
+          >
+            Approve Workspace
+          </Button>
+        </Stack>
+      </Stack>
+    </Box>
+  );
+}
+
+export default AiWorkspaceDraft;
