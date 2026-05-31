@@ -24,7 +24,7 @@ La intencion es que cada vista tenga un proposito claro y complemente a las dema
 
 ### Etapa 1: Workflow Meaning e Insights
 
-Estado: implementada como base inicial.
+Estado: implementada.
 
 Incluye:
 
@@ -37,7 +37,7 @@ Incluye:
 
 ### Etapa 2: Calendar Filters
 
-Estado: siguiente etapa de implementacion.
+Estado: implementada.
 
 Objetivo:
 
@@ -53,10 +53,31 @@ Incluye:
 - Filtros por opciones/tags de columnas compatibles.
 - Empty state cuando no haya tareas visibles con los filtros activos.
 - Base utilitaria reutilizable para que Kanban pueda usar los mismos criterios despues.
+- Persistencia de filtros por board durante la sesion hasta que el usuario use `Clear`.
+
+### Etapa 2.1: Calendar Display Modes
+
+Estado: implementada.
+
+Objetivo:
+
+Agregar modos de visualizacion diarios, semanales y mensuales al Calendar, manteniendo los filtros existentes.
+
+Incluye:
+
+- Control de modo junto al boton `Today`: `Daily`, `Weekly`, `Monthly`.
+- `Monthly`: muestra el calendario completo del mes.
+- `Weekly`: muestra solo la semana que contiene la fecha activa.
+- `Daily`: muestra solo el dia activo.
+- Las flechas de navegacion cambian segun el modo activo.
+- `Today` regresa al dia/semana/mes actual segun el modo activo.
+- Al cambiar de modo, la fecha activa se conserva como ancla.
+- Persistencia del modo activo en session storage por board.
+- Selector nativo de fecha para saltar directamente a un dia especifico.
 
 ### Etapa 3: Kanban by Task Group
 
-Estado: posterior a Calendar filters.
+Estado: siguiente etapa de implementacion.
 
 Incluye:
 
@@ -65,6 +86,28 @@ Incluye:
 - Cards con task name, assignees, due date, priority y workflow/status tag principal.
 - Movimiento de cards entre task groups.
 - Reuso de filtros basicos de Calendar cuando esten disponibles.
+
+Objetivo:
+
+Agregar una vista visual de flujo donde cada task group funciona como una columna kanban. Esta vista debe estar enfocada en planear y mover trabajo rapidamente, no en reemplazar la tabla.
+
+Alcance recomendado:
+
+- Mostrar una columna por task group.
+- Respetar el orden actual de los task groups.
+- Mostrar tareas como cards compactas.
+- Permitir click en card para abrir el panel de detalle.
+- Permitir mover cards entre grupos.
+- Reutilizar filtros existentes de Calendar si es posible.
+- Mantener una primera version simple antes de agregar agrupaciones configurables.
+
+Fuera de alcance para esta etapa:
+
+- Agrupar Kanban por status, assignee o priority.
+- Crear multiples vistas Kanban guardadas.
+- WIP limits.
+- Automatizaciones al mover cards.
+- Edicion completa inline dentro de la card.
 
 ## Renombrar Charts a Insights
 
@@ -229,6 +272,55 @@ Columnas no incluidas en filtros de tags en la etapa 2:
 - Tareas done pueden mostrarse con menor intensidad si el filtro las incluye.
 - Si no hay tareas para el mes/filtros, mostrar empty state breve.
 
+### Modos de Visualizacion
+
+Calendar debe soportar tres modos:
+
+- `Daily`
+- `Weekly`
+- `Monthly`
+
+El modo por defecto recomendado es `Monthly`.
+
+Estado:
+
+- Mantener una sola fecha activa, `currentDate`, como ancla del calendario.
+- Mantener un modo activo, `calendarMode`, con valores `day`, `week`, `month`.
+- Persistir `calendarMode` en session storage por board.
+- Los filtros ya persistidos deben aplicarse igual en los tres modos.
+
+Controles:
+
+- Los botones de modo deben vivir en el mismo bloque visual que `Today`.
+- `Today` debe seguir siendo una accion independiente.
+- El modo seleccionado debe tener estado visual claro.
+- Labels visibles recomendados: `Daily`, `Weekly`, `Monthly`.
+
+Navegacion:
+
+- En modo `Daily`, flecha izquierda/derecha mueve un dia.
+- En modo `Weekly`, flecha izquierda/derecha mueve una semana.
+- En modo `Monthly`, flecha izquierda/derecha mueve un mes.
+- `Today` cambia `currentDate` a la fecha actual sin cambiar el modo activo.
+
+Cambio de modo:
+
+- Al pasar de `Weekly` a `Monthly`, se muestra el mes que contiene la fecha activa.
+- Al pasar de `Monthly` a `Weekly`, se muestra la semana que contiene la fecha activa.
+- Al pasar de `Weekly` a `Daily`, se muestra la fecha activa actual.
+- Al pasar de `Daily` a `Weekly` o `Monthly`, se usa la fecha activa como ancla.
+
+Layouts:
+
+- `Monthly`: grid mensual actual de 7 columnas.
+- `Weekly`: grid de 7 columnas, una por dia de la semana activa.
+- `Daily`: lista o columna unica con las tareas del dia activo.
+
+Empty states:
+
+- Si no hay tareas visibles en el rango actual, mostrar un mensaje especifico al modo activo.
+- Ejemplos: `No scheduled tasks for this day`, `No scheduled tasks for this week`, `No scheduled tasks for this month`.
+
 ## Kanban
 
 ### Proposito
@@ -258,6 +350,15 @@ Tarjetas:
 - Workflow/status tag principal si existe
 - Progress si aporta valor
 
+Detalle recomendado de card:
+
+- Titulo de la tarea.
+- Avatares o iniciales de assignees.
+- Due date con indicador si esta vencida.
+- Priority como chip compacto.
+- Workflow/status visible como chip si existe.
+- Progress como barra pequena solo si el valor es mayor a 0 o si aporta lectura.
+
 ### Drag and Drop
 
 Mover una tarjeta entre columnas cambia el `groupId` de la tarea.
@@ -267,6 +368,12 @@ Reglas:
 - Debe respetar permisos existentes de edicion.
 - Debe actualizar el orden visual de tareas dentro del grupo si el modelo lo soporta.
 - Si el orden por grupo todavia no se persiste, puede mantenerse orden actual como primera version.
+
+Primera implementacion aceptable:
+
+- Drag and drop entre columnas actualiza `groupId`.
+- El orden dentro de cada columna puede mantenerse segun el orden actual de tasks si persistir posicion aumenta demasiado el alcance.
+- Si ya existe soporte de `moveTask` con `position`, usarlo para mantener orden cuando sea razonable.
 
 ### Filtros
 
@@ -336,6 +443,9 @@ Los cambios necesarios de API estan ligados principalmente al nuevo `workflowMea
 - Las tareas filtradas abren el panel de detalle.
 - Existe una accion para limpiar todos los filtros activos.
 - Calendar muestra feedback cuando no hay tareas visibles por filtros.
+- Calendar permite cambiar entre vistas Daily, Weekly y Monthly.
+- Las flechas y el boton Today respetan el modo activo.
+- El modo activo se mantiene al salir y volver a Calendar durante la sesion.
 
 ### Kanban
 
