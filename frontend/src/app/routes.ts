@@ -4,6 +4,7 @@ export const ROUTES = {
   workspaces: '/workspaces',
   workspaceDetail: '/workspaces/:workspaceId',
   workspaceBoard: '/workspaces/:workspaceId/boards/:boardId',
+  aiWorkspaceDraft: '/workspaces/ai-draft/:draftId',
   issues: '/issues',
   metrics: '/metrics',
   settings: '/settings',

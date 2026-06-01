@@ -40,6 +40,17 @@ public class FileUploadController {
         return ResponseEntity.ok(upload);
     }
 
+    @PostMapping("/ai-imports/presign")
+    @PreAuthorize("hasAnyRole('ADMIN','TEAM_LEAD')")
+    public ResponseEntity<PresignedUploadResponse> presignAiImport(
+            @Valid @RequestBody PresignedUploadRequest request) {
+        PresignedUploadResponse upload = fileUploadService.createAiImportUpload(
+                request.fileName(),
+                request.contentType(),
+                request.sizeBytes());
+        return ResponseEntity.ok(upload);
+    }
+
     @PostMapping("/workspaces/{workspaceId}/boards/{boardId}/tasks/{taskId}/updates/presign")
     public ResponseEntity<PresignedUploadResponse> presignTaskUpdateFile(
             Authentication authentication,
