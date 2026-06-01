@@ -1,6 +1,6 @@
 // ─── TaskBoardPage — top level layout connecting everything ───
 
-import { Alert, Box, Typography, Button, Tabs, Tab, IconButton, Popover, LinearProgress, Snackbar, MenuItem, TextField } from '@mui/material';
+import { Box, Typography, Button, Tabs, Tab, IconButton, Popover, LinearProgress, Snackbar, MenuItem, TextField } from '@mui/material';
 import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1';
 import TableChartIcon from '@mui/icons-material/TableChart';
 import InsertChartIcon from '@mui/icons-material/InsertChart';
@@ -19,6 +19,7 @@ import TaskDetailPanel from './panel/TaskDetailPanel';
 import type { BoardView } from './types';
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactElement } from 'react';
 import { useAuth } from '../../../auth/useAuth';
+import { showAppNotification } from '../../shared/appNotifications';
 
 const OPTIONAL_VIEWS: Array<{ value: Exclude<BoardView, 'table'>; label: string; icon: ReactElement }> = [
   { value: 'insights', label: 'Insights', icon: <InsertChartIcon sx={{ fontSize: 18 }} /> },
@@ -88,6 +89,12 @@ function TaskBoardContent() {
   useEffect(() => {
     setBoardNameDraft(boardTitle);
   }, [boardTitle]);
+
+  useEffect(() => {
+    if (error) {
+      showAppNotification({ message: error, severity: 'warning' });
+    }
+  }, [error]);
 
   useEffect(() => {
     const taskId = searchParams.get('task');
@@ -290,11 +297,6 @@ function TaskBoardContent() {
 
       {/* Main Content Area */}
       <Box sx={{ flex: 1, overflowY: 'auto', px: activeView === 'table' ? 4 : 2, py: activeView === 'table' ? 0 : 2 }}>
-        {error && (
-          <Alert severity="warning" sx={{ my: 2 }}>
-            {error}
-          </Alert>
-        )}
         {/* We keep all views mounted (or just table) to preserve scroll if desired, 
             but standard is conditional rendering. Let's do conditional rendering for now 
             except for Table which might be heavy to re-mount. */}

@@ -8,7 +8,6 @@ import {
   FormControlLabel,
   TextField,
   Typography,
-  Alert,
 } from "@mui/material";
 
 interface LoginFormProps {
@@ -17,10 +16,9 @@ interface LoginFormProps {
     password: string;
     stayLoggedIn: boolean;
   }) => Promise<void>;
-  errorMessage?: string;
 }
 
-function LoginForm({ onLogin, errorMessage }: LoginFormProps) {
+function LoginForm({ onLogin }: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [stayLoggedIn, setStayLoggedIn] = useState(true);
@@ -96,7 +94,6 @@ function LoginForm({ onLogin, errorMessage }: LoginFormProps) {
           noValidate
           sx={{ display: "flex", flexDirection: "column", gap: 1 }}
         >
-          {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
           <TextField
             label="Email"
             type="email"

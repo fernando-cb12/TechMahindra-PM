@@ -7,6 +7,7 @@ import { darkTheme, lightTheme } from "../styles/theme";
 import { router } from "./router";
 import { COLOR_MODE_STORAGE_KEY, ColorModeContext } from "./colorMode";
 import { AuthProvider } from "../auth/AuthContext";
+import AppSnackbar from "../components/shared/AppSnackbar";
 
 function App() {
   const [mode, setMode] = useState<PaletteMode>(() => {
@@ -38,6 +39,7 @@ function App() {
         <CssBaseline />
         <AuthProvider>
           <RouterProvider router={router} />
+          <AppSnackbar />
         </AuthProvider>
       </ThemeProvider>
     </ColorModeContext.Provider>

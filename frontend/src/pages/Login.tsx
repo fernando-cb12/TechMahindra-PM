@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Box, AppBar, Toolbar } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
@@ -8,6 +8,7 @@ import LoginForm from "../components/login/LoginForm";
 import { ROUTES } from "../app/routes";
 import { useAuth } from "../auth/useAuth";
 import { hasMinimumRole } from "../auth/auth";
+import { showAppNotification, showAppError } from "../components/shared/appNotifications";
 
 function Login() {
   const navigate = useNavigate();
@@ -16,13 +17,14 @@ function Login() {
   const theme = useTheme();
   const fontFamily = theme.typography.fontFamily ?? '"Montserrat", sans-serif';
   const appBarBg = theme.palette.grey[800];
-  const [errorMessage, setErrorMessage] = useState<string | undefined>(
-    location.state &&
-      typeof location.state === "object" &&
-      "denied" in location.state
-      ? "Your account does not have enough permissions to access this app."
-      : undefined,
-  );
+  const accessDeniedMessage = "Your account does not have enough permissions to access this app.";
+
+  useEffect(() => {
+    if (location.state && typeof location.state === "object" && "denied" in location.state) {
+      showAppNotification({ message: accessDeniedMessage, severity: "error" });
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, accessDeniedMessage]);
 
   const handleLogin = async ({
     email,
@@ -42,17 +44,12 @@ function Login() {
       const canAccess = hasMinimumRole(session.roles, "DEVELOPER");
       if (!canAccess) {
         logout();
-        setErrorMessage(
-          "Your account does not have enough permissions to access this app.",
-        );
+        showAppNotification({ message: accessDeniedMessage, severity: "error" });
         return;
       }
-      setErrorMessage(undefined);
       navigate(ROUTES.dashboard, { replace: true });
     } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "Unable to sign in",
-      );
+      showAppError(error, "Unable to sign in");
     }
   };
 
@@ -106,7 +103,7 @@ function Login() {
         />
 
         {/* Login Form */}
-        <LoginForm onLogin={handleLogin} errorMessage={errorMessage} />
+        <LoginForm onLogin={handleLogin} />
       </Box>
     </Box>
   );

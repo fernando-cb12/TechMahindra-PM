@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Box, CircularProgress, Alert, Button, useTheme } from '@mui/material';
+import { Box, CircularProgress, Button, Typography, useTheme } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import type { WorkspaceProjectCardData } from '../components/workspaces/WorkspaceProjectCard';
 import { getWorkspace } from '../services/workspacesService';
@@ -10,6 +10,7 @@ import WorkspaceIssuesSection from '../components/workspaces/detail/WorkspaceIss
 import WorkspaceBoardsSection from '../components/workspaces/detail/WorkspaceBoardsSection';
 import WorkspaceMetricsSection from '../components/workspaces/detail/WorkspaceMetricsSection';
 import WorkspaceUsersSection from '../components/workspaces/detail/WorkspaceUsersSection';
+import { showAppNotification, showAppError } from '../components/shared/appNotifications';
 
 function WorkspaceDetail() {
   const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -17,12 +18,11 @@ function WorkspaceDetail() {
   const theme = useTheme();
   const [workspace, setWorkspace] = useState<WorkspaceProjectCardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadWorkspace = async () => {
       if (!workspaceId) {
-        setError('Workspace ID not found');
+        showAppNotification({ message: 'Workspace ID not found', severity: 'error' });
         setIsLoading(false);
         return;
       }
@@ -31,7 +31,7 @@ function WorkspaceDetail() {
         const found = await getWorkspace(workspaceId);
         setWorkspace(found);
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to load workspace');
+        showAppError(e, 'Failed to load workspace');
       } finally {
         setIsLoading(false);
       }
@@ -58,7 +58,7 @@ function WorkspaceDetail() {
     );
   }
 
-  if (error || !workspace) {
+  if (!workspace) {
     return (
       <Box
         component="main"
@@ -84,7 +84,9 @@ function WorkspaceDetail() {
         >
           Back to Workspaces
         </Button>
-        <Alert severity="error">{error || 'Workspace not found'}</Alert>
+        <Typography sx={{ color: 'text.secondary', fontFamily: 'Montserrat, sans-serif' }}>
+          Workspace not found
+        </Typography>
       </Box>
     );
   }

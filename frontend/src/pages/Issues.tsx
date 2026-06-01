@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import {
-  Alert,
   Box,
   Button,
   CircularProgress,
@@ -24,13 +23,13 @@ import IssuesSummaryCards from '../components/issue/IssuesSummaryCards';
 import { createIssue, getIssues } from '../services/issueService';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import type { IssueCardProps } from '../components/issue/types';
+import { showAppError } from '../components/shared/appNotifications';
 
 function Issues() {
   const navigate = useNavigate();
   const theme = useTheme();
   const [issues, setIssues] = useState<IssueCardProps[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [tab, setTab] = useState<'all' | 'mine'>('mine');
   const [searchParams] = useSearchParams();
   const projectFromParam = searchParams.get('project');
@@ -40,17 +39,15 @@ function Issues() {
   const [searchQuery, setSearchQuery] = useState('');
   const [openModal, setOpenModal] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
-      setLoadError(null);
       try {
         const data = await getIssues();
         setIssues(data);
       } catch (error) {
         setIssues([]);
-        setLoadError(error instanceof Error ? error.message : 'Failed to load issues');
+        showAppError(error, 'Failed to load issues');
       } finally {
         setIsLoading(false);
       }
@@ -94,7 +91,6 @@ function Issues() {
   const handleCloseModal = () => {
     if (isCreating) return;
     setOpenModal(false);
-    setCreateError(null);
   };
 
   const handleNewIssue = async (issue: {
@@ -105,7 +101,6 @@ function Issues() {
     priority: 'high' | 'medium' | 'low';
     status: string;
   }) => {
-    setCreateError(null);
     setIsCreating(true);
     try {
       await createIssue({
@@ -119,7 +114,7 @@ function Issues() {
       setIssues(data);
       setOpenModal(false);
     } catch (error) {
-      setCreateError(error instanceof Error ? error.message : 'Failed to create issue');
+      showAppError(error, 'Failed to create issue');
     } finally {
       setIsCreating(false);
     }
@@ -197,7 +192,6 @@ function Issues() {
 
         <Button
           onClick={() => {
-            setCreateError(null);
             setOpenModal(true);
           }}
           variant="contained"
@@ -261,11 +255,6 @@ function Issues() {
           >
             Add a new issue to track work, assign ownership, and set priority.
           </Typography>
-          {createError ? (
-            <Alert severity="error" sx={{ mb: 2, boxShadow: 'none' }}>
-              {createError}
-            </Alert>
-          ) : null}
           <NewIssue
             open={openModal}
             projectOptions={projectOptions.filter((p) => p !== 'all')}
@@ -307,12 +296,6 @@ function Issues() {
           </Button>
         </DialogActions>
       </Dialog>
-
-      {loadError ? (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {loadError}
-        </Alert>
-      ) : null}
 
       <IssuesTabs tab={tab} onTabChange={setTab} />
 
