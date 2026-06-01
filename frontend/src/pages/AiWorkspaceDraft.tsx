@@ -10,7 +10,6 @@ import {
   CircularProgress,
   IconButton,
   MenuItem,
-  Paper,
   Stack,
   TextField,
   Typography,
@@ -26,6 +25,7 @@ import {
   type AiWorkspaceDraft as AiWorkspaceDraftType,
   type DraftTask,
 } from '../services/aiWorkspaceService';
+import { showAppNotification, showAppError } from '../components/shared/appNotifications';
 
 const priorityOptions = ['low', 'medium', 'high', 'critical'] as const;
 const statusOptions = ['todo', 'in_progress', 'review', 'done', 'blocked'] as const;
@@ -36,12 +36,11 @@ function AiWorkspaceDraft() {
   const [draft, setDraft] = useState<AiWorkspaceDraftType | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     if (!draftId) {
-      setError('Draft not found');
+      showAppNotification({ message: 'Draft not found', severity: 'error' });
       setLoading(false);
       return;
     }
@@ -50,7 +49,7 @@ function AiWorkspaceDraft() {
         if (!cancelled) setDraft(payload);
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load AI draft');
+        if (!cancelled) showAppError(err, 'Could not load AI draft');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -148,7 +147,6 @@ function AiWorkspaceDraft() {
   const handleApprove = async () => {
     if (!draft) return;
     setSaving(true);
-    setError(null);
     try {
       const response = await approveAiWorkspaceDraft(draft);
       window.dispatchEvent(new CustomEvent('workspace:created', { detail: { workspaceId: response.workspaceId } }));
@@ -157,7 +155,7 @@ function AiWorkspaceDraft() {
         ? `/workspaces/${response.workspaceId}/boards/${response.firstBoardId}`
         : `/workspaces/${response.workspaceId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not approve AI draft');
+      showAppError(err, 'Could not approve AI draft');
     } finally {
       setSaving(false);
     }
@@ -182,7 +180,7 @@ function AiWorkspaceDraft() {
     return (
       <Box sx={{ p: 4 }}>
         <Typography sx={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: 24 }}>
-          {error ?? 'Draft not found'}
+          Draft not found
         </Typography>
         <Button onClick={() => navigate('/workspaces')} sx={{ mt: 2, textTransform: 'none' }}>
           Back to workspaces
@@ -210,13 +208,7 @@ function AiWorkspaceDraft() {
           </Stack>
         </Stack>
 
-        {error && (
-          <Paper sx={{ p: 2, borderRadius: 2, border: '1px solid #F1B8B8', bgcolor: '#FFF5F5' }}>
-            <Typography sx={{ color: '#A3334D', fontFamily: 'Montserrat, sans-serif' }}>{error}</Typography>
-          </Paper>
-        )}
-
-        <Paper sx={{ p: 3, borderRadius: 2, border: '1px solid #E4E7EC' }}>
+        <Box sx={{ p: 3, borderRadius: 2, border: '1px solid #E4E7EC', bgcolor: 'background.paper' }}>
           <Stack spacing={2}>
             <TextField
               label="Workspace title"
@@ -249,7 +241,7 @@ function AiWorkspaceDraft() {
               />
             </Stack>
           </Stack>
-        </Paper>
+        </Box>
 
         <Stack spacing={2}>
           {draft.boards.map((board, boardIndex) => (
@@ -289,7 +281,7 @@ function AiWorkspaceDraft() {
                     minRows={2}
                   />
                   {board.groups.map((group, groupIndex) => (
-                    <Paper key={`${group.name}-${groupIndex}`} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                    <Box key={`${group.name}-${groupIndex}`} sx={{ p: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
                       <Stack spacing={2}>
                         <Stack direction="row" spacing={1} alignItems="center">
                           <TextField
@@ -303,7 +295,7 @@ function AiWorkspaceDraft() {
                           </IconButton>
                         </Stack>
                         {group.tasks.map((task, taskIndex) => (
-                          <Paper key={`${task.name}-${taskIndex}`} sx={{ p: 2, borderRadius: 2, bgcolor: '#FFFFFF', border: '1px solid #EAECF0' }}>
+                          <Box key={`${task.name}-${taskIndex}`} sx={{ p: 2, borderRadius: 2, bgcolor: '#FFFFFF', border: '1px solid #EAECF0' }}>
                             <Stack spacing={1.5}>
                               <Stack direction="row" spacing={1} alignItems="center">
                                 <TextField
@@ -353,10 +345,10 @@ function AiWorkspaceDraft() {
                                 />
                               </Stack>
                             </Stack>
-                          </Paper>
+                          </Box>
                         ))}
                       </Stack>
-                    </Paper>
+                    </Box>
                   ))}
                 </Stack>
               </AccordionDetails>

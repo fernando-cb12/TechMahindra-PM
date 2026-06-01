@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box, CircularProgress, Paper, Typography, Button, useTheme, alpha } from '@mui/material';
+import { Box, CircularProgress, Paper, Typography, Button, useTheme, alpha } from '@mui/material';
 import FolderIcon from '@mui/icons-material/Folder';
 import AddIcon from '@mui/icons-material/Add';
 import { getWorkspaceBoards, type WorkspaceBoard } from '../../../services/workspacesService';
 import { useNavigate } from 'react-router-dom';
+import { showAppError } from '../../shared/appNotifications';
 
 interface WorkspaceBoardsSectionProps {
   workspaceId: string;
@@ -14,18 +15,16 @@ function WorkspaceBoardsSection({ workspaceId }: WorkspaceBoardsSectionProps): R
   const navigate = useNavigate();
   const [boards, setBoards] = useState<WorkspaceBoard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const loadBoards = async () => {
       setIsLoading(true);
-      setError(null);
       try {
         const data = await getWorkspaceBoards(workspaceId);
         if (!cancelled) setBoards(data);
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load boards');
+        if (!cancelled) showAppError(e, 'Failed to load boards');
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -101,8 +100,6 @@ function WorkspaceBoardsSection({ workspaceId }: WorkspaceBoardsSectionProps): R
           <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <CircularProgress size={24} sx={{ color: 'primary.main' }} />
           </Box>
-        ) : error ? (
-          <Alert severity="error">{error}</Alert>
         ) : boards.length === 0 ? (
           <Typography sx={{ color: 'text.secondary', fontSize: 13, py: 2 }}>
             No boards yet

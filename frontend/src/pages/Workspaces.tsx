@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Alert,
   Box,
   Button,
   CircularProgress,
@@ -30,6 +29,7 @@ import {
 } from '../services/workspacesService';
 import { hasMinimumRole, loadSession } from '../auth/auth';
 import { processAiWorkspacePdf } from '../services/aiWorkspaceService';
+import { showAppError } from '../components/shared/appNotifications';
 
 function Workspaces() {
   const navigate = useNavigate();
@@ -43,8 +43,6 @@ function Workspaces() {
   const [isAIProcessing, setIsAIProcessing] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
   const [assignableUsers, setAssignableUsers] = useState<AssignableUser[]>([]);
   const theme = useTheme();
   const [filters, setFilters] = useState<WorkspaceFilters>({
@@ -67,13 +65,12 @@ function Workspaces() {
   }, [projects]);
 
   const loadProjects = useCallback(async () => {
-    setLoadError(null);
     try {
       const data = await getWorkspaceProjects();
       setProjects(data);
     } catch (e) {
       setProjects([]);
-      setLoadError(e instanceof Error ? e.message : 'Failed to load workspaces');
+      showAppError(e, 'Failed to load workspaces');
     } finally {
       setIsLoading(false);
     }
@@ -176,7 +173,6 @@ function Workspaces() {
 
   const handleCreateWorkspace = async (payload: CreateWorkspaceProjectPayload) => {
     if (isCreatingRef.current || isSaving) return;
-    setActionError(null);
     isCreatingRef.current = true;
     setIsSaving(true);
     try {
@@ -187,7 +183,7 @@ function Workspaces() {
       setAISelectedFileName(null);
       window.dispatchEvent(new CustomEvent('workspace:created', { detail: { workspaceId: newProject.id } }));
     } catch (e) {
-      setActionError(e instanceof Error ? e.message : 'Create failed');
+      showAppError(e, 'Create failed');
     } finally {
       isCreatingRef.current = false;
       setIsSaving(false);
@@ -211,7 +207,6 @@ function Workspaces() {
 
   const handleAIContinue = async () => {
     if (!aiSelectedFile || isAIProcessing) return;
-    setActionError(null);
     setIsAIProcessing(true);
     try {
       const draft = await processAiWorkspacePdf(aiSelectedFile);
@@ -220,7 +215,7 @@ function Workspaces() {
       setAISelectedFileName(null);
       navigate(`/workspaces/ai-draft/${draft.id}`);
     } catch (e) {
-      setActionError(e instanceof Error ? e.message : 'Failed to process PDF with AI');
+      showAppError(e, 'Failed to process PDF with AI');
     } finally {
       setIsAIProcessing(false);
     }
@@ -316,7 +311,6 @@ function Workspaces() {
               disableElevation
               disabled={isSaving}
               onClick={() => {
-                setActionError(null);
                 setIsCreateChoiceOpen(true);
               }}
               sx={{
@@ -336,17 +330,6 @@ function Workspaces() {
           ) : null}
         </Box>
       </Box>
-
-      {loadError ? (
-        <Alert severity="error" sx={{ mt: 2 }}>
-          {loadError}
-        </Alert>
-      ) : null}
-      {actionError ? (
-        <Alert severity="error" sx={{ mt: 2 }} onClose={() => setActionError(null)}>
-          {actionError}
-        </Alert>
-      ) : null}
 
       <CreateWorkspaceModal
         open={isCreateOpen}
