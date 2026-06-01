@@ -38,6 +38,7 @@ import {
   type TaskBoardPayload,
   updateBoard as updateBoardRequest,
   updateTaskGroup,
+  updateTaskUpdate as updateTaskUpdateRequest,
 } from '../../../services/taskBoardService';
 
 // ─── localStorage helpers (Section 18 of spec) ───
@@ -236,10 +237,15 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       attachments,
       mentions,
     };
-    updateTask(taskId, {
-      updates: [...(existing.updates || []), optimisticUpdate],
-      files: [...(existing.files || []), ...attachments],
-    });
+    setTasks((prev) => ({
+      ...prev,
+      [taskId]: {
+        ...existing,
+        updates: [...(existing.updates || []), optimisticUpdate],
+        files: [...(existing.files || []), ...attachments],
+        updatedAt: new Date().toISOString(),
+      },
+    }));
     void createTaskUpdate(workspaceId, boardId, taskId, { content, attachments, mentions })
       .then(() => {
         void getTaskBoard(workspaceId, boardId).then((payload) => {
@@ -252,7 +258,55 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
         });
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to create update'));
-  }, [workspaceId, boardId, tasks, users, updateTask]);
+  }, [workspaceId, boardId, tasks, users]);
+
+  const editTaskUpdate = useCallback((taskId: string, updateId: string, content: string, mentions: string[]) => {
+    const existing = tasks[taskId];
+    if (!existing) return;
+    const previousUpdates = existing.updates || [];
+    const optimisticUpdates = previousUpdates.map((update) =>
+      update.id === updateId
+        ? { ...update, content, mentions, updatedAt: new Date().toISOString() }
+        : update
+    );
+    setTasks((prev) => ({
+      ...prev,
+      [taskId]: {
+        ...prev[taskId],
+        updates: optimisticUpdates,
+        updatedAt: new Date().toISOString(),
+      },
+    }));
+    void updateTaskUpdateRequest(workspaceId, boardId, taskId, updateId, { content, mentions })
+      .then((savedUpdate) => {
+        setTasks((prev) => {
+          const current = prev[taskId];
+          if (!current) return prev;
+          return {
+            ...prev,
+            [taskId]: {
+              ...current,
+              updates: current.updates.map((update) => update.id === savedUpdate.id ? savedUpdate : update),
+              updatedAt: new Date().toISOString(),
+            },
+          };
+        });
+      })
+      .catch((e) => {
+        setTasks((prev) => {
+          const current = prev[taskId];
+          if (!current) return prev;
+          return {
+            ...prev,
+            [taskId]: {
+              ...current,
+              updates: previousUpdates,
+            },
+          };
+        });
+        setError(e instanceof Error ? e.message : 'Failed to edit update');
+      });
+  }, [workspaceId, boardId, tasks]);
 
   const addTask = useCallback((task: Task, options: TaskCreateOptions = {}) => {
     const shouldOpenDetails = options.openDetails === true;
@@ -906,6 +960,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       toggleGroupCollapse,
       updateTask,
       postTaskUpdate,
+      editTaskUpdate,
       addTask,
       addTaskToGroup,
       addTaskToFirstGroup,
@@ -955,6 +1010,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       toggleGroupCollapse,
       updateTask,
       postTaskUpdate,
+      editTaskUpdate,
       addTask,
       addTaskToGroup,
       addTaskToFirstGroup,

@@ -1,148 +1,205 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { Box, InputAdornment, Stack, TextField, Typography } from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
+import { useNavigate } from 'react-router-dom';
 import {
-  Box,
-  Button,
-  CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  Stack,
-  Typography,
-  useTheme,
-  type SelectChangeEvent,
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import NewIssue from '../components/issue/NewIssue';
-import IssueList from '../components/issue/IssueList';
-import IssuesTabs from '../components/issue/IssuesTabs';
-import IssuesFilters from '../components/issue/IssuesFilters';
-import IssuesSummaryCards from '../components/issue/IssuesSummaryCards';
-import { createIssue, getIssues } from '../services/issueService';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import type { IssueCardProps } from '../components/issue/types';
-import { showAppError } from '../components/shared/appNotifications';
+  getMyTasks,
+  type MyTaskListItem,
+} from '../services/myTasksService';
+import { getUserPreferences, updateMyTasksFilterMode } from '../services/userPreferencesService';
+import { loadSession } from '../auth/auth';
+import { useAuth } from '../auth/useAuth';
+import { showAppError, showAppNotification } from '../components/shared/appNotifications';
+import MyTaskActionsMenu from '../components/my-tasks/MyTaskActionsMenu';
+import MyTaskBoardDetailPanel from '../components/my-tasks/MyTaskBoardDetailPanel';
+import MyTasksFilterBar from '../components/my-tasks/MyTasksFilterBar';
+import MyTasksInsights from '../components/my-tasks/MyTasksInsights';
+import MyTasksTable from '../components/my-tasks/MyTasksTable';
+import {
+  DUE_DATE_FILTER_CHOICES,
+  buildMyTasksSummary,
+  getTaskLink,
+  getWorkflowLabel,
+  taskMatchesFilters,
+  taskMatchesInsight,
+  taskMatchesSearch,
+  uniqueChoices,
+} from '../components/my-tasks/myTasksUtils';
+import {
+  EMPTY_MY_TASKS_FILTERS,
+  type InsightId,
+  type MyTasksFilterMode,
+  type MyTasksFilters,
+  type TaskMenuState,
+} from '../components/my-tasks/types';
+
+const isMyTasksFilterMode = (value: unknown): value is MyTasksFilterMode => value === 'kpis' || value === 'filters';
+
+function getStoredFilterMode() {
+  const email = loadSession()?.email ?? 'anonymous';
+  const storedMode = window.localStorage.getItem(`mytasks:${email}:filterMode`);
+  return isMyTasksFilterMode(storedMode) ? storedMode : 'kpis';
+}
 
 function Issues() {
   const navigate = useNavigate();
-  const theme = useTheme();
-  const [issues, setIssues] = useState<IssueCardProps[]>([]);
+  const { session } = useAuth();
+  const [tasks, setTasks] = useState<MyTaskListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [tab, setTab] = useState<'all' | 'mine'>('mine');
-  const [searchParams] = useSearchParams();
-  const projectFromParam = searchParams.get('project');
-  const workspaceIdFromParam = searchParams.get('workspaceId');
-  const [projectFilter, setProjectFilter] = useState<string>(projectFromParam ?? 'all');
-  const [assigneeFilter, setAssigneeFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [openModal, setOpenModal] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
+  const [filterMode, setFilterMode] = useState<MyTasksFilterMode>(() => getStoredFilterMode());
+  const [selectedInsight, setSelectedInsight] = useState<InsightId | null>(null);
+  const [filters, setFilters] = useState<MyTasksFilters>(EMPTY_MY_TASKS_FILTERS);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [menuState, setMenuState] = useState<TaskMenuState>(null);
+  const filterModeStorageKey = useMemo(
+    () => `mytasks:${session?.email ?? 'anonymous'}:filterMode`,
+    [session?.email]
+  );
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await getIssues();
-        setIssues(data);
-      } catch (error) {
-        setIssues([]);
-        showAppError(error, 'Failed to load issues');
-      } finally {
-        setIsLoading(false);
-      }
+  const loadTasks = useCallback(() => {
+    let cancelled = false;
+    void getMyTasks()
+      .then((response) => {
+        if (!cancelled) setTasks(response.items);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setTasks([]);
+          showAppError(error, 'Failed to load my tasks');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
     };
-
-    void load();
   }, []);
 
-  const assigneeOptions = useMemo(
-    () => ['all', ...Array.from(new Set(issues.map((issue) => issue.assignee)))],
-    [issues]
+  useEffect(() => loadTasks(), [loadTasks]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getUserPreferences()
+      .then((preferences) => {
+        const savedMode = preferences.myTasks?.filterMode;
+        if (!cancelled && isMyTasksFilterMode(savedMode)) {
+          setFilterMode(savedMode);
+          window.localStorage.setItem(filterModeStorageKey, savedMode);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [filterModeStorageKey]);
+
+  const summary = useMemo(() => buildMyTasksSummary(tasks), [tasks]);
+
+  const workspaceChoices = useMemo(
+    () => uniqueChoices(tasks, (task) => task.workspaceId, (task) => task.workspaceName),
+    [tasks]
   );
 
-  const projectOptions = useMemo(
-    () => ['all', ...Array.from(new Set(issues.map((issue) => issue.project)))],
-    [issues]
+  const boardChoices = useMemo(() => {
+    const scopedTasks = filters.workspaceIds.length > 0
+      ? tasks.filter((task) => filters.workspaceIds.includes(task.workspaceId))
+      : tasks;
+    return uniqueChoices(scopedTasks, (task) => task.boardId, (task) => task.boardName, undefined, (task) => task.workspaceName);
+  }, [tasks, filters.workspaceIds]);
+
+  const priorityChoices = useMemo(
+    () => uniqueChoices(tasks, (task) => task.priority, (task) => task.priorityLabel, (task) => task.priorityColor),
+    [tasks]
   );
 
-  const issueStats = useMemo(
-    () => ({
-      total: issues.length,
-      high: issues.filter((issue) => issue.priority === 'high').length,
-      inProgress: issues.filter((issue) => issue.status === 'In Progress').length,
-      done: issues.filter((issue) => issue.status === 'Done').length,
-    }),
-    [issues]
+  const statusChoices = useMemo(
+    () => uniqueChoices(tasks, (task) => task.workflow, (task) => getWorkflowLabel(task.workflow)),
+    [tasks]
   );
 
-  const handleProjectChange = (e: SelectChangeEvent) => {
-    setProjectFilter(e.target.value);
+  const toggleFilter = <K extends keyof MyTasksFilters>(key: K, value: MyTasksFilters[K][number]) => {
+    setFilters((prev) => {
+      const current = prev[key] as string[];
+      const next = current.includes(String(value))
+        ? current.filter((item) => item !== String(value))
+        : [...current, String(value)];
+
+      if (key === 'workspaceIds') {
+        const nextWorkspaceIds = next;
+        const allowedBoardIds = new Set(
+          tasks
+            .filter((task) => nextWorkspaceIds.length === 0 || nextWorkspaceIds.includes(task.workspaceId))
+            .map((task) => task.boardId)
+        );
+        return {
+          ...prev,
+          workspaceIds: nextWorkspaceIds,
+          boardIds: prev.boardIds.filter((boardId) => allowedBoardIds.has(boardId)),
+        };
+      }
+
+      return { ...prev, [key]: next };
+    });
   };
 
-  const handleAssigneeChange = (e: SelectChangeEvent) => {
-    setAssigneeFilter(e.target.value);
-  };
+  const changeFilterMode = (mode: MyTasksFilterMode) => {
+    setFilterMode(mode);
+    setSelectedInsight(null);
+    window.localStorage.setItem(filterModeStorageKey, mode);
 
-  const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(event.target.value);
-  };
-
-  const handleCloseModal = () => {
-    if (isCreating) return;
-    setOpenModal(false);
-  };
-
-  const handleNewIssue = async (issue: {
-    issueKey: string;
-    project: string;
-    summary: string;
-    assignee: string;
-    priority: 'high' | 'medium' | 'low';
-    status: string;
-  }) => {
-    setIsCreating(true);
-    try {
-      await createIssue({
-        project: issue.project,
-        summary: issue.summary,
-        assignee: issue.assignee,
-        priority: issue.priority,
-        status: issue.status,
-      });
-      const data = await getIssues();
-      setIssues(data);
-      setOpenModal(false);
-    } catch (error) {
-      showAppError(error, 'Failed to create issue');
-    } finally {
-      setIsCreating(false);
+    if (mode === 'kpis') {
+      setFilters((prev) => ({ ...prev, workflows: [], dueDates: [] }));
     }
+
+    void updateMyTasksFilterMode(mode).catch(() => undefined);
   };
 
-  const visibleIssues = useMemo(() => {
-    const filteredByTab =
-      tab === 'mine'
-        ? issues.filter((issue) => issue.assignee === 'Antonio Calderon')
-        : issues;
+  const visibleTasks = useMemo(() => (
+    tasks
+      .filter((task) => filterMode === 'kpis' ? taskMatchesInsight(task, selectedInsight) : true)
+      .filter((task) => taskMatchesFilters(task, filters))
+      .filter((task) => taskMatchesSearch(task, searchQuery))
+  ), [tasks, filterMode, selectedInsight, filters, searchQuery]);
 
-    return filteredByTab
-      .filter(
-        (issue) =>
-          projectFilter === 'all' || issue.project === projectFilter
-      )
-      .filter(
-        (issue) =>
-          assigneeFilter === 'all' || issue.assignee === assigneeFilter
-      )
-      .filter((issue) => {
-        const searchText = searchQuery.toLowerCase();
-        return [issue.issueKey, issue.summary, issue.assignee, issue.project]
-          .join(' ')
-          .toLowerCase()
-          .includes(searchText);
-      });
-  }, [issues, tab, projectFilter, assigneeFilter, searchQuery]);
+  const selectedTask = selectedTaskId ? tasks.find((task) => task.id === selectedTaskId) ?? null : null;
+  const menuTask = menuState ? tasks.find((task) => task.id === menuState.taskId) ?? null : null;
+
+  const openTaskMenu = (event: MouseEvent<HTMLElement>, taskId: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setMenuState({ anchor: event.currentTarget, taskId });
+  };
+
+  const openTaskContextMenu = (event: MouseEvent<HTMLElement>, taskId: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setMenuState({
+      taskId,
+      position: {
+        mouseX: event.clientX + 2,
+        mouseY: event.clientY - 6,
+      },
+    });
+  };
+
+  const copyTaskLink = async (task: MyTaskListItem) => {
+    const url = `${window.location.origin}${getTaskLink(task)}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      showAppNotification({ message: 'Task link copied', severity: 'success' });
+    } catch {
+      showAppNotification({ message: url, severity: 'info' });
+    }
+    setMenuState(null);
+  };
+
+  const openTaskOnBoard = (task: MyTaskListItem) => {
+    navigate(getTaskLink(task));
+    setMenuState(null);
+  };
 
   return (
     <Box
@@ -150,176 +207,92 @@ function Issues() {
       sx={{
         flex: 1,
         minHeight: '100vh',
-        backgroundColor: 'background.default',
+        bgcolor: 'background.default',
         px: { xs: 2, sm: 4 },
         py: 4,
       }}
     >
-      <Button
-        startIcon={<ArrowBackIcon />}
-        onClick={() => navigate(workspaceIdFromParam ? `/workspaces/${workspaceIdFromParam}` : '/workspaces')}
-        sx={{
-          textTransform: 'none',
-          mb: 3,
-          color: theme.palette.mode === 'dark' ? '#fff' : 'primary.main',
-          fontWeight: 600,
-          fontSize: 14,
-          '&:hover': { bgcolor: 'rgba(95, 2, 41, 0.08)' },
-        }}
-      >
-        Back to Workspace
-      </Button>
-
-      <Stack
-        direction={{ xs: 'column', md: 'row' }}
-        alignItems={{ xs: 'flex-start', md: 'center' }}
-        justifyContent="space-between"
-        sx={{ mb: 3, gap: 3 }}
-      >
-        <Box sx={{ maxWidth: 680 }}>
-          <Typography
-            sx={{
-              fontFamily: 'Montserrat, sans-serif',
-              fontWeight: 700,
-              fontSize: { xs: 28, sm: 32 },
-              color: 'text.primary',
-              mb: 1,
-            }}
-          >
-            Issues
+      <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', md: 'flex-start' }} gap={2.5} sx={{ mb: 3 }}>
+        <Box>
+          <Typography sx={{ fontSize: { xs: 28, sm: 34 }, fontWeight: 900, color: 'text.primary', lineHeight: 1.15 }}>
+            My Tasks
+          </Typography>
+          <Typography sx={{ mt: 0.75, fontSize: 13.5, color: 'text.secondary', fontWeight: 600 }}>
+            Tasks assigned to you across workspaces and boards.
           </Typography>
         </Box>
-
-        <Button
-          onClick={() => {
-            setOpenModal(true);
+        <TextField
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder="Search my tasks..."
+          size="small"
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon fontSize="small" />
+              </InputAdornment>
+            ),
           }}
-          variant="contained"
-          disableElevation
           sx={{
-            bgcolor: 'primary.main',
-            borderRadius: '5px',
-            minHeight: 42,
-            px: 3,
-            fontFamily: 'Montserrat, sans-serif',
-            fontWeight: 700,
-            fontSize: 14,
-            textTransform: 'none',
-            boxShadow: 'none',
-            '&:hover': { bgcolor: 'primary.dark', boxShadow: 'none' },
+            width: { xs: '100%', md: 360 },
+            '& .MuiOutlinedInput-root': {
+              height: 42,
+              borderRadius: 2,
+              bgcolor: 'background.paper',
+            },
           }}
-        >
-          + Create Issue
-        </Button>
+        />
       </Stack>
 
-      <Dialog
-        open={openModal}
-        onClose={handleCloseModal}
-        fullWidth
-        maxWidth="sm"
-        PaperProps={{
-          sx: {
-            boxShadow: 'none',
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: '5px',
-          },
-        }}
-        BackdropProps={{ sx: { backgroundColor: 'rgba(0, 0, 0, 0.55)' } }}
-      >
-        <DialogTitle
-          sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            fontFamily: 'Montserrat, sans-serif',
-            fontWeight: 700,
-            fontSize: 20,
-            pb: 1,
-          }}
-        >
-          Create Issue
-          <IconButton onClick={handleCloseModal} size="small" disabled={isCreating} aria-label="Close">
-            <CloseIcon />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent sx={{ pt: 0 }}>
-          <Typography
-            sx={{
-              fontFamily: 'Montserrat, sans-serif',
-              fontSize: 14,
-              color: 'text.secondary',
-              mb: 2,
-            }}
-          >
-            Add a new issue to track work, assign ownership, and set priority.
-          </Typography>
-          <NewIssue
-            open={openModal}
-            projectOptions={projectOptions.filter((p) => p !== 'all')}
-            onSubmit={handleNewIssue}
-          />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3, pt: 1, gap: 1 }}>
-          <Button
-            onClick={handleCloseModal}
-            disabled={isCreating}
-            sx={{
-              fontFamily: 'Montserrat, sans-serif',
-              textTransform: 'none',
-              fontWeight: 600,
-              color: 'text.primary',
-              boxShadow: 'none',
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            form="create-issue-form"
-            variant="contained"
-            disableElevation
-            disabled={isCreating}
-            sx={{
-              fontFamily: 'Montserrat, sans-serif',
-              textTransform: 'none',
-              fontWeight: 700,
-              bgcolor: 'primary.main',
-              borderRadius: '5px',
-              minWidth: 120,
-              boxShadow: 'none',
-              '&:hover': { bgcolor: 'primary.dark', boxShadow: 'none' },
-            }}
-          >
-            {isCreating ? 'Creating...' : 'Create Issue'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <IssuesTabs tab={tab} onTabChange={setTab} />
-
-      <IssuesFilters
-        searchQuery={searchQuery}
-        projectFilter={projectFilter}
-        assigneeFilter={assigneeFilter}
-        projectOptions={projectOptions}
-        assigneeOptions={assigneeOptions}
-        onSearchChange={handleSearchChange}
-        onProjectChange={handleProjectChange}
-        onAssigneeChange={handleAssigneeChange}
-        hideProjectFilter={Boolean(projectFromParam)}
-      />
-
-      {isLoading ? (
-        <Box sx={{ py: 8, display: 'flex', justifyContent: 'center' }}>
-          <CircularProgress size={24} sx={{ color: 'primary.main' }} />
-        </Box>
-      ) : (
-        <IssueList issues={visibleIssues} />
+      {filterMode === 'kpis' && (
+        <MyTasksInsights
+          summary={summary}
+          selectedInsight={selectedInsight}
+          onSelectInsight={setSelectedInsight}
+        />
       )}
 
-      <IssuesSummaryCards stats={issueStats} />
+      <MyTasksFilterBar
+        filters={filters}
+        workspaceChoices={workspaceChoices}
+        boardChoices={boardChoices}
+        priorityChoices={priorityChoices}
+        statusChoices={statusChoices}
+        dueDateChoices={DUE_DATE_FILTER_CHOICES}
+        filterMode={filterMode}
+        visibleCount={visibleTasks.length}
+        onToggleFilter={toggleFilter}
+        onFilterModeChange={changeFilterMode}
+        onClear={() => setFilters(EMPTY_MY_TASKS_FILTERS)}
+      />
+
+      <MyTasksTable
+        tasks={visibleTasks}
+        isLoading={isLoading}
+        onOpenTask={setSelectedTaskId}
+        onOpenMenu={openTaskMenu}
+        onOpenContextMenu={openTaskContextMenu}
+      />
+
+      <MyTaskActionsMenu
+        state={menuState}
+        task={menuTask}
+        onClose={() => setMenuState(null)}
+        onOpenDetails={(task) => {
+          setSelectedTaskId(task.id);
+          setMenuState(null);
+        }}
+        onOpenInBoard={openTaskOnBoard}
+        onCopyLink={copyTaskLink}
+      />
+
+      <MyTaskBoardDetailPanel
+        task={selectedTask}
+        onClose={() => {
+          setSelectedTaskId(null);
+          loadTasks();
+        }}
+      />
     </Box>
   );
 }

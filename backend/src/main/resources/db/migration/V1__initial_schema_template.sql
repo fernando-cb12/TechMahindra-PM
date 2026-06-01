@@ -14,7 +14,8 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     status        VARCHAR(20) NOT NULL DEFAULT 'active'
                   CHECK (status IN ('active', 'inactive', 'banned')),
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    preferences JSONB NOT NULL DEFAULT '{}'
 );
 
 CREATE TABLE user_role (

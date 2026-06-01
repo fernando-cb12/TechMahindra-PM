@@ -40,6 +40,7 @@ import { useState, useRef, useMemo, useEffect } from 'react';
 import type { TaskUpdate, FileAttachment, User, TaskActivity } from '../types';
 import { useParams } from 'react-router-dom';
 import { uploadTaskUpdateFile } from '../../../../services/taskBoardService';
+import { useAuth } from '../../../../auth/useAuth';
 
 // Format file size in KB or MB
 function formatFileSize(bytes: number): string {
@@ -58,9 +59,20 @@ function getFileIcon(type: string) {
 }
 
 // ─── 1. UPDATES TAB COMPONENT (Section 11.1/11.2/12.1 of spec) ───
-function UpdatesTab({ taskId }: { taskId: string }) {
-  const { tasks, users, updateTask, postTaskUpdate } = useTaskBoard();
-  const { workspaceId = '', boardId = '' } = useParams();
+function UpdatesTab({
+  taskId,
+  workspaceId: workspaceIdOverride,
+  boardId: boardIdOverride,
+}: {
+  taskId: string;
+  workspaceId?: string;
+  boardId?: string;
+}) {
+  const { tasks, users, postTaskUpdate, editTaskUpdate } = useTaskBoard();
+  const { session } = useAuth();
+  const { workspaceId: routeWorkspaceId = '', boardId: routeBoardId = '' } = useParams();
+  const workspaceId = workspaceIdOverride ?? routeWorkspaceId;
+  const boardId = boardIdOverride ?? routeBoardId;
   const task = tasks[taskId];
   
   const [newUpdate, setNewUpdate] = useState('');
@@ -76,7 +88,11 @@ function UpdatesTab({ taskId }: { taskId: string }) {
   const [draftFiles, setDraftFiles] = useState<FileAttachment[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const activeUser = users['u1'] || { id: 'u1', name: 'Marco Ríos', initials: 'MR', avatarUrl: null };
+  const currentUser = useMemo(
+    () => Object.values(users).find((user) => user.email === session?.email) ?? Object.values(users)[0],
+    [session?.email, users]
+  );
+  const activeUser = currentUser || { id: '', name: 'Current user', initials: '?', avatarUrl: null };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -152,18 +168,20 @@ function UpdatesTab({ taskId }: { taskId: string }) {
     setDraftFiles((prev) => [...prev, newFileAttach]);
   };
 
+  const getMentionedIds = (content: string) => {
+    const mentionedIds: string[] = [];
+    Object.values(users).forEach((member) => {
+      if (content.includes(`@${member.name}`)) {
+        mentionedIds.push(member.id);
+      }
+    });
+    return mentionedIds;
+  };
+
   const handlePost = () => {
     if (!newUpdate.trim() && draftFiles.length === 0) return;
 
-    // Detect mentioned member IDs from the posted comment text
-    const mentionedIds: string[] = [];
-    Object.values(users).forEach((m) => {
-      if (newUpdate.includes(`@${m.name}`)) {
-        mentionedIds.push(m.id);
-      }
-    });
-
-    postTaskUpdate(taskId, newUpdate, draftFiles, mentionedIds);
+    postTaskUpdate(taskId, newUpdate, draftFiles, getMentionedIds(newUpdate));
 
     // Reset editor
     setNewUpdate('');
@@ -176,16 +194,8 @@ function UpdatesTab({ taskId }: { taskId: string }) {
   };
 
   const handleSaveEditComment = (updId: string) => {
-    const updatedComments = task.updates.map((upd) =>
-      upd.id === updId
-        ? {
-            ...upd,
-            content: editingCommentText,
-            updatedAt: new Date().toISOString(),
-          }
-        : upd
-    );
-    updateTask(taskId, { updates: updatedComments });
+    if (!editingCommentText.trim()) return;
+    editTaskUpdate(taskId, updId, editingCommentText, getMentionedIds(editingCommentText));
     setEditingCommentId(null);
   };
 
@@ -281,7 +291,7 @@ function UpdatesTab({ taskId }: { taskId: string }) {
               month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
             });
             const isEditing = editingCommentId === upd.id;
-            const isOwnComment = upd.authorId === 'u1';
+            const isOwnComment = Boolean(currentUser?.id && upd.authorId === currentUser.id);
 
             return (
               <Box key={upd.id} sx={{ display: 'flex', gap: 2, mb: 4 }}>
@@ -328,6 +338,7 @@ function UpdatesTab({ taskId }: { taskId: string }) {
                           size="small"
                           startIcon={<SaveIcon />}
                           onClick={() => handleSaveEditComment(upd.id)}
+                          disabled={!editingCommentText.trim()}
                           sx={{ textTransform: 'none', px: 2 }}
                         >
                           Save
@@ -610,6 +621,8 @@ function summarizeActivity(activity: TaskActivity) {
       return `moved this task from ${valueLabel(activity.oldValue)} to ${valueLabel(activity.newValue)}`;
     case 'update_created':
       return 'posted an update';
+    case 'update_edited':
+      return 'edited an update';
     case 'group_created':
       return `created group ${valueLabel(activity.newValue)}`;
     case 'group_updated': {
@@ -671,7 +684,13 @@ function ActivityTab({ taskId }: { taskId: string }) {
 }
 
 // ─── MAIN COMPONENT ───
-export default function TaskDetailPanel() {
+export default function TaskDetailPanel({
+  workspaceId,
+  boardId,
+}: {
+  workspaceId?: string;
+  boardId?: string;
+} = {}) {
   const {
     panel,
     closePanel,
@@ -800,7 +819,7 @@ export default function TaskDetailPanel() {
 
           {/* Content */}
           <Box sx={{ flex: 1, overflowY: 'hidden' }}>
-            {panel.activeTab === 'updates' && <UpdatesTab taskId={task.id} />}
+            {panel.activeTab === 'updates' && <UpdatesTab taskId={task.id} workspaceId={workspaceId} boardId={boardId} />}
             {panel.activeTab === 'files' && <FilesTab taskId={task.id} />}
             {panel.activeTab === 'activity' && <ActivityTab taskId={task.id} />}
           </Box>

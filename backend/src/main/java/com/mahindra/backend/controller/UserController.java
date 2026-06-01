@@ -1,11 +1,14 @@
 package com.mahindra.backend.controller;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -46,6 +49,18 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserDto> getUserById(@PathVariable Long id) {
         return ResponseEntity.ok(userService.getUserById(id));
+    }
+
+    @GetMapping("/me/preferences")
+    public ResponseEntity<Map<String, Object>> getMyPreferences(Authentication authentication) {
+        return ResponseEntity.ok(userService.getPreferences(authentication));
+    }
+
+    @PatchMapping("/me/preferences")
+    public ResponseEntity<Map<String, Object>> updateMyPreferences(
+            Authentication authentication,
+            @RequestBody Map<String, Object> preferences) {
+        return ResponseEntity.ok(userService.updatePreferences(authentication, preferences));
     }
 
     @PutMapping("/{id}")
