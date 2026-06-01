@@ -1,9 +1,12 @@
 package com.mahindra.backend.service;
 
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -82,6 +85,61 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
         userRepository.delete(user);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getPreferences(Authentication authentication) {
+        User user = getAuthenticatedUser(authentication);
+        return copyMap(user.getPreferences());
+    }
+
+    public Map<String, Object> updatePreferences(Authentication authentication, Map<String, Object> patch) {
+        User user = getAuthenticatedUser(authentication);
+        Map<String, Object> merged = copyMap(user.getPreferences());
+        mergePreferences(merged, patch);
+        validatePreferences(merged);
+        user.setPreferences(merged);
+        return copyMap(userRepository.save(user).getPreferences());
+    }
+
+    private User getAuthenticatedUser(Authentication authentication) {
+        return userRepository.findByEmail(authentication.getName())
+                .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found"));
+    }
+
+    private Map<String, Object> copyMap(Map<String, Object> source) {
+        return source == null ? new LinkedHashMap<>() : new LinkedHashMap<>(source);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void mergePreferences(Map<String, Object> target, Map<String, Object> patch) {
+        if (patch == null) {
+            return;
+        }
+        patch.forEach((key, value) -> {
+            if (value instanceof Map<?, ?> valueMap && target.get(key) instanceof Map<?, ?> targetMap) {
+                Map<String, Object> nested = new LinkedHashMap<>((Map<String, Object>) targetMap);
+                mergePreferences(nested, (Map<String, Object>) valueMap);
+                target.put(key, nested);
+            } else {
+                target.put(key, value);
+            }
+        });
+    }
+
+    @SuppressWarnings("unchecked")
+    private void validatePreferences(Map<String, Object> preferences) {
+        Object myTasks = preferences.get("myTasks");
+        if (myTasks == null) {
+            return;
+        }
+        if (!(myTasks instanceof Map<?, ?> myTasksMap)) {
+            throw new IllegalArgumentException("myTasks preferences must be an object");
+        }
+        Object filterMode = ((Map<String, Object>) myTasksMap).get("filterMode");
+        if (filterMode != null && !Set.of("kpis", "filters").contains(filterMode)) {
+            throw new IllegalArgumentException("Invalid myTasks.filterMode");
+        }
     }
 
     private UserDto mapToDto(User user) {

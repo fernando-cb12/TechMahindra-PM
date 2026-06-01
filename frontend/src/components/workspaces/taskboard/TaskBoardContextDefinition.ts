@@ -22,6 +22,7 @@ export interface TaskBoardContextValue extends Omit<TaskBoardState, 'manualGroup
   toggleGroupCollapse: (groupId: string) => void;
   updateTask: (taskId: string, patch: Partial<Task>) => void;
   postTaskUpdate: (taskId: string, content: string, attachments: Task['files'], mentions: string[]) => void;
+  editTaskUpdate: (taskId: string, updateId: string, content: string, mentions: string[]) => void;
   addTask: (task: Task, options?: { openDetails?: boolean; renameInDetails?: boolean }) => void;
   addTaskToGroup: (
     groupId: string,

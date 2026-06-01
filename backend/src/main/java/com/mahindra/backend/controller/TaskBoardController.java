@@ -31,6 +31,7 @@ import com.mahindra.backend.dto.taskboard.TaskPatchRequest;
 import com.mahindra.backend.dto.taskboard.TaskUpdateDto;
 import com.mahindra.backend.dto.taskboard.UpdateBoardRequest;
 import com.mahindra.backend.dto.taskboard.UpdateGroupRequest;
+import com.mahindra.backend.dto.taskboard.UpdateUpdateRequest;
 import com.mahindra.backend.service.TaskBoardService;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -184,6 +185,16 @@ public class TaskBoardController {
             @RequestBody CreateUpdateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(taskBoardService.createUpdate(authentication, workspaceId, boardId, taskId, request));
+    }
+
+    @PatchMapping("/tasks/{taskId}/updates/{updateId}")
+    public ResponseEntity<TaskUpdateDto> updateUpdate(Authentication authentication,
+            @PathVariable Long workspaceId,
+            @PathVariable Long boardId,
+            @PathVariable Long taskId,
+            @PathVariable Long updateId,
+            @RequestBody UpdateUpdateRequest request) {
+        return ResponseEntity.ok(taskBoardService.updateUpdate(authentication, workspaceId, boardId, taskId, updateId, request));
     }
 
     @PutMapping("/tasks/{taskId}/move")

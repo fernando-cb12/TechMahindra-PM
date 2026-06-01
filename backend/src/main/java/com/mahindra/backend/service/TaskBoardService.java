@@ -16,6 +16,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +42,7 @@ import com.mahindra.backend.dto.taskboard.TaskPatchRequest;
 import com.mahindra.backend.dto.taskboard.TaskUpdateDto;
 import com.mahindra.backend.dto.taskboard.UpdateBoardRequest;
 import com.mahindra.backend.dto.taskboard.UpdateGroupRequest;
+import com.mahindra.backend.dto.taskboard.UpdateUpdateRequest;
 import com.mahindra.backend.dto.taskboard.UserSummaryDto;
 import com.mahindra.backend.entity.Board;
 import com.mahindra.backend.entity.BoardColumn;
@@ -526,6 +528,32 @@ public class TaskBoardService {
             }
         }
         recordActivity(task.getBoard(), task, user, "update_created", "updates", null, update.getContent(), "user");
+        return toUpdateDto(update, new ArrayList<>(update.getAttachments()));
+    }
+
+    @Transactional
+    public TaskUpdateDto updateUpdate(Authentication authentication, Long workspaceId, Long boardId, Long taskId,
+            Long updateId, UpdateUpdateRequest request) {
+        User user = resolveUser(authentication);
+        resolveEditableBoard(user, workspaceId, boardId);
+        TaskUpdate update = taskUpdateRepository.findByIdAndTaskIdAndTaskBoardIdAndDeletedAtIsNull(updateId, taskId, boardId)
+                .orElseThrow(() -> new ResourceNotFoundException("Update not found"));
+        if (!update.getAuthor().getId().equals(user.getId())) {
+            throw new AccessDeniedException("Only the update author can edit this comment");
+        }
+        String nextContent = request.content() != null ? request.content().trim() : "";
+        if (nextContent.isBlank() && update.getAttachments().isEmpty()) {
+            throw new IllegalArgumentException("Update content or attachments are required");
+        }
+        String previousContent = update.getContent();
+        update.setContent(nextContent);
+        update.setUpdatedAt(Instant.now());
+        update.getMentions().clear();
+        if (request.mentions() != null && !request.mentions().isEmpty()) {
+            update.getMentions().addAll(userRepository.findAllById(request.mentions().stream().map(Long::valueOf).toList()));
+        }
+        taskUpdateRepository.save(update);
+        recordActivity(update.getTask().getBoard(), update.getTask(), user, "update_edited", "updates", previousContent, nextContent, "user");
         return toUpdateDto(update, new ArrayList<>(update.getAttachments()));
     }
 

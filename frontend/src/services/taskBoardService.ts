@@ -5,6 +5,7 @@ import type {
   SelectOption,
   Task,
   TaskGroup,
+  TaskUpdate,
   User,
 } from '../components/workspaces/taskboard/types';
 import { apiClient } from './apiClient';
@@ -267,9 +268,9 @@ export async function createTaskUpdate(
   boardId: string,
   taskId: string,
   payload: { content: string; mentions: string[]; attachments: FileAttachment[] }
-) {
+) : Promise<TaskUpdate> {
   try {
-    const { data } = await apiClient.post(
+    const { data } = await apiClient.post<TaskUpdate>(
       `/api/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/updates`,
       {
         content: payload.content,
@@ -281,6 +282,24 @@ export async function createTaskUpdate(
           size: file.size,
         })),
       }
+    );
+    return data;
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
+export async function updateTaskUpdate(
+  workspaceId: string,
+  boardId: string,
+  taskId: string,
+  updateId: string,
+  payload: { content: string; mentions: string[] }
+): Promise<TaskUpdate> {
+  try {
+    const { data } = await apiClient.patch<TaskUpdate>(
+      `/api/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/updates/${updateId}`,
+      payload
     );
     return data;
   } catch (e) {
