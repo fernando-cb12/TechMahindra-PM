@@ -9,6 +9,7 @@ import type {
   User,
 } from '../components/workspaces/taskboard/types';
 import { apiClient } from './apiClient';
+import type { AssignableUser } from './workspacesService';
 
 export interface BoardMoveTarget {
   id: string;
@@ -86,6 +87,32 @@ export async function deleteBoard(workspaceId: string, boardId: string): Promise
 export async function restoreBoard(workspaceId: string, boardId: string): Promise<TaskBoardPayload> {
   try {
     const { data } = await apiClient.post<TaskBoardPayload>(`/api/workspaces/${workspaceId}/boards/${boardId}/restore`);
+    return data;
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
+export async function addBoardMembers(
+  workspaceId: string,
+  boardId: string,
+  userIds: number[]
+): Promise<TaskBoardPayload> {
+  try {
+    const { data } = await apiClient.post<TaskBoardPayload>(`/api/workspaces/${workspaceId}/boards/${boardId}/members`, {
+      userIds,
+    });
+    return data;
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
+export async function getBoardMemberCandidates(workspaceId: string, boardId: string): Promise<AssignableUser[]> {
+  try {
+    const { data } = await apiClient.get<AssignableUser[]>(
+      `/api/workspaces/${workspaceId}/boards/${boardId}/members/candidates`
+    );
     return data;
   } catch (e) {
     throw new Error(getErrorMessage(e));

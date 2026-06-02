@@ -20,12 +20,14 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.mahindra.backend.dto.AssignableUserDto;
 import com.mahindra.backend.dto.taskboard.BoardConfigDto;
 import com.mahindra.backend.dto.taskboard.BoardSummaryDto;
 import com.mahindra.backend.dto.taskboard.BoardViewDto;
 import com.mahindra.backend.dto.taskboard.ColumnDefinitionDto;
 import com.mahindra.backend.dto.taskboard.ColumnUpdateRequest;
 import com.mahindra.backend.dto.taskboard.ColumnUpsertRequest;
+import com.mahindra.backend.dto.taskboard.AddBoardMembersRequest;
 import com.mahindra.backend.dto.taskboard.CreateGroupRequest;
 import com.mahindra.backend.dto.taskboard.CreateTaskRequest;
 import com.mahindra.backend.dto.taskboard.CreateUpdateRequest;
@@ -56,7 +58,9 @@ import com.mahindra.backend.entity.TaskFile;
 import com.mahindra.backend.entity.TaskGroup;
 import com.mahindra.backend.entity.TaskUpdate;
 import com.mahindra.backend.entity.User;
+import com.mahindra.backend.entity.UserStatus;
 import com.mahindra.backend.entity.Workspace;
+import com.mahindra.backend.entity.WorkspaceMember;
 import com.mahindra.backend.exception.ResourceNotFoundException;
 import com.mahindra.backend.repository.BoardColumnOptionRepository;
 import com.mahindra.backend.repository.BoardColumnRepository;
@@ -168,6 +172,80 @@ public class TaskBoardService {
         boardRepository.save(board);
         recordActivity(board, null, user, "board_restored", "board", null, board.getName(), "user");
         return toPayload(user, board);
+    }
+
+    @Transactional
+    public TaskBoardPayloadDto addMembers(Authentication authentication, Long workspaceId, Long boardId,
+            AddBoardMembersRequest request) {
+        User actor = resolveUser(authentication);
+        Board board = resolveEditableBoard(actor, workspaceId, boardId);
+        Workspace workspace = workspaceRepository.findActiveWithMembersByIdForUpdate(workspaceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Workspace not found"));
+        if (!board.getWorkspace().getId().equals(workspace.getId())) {
+            throw new ResourceNotFoundException("Board not found");
+        }
+
+        Set<Long> workspaceMemberIds = workspace.getMembers().stream()
+                .map(member -> member.getUser().getId())
+                .collect(Collectors.toSet());
+        List<String> addedNames = new ArrayList<>();
+
+        for (Long userId : request.userIds().stream().distinct().toList()) {
+            User invitedUser = userRepository.findById(userId)
+                    .orElseThrow(() -> new IllegalArgumentException("Unknown user id: " + userId));
+            if (invitedUser.getStatus() != UserStatus.active) {
+                throw new IllegalArgumentException("User " + userId + " is not active");
+            }
+
+            if (!workspaceMemberIds.contains(invitedUser.getId())) {
+                WorkspaceMember workspaceMember = new WorkspaceMember();
+                workspaceMember.setUser(invitedUser);
+                workspaceMember.setRoleInWorkspace("collaborator");
+                workspace.addMember(workspaceMember);
+                workspaceMemberIds.add(invitedUser.getId());
+            }
+
+            BoardMember boardMember = boardMemberRepository.findByBoardIdAndUserId(boardId, invitedUser.getId())
+                    .orElseGet(BoardMember::new);
+            if (boardMember.getId() == null) {
+                boardMember.setBoard(board);
+                boardMember.setUser(invitedUser);
+            }
+            boardMember.setAssignedBy(actor);
+            boardMember.setAssignedAt(Instant.now());
+            boardMember.setRoleInBoard("editor");
+            boardMember.setDeletedAt(null);
+            boardMember.setDeletedBy(null);
+            boardMember.setPurgeAfter(null);
+            boardMemberRepository.save(boardMember);
+            addedNames.add(invitedUser.getName());
+        }
+
+        workspace.setUpdatedAt(Instant.now());
+        workspaceRepository.save(workspace);
+        if (!addedNames.isEmpty()) {
+            recordActivity(board, null, actor, "board_members_added", "members", null, addedNames, "user");
+        }
+        return toPayload(actor, board);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AssignableUserDto> listMemberCandidates(Authentication authentication, Long workspaceId, Long boardId) {
+        User actor = resolveUser(authentication);
+        Board board = resolveEditableBoard(actor, workspaceId, boardId);
+        Workspace workspace = workspaceRepository.findActiveWithMembersById(workspaceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Workspace not found"));
+        if (!board.getWorkspace().getId().equals(workspace.getId())) {
+            throw new ResourceNotFoundException("Board not found");
+        }
+        Set<Long> workspaceMemberIds = workspace.getMembers().stream()
+                .map(member -> member.getUser().getId())
+                .collect(Collectors.toSet());
+        return userRepository.findByStatus(UserStatus.active).stream()
+                .filter(user -> !workspaceMemberIds.contains(user.getId()))
+                .sorted(Comparator.comparing(User::getName, String.CASE_INSENSITIVE_ORDER))
+                .map(user -> new AssignableUserDto(user.getId(), user.getName(), user.getEmail()))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -1023,7 +1101,7 @@ public class TaskBoardService {
         List<TaskFile> files = allFiles.stream().filter(f -> f.getTask().getId().equals(task.getId())).toList();
         List<TaskUpdate> updates = allUpdates.stream().filter(u -> u.getTask().getId().equals(task.getId())).toList();
         List<TaskActivity> activities = allActivities.stream()
-                .filter(a -> a.getTask() == null || a.getTask().getId().equals(task.getId()))
+                .filter(a -> a.getTask() != null && a.getTask().getId().equals(task.getId()))
                 .toList();
         Map<Long, List<TaskFile>> filesByUpdate = files.stream()
                 .filter(f -> f.getUpdate() != null)

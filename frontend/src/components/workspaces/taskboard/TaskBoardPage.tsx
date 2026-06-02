@@ -1,12 +1,37 @@
 // ─── TaskBoardPage — top level layout connecting everything ───
 
-import { Box, Typography, Button, Tabs, Tab, IconButton, Popover, LinearProgress, Snackbar, MenuItem, TextField } from '@mui/material';
+import {
+  Box,
+  Typography,
+  Button,
+  Tabs,
+  Tab,
+  IconButton,
+  Popover,
+  LinearProgress,
+  Snackbar,
+  Menu,
+  MenuItem,
+  Divider,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Select,
+  OutlinedInput,
+  Chip,
+  CircularProgress,
+} from '@mui/material';
 import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1';
 import TableChartIcon from '@mui/icons-material/TableChart';
 import InsertChartIcon from '@mui/icons-material/InsertChart';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
 import AddIcon from '@mui/icons-material/Add';
+import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';
+import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
+import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import { useParams, useSearchParams } from 'react-router-dom';
 
 import { TaskBoardProvider } from './TaskBoardContext';
@@ -17,9 +42,11 @@ import CalendarView from './calendar/CalendarView';
 import KanbanView from './kanban/KanbanView';
 import TaskDetailPanel from './panel/TaskDetailPanel';
 import type { BoardView } from './types';
-import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactElement } from 'react';
+import { useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent, type ReactElement } from 'react';
 import { useAuth } from '../../../auth/useAuth';
 import { showAppNotification } from '../../shared/appNotifications';
+import { getBoardMemberCandidates } from '../../../services/taskBoardService';
+import type { AssignableUser } from '../../../services/workspacesService';
 
 const OPTIONAL_VIEWS: Array<{ value: Exclude<BoardView, 'table'>; label: string; icon: ReactElement }> = [
   { value: 'insights', label: 'Insights', icon: <InsertChartIcon sx={{ fontSize: 18 }} /> },
@@ -52,15 +79,24 @@ function TaskBoardContent() {
     renameBoard,
     tasks,
     openPanel,
+    users,
+    inviteBoardMembers,
   } = useTaskBoard();
   const [searchParams] = useSearchParams();
+  const { workspaceId: routeWorkspaceId = '', boardId: routeBoardId = '' } = useParams();
   const taskParamRef = useRef<string | null>(null);
   const hasAutoOpenedTaskRef = useRef(false);
   const { session, hasRoleAtLeast } = useAuth();
   const [addViewAnchor, setAddViewAnchor] = useState<HTMLButtonElement | null>(null);
-  const [viewMenu, setViewMenu] = useState<{ anchor: HTMLElement; view: Exclude<BoardView, 'table'> } | null>(null);
+  const [viewMenu, setViewMenu] = useState<{ mouseX: number; mouseY: number; view: Exclude<BoardView, 'table'> } | null>(null);
+  const [draggedView, setDraggedView] = useState<Exclude<BoardView, 'table'> | null>(null);
   const [isRenamingBoard, setIsRenamingBoard] = useState(false);
   const [boardNameDraft, setBoardNameDraft] = useState('');
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [assignableUsers, setAssignableUsers] = useState<AssignableUser[]>([]);
+  const [isLoadingAssignableUsers, setIsLoadingAssignableUsers] = useState(false);
+  const [selectedInviteUserIds, setSelectedInviteUserIds] = useState<number[]>([]);
+  const [isInvitingMembers, setIsInvitingMembers] = useState(false);
   
   // Format the board title (e.g., frontend -> Frontend Design)
   const boardTitle = boardConfig.boardName || 'Task Board';
@@ -71,6 +107,11 @@ function TaskBoardContent() {
   const [visibleOptionalViews, setVisibleOptionalViews] = useState<Exclude<BoardView, 'table'>[]>(() => loadVisibleViews(viewPreferenceKey));
   const availableViews = OPTIONAL_VIEWS.filter((view) => !visibleOptionalViews.includes(view.value));
   const canRenameBoard = hasRoleAtLeast('TEAM_LEAD');
+  const existingUserIds = useMemo(() => new Set(Object.keys(users).map((id) => Number(id))), [users]);
+  const inviteCandidates = useMemo(
+    () => assignableUsers.filter((user) => !existingUserIds.has(user.id)),
+    [assignableUsers, existingUserIds]
+  );
 
   useEffect(() => {
     setVisibleOptionalViews(loadVisibleViews(viewPreferenceKey));
@@ -115,7 +156,7 @@ function TaskBoardContent() {
 
   const handleOpenViewMenu = (event: MouseEvent<HTMLElement>, view: Exclude<BoardView, 'table'>) => {
     event.preventDefault();
-    setViewMenu({ anchor: event.currentTarget, view });
+    setViewMenu({ mouseX: event.clientX + 2, mouseY: event.clientY - 6, view });
   };
 
   const moveOptionalView = (direction: -1 | 1) => {
@@ -129,6 +170,43 @@ function TaskBoardContent() {
       return next;
     });
     setViewMenu(null);
+  };
+
+  const reorderOptionalViews = (
+    sourceView: Exclude<BoardView, 'table'>,
+    targetView: Exclude<BoardView, 'table'>
+  ) => {
+    if (sourceView === targetView) return;
+    setVisibleOptionalViews((prev) => {
+      const sourceIndex = prev.indexOf(sourceView);
+      const targetIndex = prev.indexOf(targetView);
+      if (sourceIndex < 0 || targetIndex < 0) return prev;
+      const next = [...prev];
+      next.splice(sourceIndex, 1);
+      next.splice(targetIndex, 0, sourceView);
+      return next;
+    });
+  };
+
+  const handleViewDragStart = (
+    event: DragEvent<HTMLElement>,
+    view: Exclude<BoardView, 'table'>
+  ) => {
+    setDraggedView(view);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/taskboard-view', view);
+  };
+
+  const handleViewDrop = (
+    event: DragEvent<HTMLElement>,
+    targetView: Exclude<BoardView, 'table'>
+  ) => {
+    event.preventDefault();
+    const sourceView = (event.dataTransfer.getData('text/taskboard-view') || draggedView) as Exclude<BoardView, 'table'> | null;
+    if (sourceView && OPTIONAL_VIEWS.some((view) => view.value === sourceView)) {
+      reorderOptionalViews(sourceView, targetView);
+    }
+    setDraggedView(null);
   };
 
   const removeOptionalView = () => {
@@ -148,6 +226,43 @@ function TaskBoardContent() {
       setBoardNameDraft(boardTitle);
     }
     setIsRenamingBoard(false);
+  };
+
+  const openInviteDialog = () => {
+    setInviteOpen(true);
+    setSelectedInviteUserIds([]);
+    if (assignableUsers.length > 0 || isLoadingAssignableUsers) return;
+    setIsLoadingAssignableUsers(true);
+    void getBoardMemberCandidates(routeWorkspaceId, routeBoardId)
+      .then(setAssignableUsers)
+      .catch((e) => {
+        showAppNotification({
+          message: e instanceof Error ? e.message : 'Failed to load users',
+          severity: 'error',
+        });
+      })
+      .finally(() => setIsLoadingAssignableUsers(false));
+  };
+
+  const submitInvite = async () => {
+    if (selectedInviteUserIds.length === 0) return;
+    try {
+      setIsInvitingMembers(true);
+      await inviteBoardMembers(selectedInviteUserIds);
+      showAppNotification({
+        message: selectedInviteUserIds.length === 1 ? 'Member added to board' : 'Members added to board',
+        severity: 'success',
+      });
+      setInviteOpen(false);
+      setSelectedInviteUserIds([]);
+    } catch (e) {
+      showAppNotification({
+        message: e instanceof Error ? e.message : 'Failed to invite members',
+        severity: 'error',
+      });
+    } finally {
+      setIsInvitingMembers(false);
+    }
   };
 
   return (
@@ -194,9 +309,10 @@ function TaskBoardContent() {
             <Button
               variant="outlined"
               startIcon={<PersonAddAlt1Icon />}
+              onClick={openInviteDialog}
               sx={{ textTransform: 'none', borderRadius: 2 }}
             >
-              Invite / 1
+              Invite / {Object.keys(users).length}
             </Button>
           </Box>
         </Box>
@@ -226,7 +342,25 @@ function TaskBoardContent() {
                   value={definition.value}
                   onContextMenu={(event) => handleOpenViewMenu(event, definition.value)}
                   onDoubleClick={(event) => handleOpenViewMenu(event, definition.value)}
-                  sx={{ textTransform: 'none', minHeight: 40, py: 0, fontWeight: 600 }}
+                  draggable
+                  onDragStart={(event) => handleViewDragStart(event, definition.value)}
+                  onDragOver={(event) => {
+                    if (draggedView && draggedView !== definition.value) {
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = 'move';
+                    }
+                  }}
+                  onDrop={(event) => handleViewDrop(event, definition.value)}
+                  onDragEnd={() => setDraggedView(null)}
+                  sx={{
+                    textTransform: 'none',
+                    minHeight: 40,
+                    py: 0,
+                    fontWeight: 600,
+                    opacity: draggedView === definition.value ? 0.45 : 1,
+                    cursor: 'grab',
+                    '&:active': { cursor: 'grabbing' },
+                  }}
                 />
               );
             })}
@@ -273,24 +407,27 @@ function TaskBoardContent() {
             )}
           </Popover>
 
-          <Popover
+          <Menu
             open={Boolean(viewMenu)}
-            anchorEl={viewMenu?.anchor ?? null}
             onClose={() => setViewMenu(null)}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-            transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-            slotProps={{ paper: { sx: { mt: 0.5, p: 0.75, borderRadius: 2, minWidth: 180 } } }}
+            anchorReference="anchorPosition"
+            anchorPosition={viewMenu ? { top: viewMenu.mouseY, left: viewMenu.mouseX } : undefined}
+            slotProps={{ paper: { sx: { minWidth: 190, borderRadius: 2, py: 0.5 } } }}
           >
             <MenuItem onClick={() => moveOptionalView(-1)} disabled={!viewMenu || visibleOptionalViews.indexOf(viewMenu.view) === 0}>
-              Move left
+              <KeyboardArrowLeftIcon sx={{ fontSize: 18, mr: 1.25, color: 'text.secondary' }} />
+              <Typography sx={{ fontSize: 13 }}>Move left</Typography>
             </MenuItem>
             <MenuItem onClick={() => moveOptionalView(1)} disabled={!viewMenu || visibleOptionalViews.indexOf(viewMenu.view) === visibleOptionalViews.length - 1}>
-              Move right
+              <KeyboardArrowRightIcon sx={{ fontSize: 18, mr: 1.25, color: 'text.secondary' }} />
+              <Typography sx={{ fontSize: 13 }}>Move right</Typography>
             </MenuItem>
+            <Divider sx={{ my: 0.5 }} />
             <MenuItem onClick={removeOptionalView} sx={{ color: 'error.main' }}>
-              Remove from bar
+              <RemoveCircleOutlineIcon sx={{ fontSize: 18, mr: 1.25 }} />
+              <Typography sx={{ fontSize: 13 }}>Remove from bar</Typography>
             </MenuItem>
-          </Popover>
+          </Menu>
         </Box>
       </Box>
 
@@ -311,6 +448,64 @@ function TaskBoardContent() {
 
       {/* Slide-in Panel */}
       <TaskDetailPanel />
+      <Dialog open={inviteOpen} onClose={() => setInviteOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle sx={{ fontWeight: 700 }}>Invite to board</DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          <Select
+            multiple
+            fullWidth
+            value={selectedInviteUserIds}
+            onChange={(event) => {
+              const value = event.target.value;
+              setSelectedInviteUserIds(
+                (Array.isArray(value) ? value : String(value).split(',')).filter(Boolean).map(Number)
+              );
+            }}
+            input={<OutlinedInput />}
+            disabled={isLoadingAssignableUsers || isInvitingMembers}
+            renderValue={(selected) => (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                {(selected as number[]).map((id) => {
+                  const user = assignableUsers.find((item) => item.id === id);
+                  return <Chip key={id} size="small" label={user?.name ?? `#${id}`} />;
+                })}
+              </Box>
+            )}
+            sx={{ '& .MuiSelect-select': { minHeight: 34 } }}
+          >
+            {isLoadingAssignableUsers && (
+              <MenuItem disabled>
+                <CircularProgress size={16} sx={{ mr: 1 }} />
+                Loading users
+              </MenuItem>
+            )}
+            {!isLoadingAssignableUsers && inviteCandidates.length === 0 && (
+              <MenuItem disabled>All assignable users are already in this workspace.</MenuItem>
+            )}
+            {inviteCandidates.map((user) => (
+              <MenuItem key={user.id} value={user.id}>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography sx={{ fontSize: 13.5, fontWeight: 600 }}>{user.name}</Typography>
+                  <Typography sx={{ fontSize: 11.5, color: 'text.secondary' }}>{user.email}</Typography>
+                </Box>
+              </MenuItem>
+            ))}
+          </Select>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setInviteOpen(false)} sx={{ textTransform: 'none' }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={submitInvite}
+            disabled={selectedInviteUserIds.length === 0 || isInvitingMembers}
+            sx={{ textTransform: 'none' }}
+          >
+            {isInvitingMembers ? 'Inviting...' : 'Add to board'}
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Snackbar
         open={Boolean(deleteNotice)}
         autoHideDuration={6000}

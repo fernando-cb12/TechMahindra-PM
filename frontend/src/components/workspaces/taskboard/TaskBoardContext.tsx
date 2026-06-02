@@ -21,6 +21,7 @@ import type {
 } from './types';
 import { TaskBoardContext, type TaskBoardContextValue } from './TaskBoardContextDefinition';
 import {
+  addBoardMembers,
   createColumn as createColumnRequest,
   createTask as createTaskRequest,
   createTaskGroup,
@@ -1039,6 +1040,21 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       });
   }, [workspaceId, boardId, boardConfig, groups, tasks, manualGroupOrder, syncStorage]);
 
+  const inviteBoardMembers = useCallback(async (userIds: number[]) => {
+    if (userIds.length === 0) return;
+    try {
+      setIsLoading(true);
+      const payload = await addBoardMembers(workspaceId, boardId, userIds);
+      applyBoardPayload(payload);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to invite members');
+      throw e;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [workspaceId, boardId, applyBoardPayload]);
+
   // ─── Memoized Context Value ───
   const value = useMemo<TaskBoardContextValue>(
     () => ({
@@ -1088,6 +1104,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       updateStatusOptions,
       updatePriorityOptions,
       renameBoard,
+      inviteBoardMembers,
       deleteNotice,
       undoTaskDelete,
       dismissDeleteNotice,
@@ -1138,6 +1155,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       updateStatusOptions,
       updatePriorityOptions,
       renameBoard,
+      inviteBoardMembers,
       deleteNotice,
       undoTaskDelete,
       dismissDeleteNotice,

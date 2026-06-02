@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.mahindra.backend.dto.taskboard.ColumnDefinitionDto;
 import com.mahindra.backend.dto.taskboard.ColumnUpdateRequest;
 import com.mahindra.backend.dto.taskboard.ColumnUpsertRequest;
+import com.mahindra.backend.dto.taskboard.AddBoardMembersRequest;
 import com.mahindra.backend.dto.taskboard.CreateGroupRequest;
 import com.mahindra.backend.dto.taskboard.CreateTaskRequest;
 import com.mahindra.backend.dto.taskboard.CreateUpdateRequest;
@@ -33,6 +34,7 @@ import com.mahindra.backend.dto.taskboard.UpdateBoardRequest;
 import com.mahindra.backend.dto.taskboard.UpdateGroupRequest;
 import com.mahindra.backend.dto.taskboard.UpdateUpdateRequest;
 import com.mahindra.backend.service.TaskBoardService;
+import com.mahindra.backend.dto.AssignableUserDto;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -77,6 +79,21 @@ public class TaskBoardController {
             @PathVariable Long workspaceId,
             @PathVariable Long boardId) {
         return ResponseEntity.ok(taskBoardService.restoreBoard(authentication, workspaceId, boardId));
+    }
+
+    @PostMapping("/members")
+    public ResponseEntity<TaskBoardPayloadDto> addMembers(Authentication authentication,
+            @PathVariable Long workspaceId,
+            @PathVariable Long boardId,
+            @Valid @RequestBody AddBoardMembersRequest request) {
+        return ResponseEntity.ok(taskBoardService.addMembers(authentication, workspaceId, boardId, request));
+    }
+
+    @GetMapping("/members/candidates")
+    public ResponseEntity<List<AssignableUserDto>> memberCandidates(Authentication authentication,
+            @PathVariable Long workspaceId,
+            @PathVariable Long boardId) {
+        return ResponseEntity.ok(taskBoardService.listMemberCandidates(authentication, workspaceId, boardId));
     }
 
     @PostMapping("/groups")
