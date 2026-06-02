@@ -40,6 +40,7 @@ import {
   updateTaskGroup,
   updateTaskUpdate as updateTaskUpdateRequest,
 } from '../../../services/taskBoardService';
+import { loadSession } from '../../../auth/auth';
 
 // ─── localStorage helpers (Section 18 of spec) ───
 interface DeletedTaskSnapshot {
@@ -62,6 +63,64 @@ interface TaskCreateOptions {
 }
 
 // ─── Provider ───
+interface UserBoardOrderPreferences {
+  columnOrder: string[];
+  groupOrder: string[];
+  taskOrderByGroup: Record<string, string[]>;
+}
+
+const emptyOrderPreferences = (): UserBoardOrderPreferences => ({
+  columnOrder: [],
+  groupOrder: [],
+  taskOrderByGroup: {},
+});
+
+function mergeOrderedIds(savedOrder: string[], availableIds: string[]) {
+  const availableSet = new Set(availableIds);
+  const merged = savedOrder.filter((id) => availableSet.has(id));
+  for (const id of availableIds) {
+    if (!merged.includes(id)) {
+      merged.push(id);
+    }
+  }
+  return merged;
+}
+
+function applyColumnOrder(columns: ColumnDefinition[], columnOrder: string[]) {
+  if (columnOrder.length === 0) return columns;
+  const mergedOrder = mergeOrderedIds(columnOrder, columns.map((column) => column.id));
+  const orderMap = new Map(mergedOrder.map((id, index) => [id, index]));
+  return columns.map((column) => ({ ...column, order: orderMap.get(column.id) ?? column.order }));
+}
+
+function applyGroupAndTaskOrder(groups: TaskGroup[], preferences: UserBoardOrderPreferences) {
+  const groupsById = new Map(groups.map((group) => [group.id, group]));
+  const orderedGroupIds = mergeOrderedIds(preferences.groupOrder, groups.map((group) => group.id));
+  return orderedGroupIds
+    .map((groupId, index) => {
+      const group = groupsById.get(groupId);
+      if (!group) return null;
+      const taskIds = mergeOrderedIds(preferences.taskOrderByGroup[group.id] ?? [], group.taskIds);
+      return { ...group, order: index, taskIds };
+    })
+    .filter((group): group is TaskGroup => Boolean(group));
+}
+
+function isColumnOrderOnlyChange(previousColumns: ColumnDefinition[], nextColumns: ColumnDefinition[]) {
+  if (previousColumns.length !== nextColumns.length) return false;
+  const previousById = new Map(previousColumns.map((column) => [column.id, column]));
+  return nextColumns.every((nextColumn) => {
+    const previousColumn = previousById.get(nextColumn.id);
+    if (!previousColumn) return false;
+    return previousColumn.label === nextColumn.label
+      && previousColumn.type === nextColumn.type
+      && previousColumn.width === nextColumn.width
+      && previousColumn.isVisible === nextColumn.isVisible
+      && previousColumn.isSystemColumn === nextColumn.isSystemColumn
+      && JSON.stringify(previousColumn.options ?? []) === JSON.stringify(nextColumn.options ?? []);
+  });
+}
+
 interface TaskBoardProviderProps {
   workspaceId: string;
   boardId: string;
@@ -69,6 +128,31 @@ interface TaskBoardProviderProps {
 }
 
 export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardProviderProps) {
+  const userEmail = loadSession()?.email ?? 'anonymous';
+  const orderPreferencesKey = `taskboard_order_preferences_${userEmail}_${workspaceId}_${boardId}`;
+  const orderPreferencesRef = useRef<UserBoardOrderPreferences>(emptyOrderPreferences());
+
+  const loadOrderPreferences = useCallback(() => {
+    try {
+      const raw = localStorage.getItem(orderPreferencesKey);
+      orderPreferencesRef.current = raw
+        ? { ...emptyOrderPreferences(), ...JSON.parse(raw) as Partial<UserBoardOrderPreferences> }
+        : emptyOrderPreferences();
+    } catch {
+      orderPreferencesRef.current = emptyOrderPreferences();
+    }
+    return orderPreferencesRef.current;
+  }, [orderPreferencesKey]);
+
+  const saveOrderPreferences = useCallback((updater: (current: UserBoardOrderPreferences) => UserBoardOrderPreferences) => {
+    const next = updater(orderPreferencesRef.current);
+    orderPreferencesRef.current = next;
+    try {
+      localStorage.setItem(orderPreferencesKey, JSON.stringify(next));
+    } catch (e) {
+      console.error('Failed to save taskboard order preferences', e);
+    }
+  }, [orderPreferencesKey]);
   // ─── Base States ───
   const [boardConfig, setBoardConfig] = useState<BoardConfig>({ workspaceId: boardId, columns: [], statusOptions: [], priorityOptions: [] });
 
@@ -107,6 +191,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     let cancelled = false;
+    const preferences = loadOrderPreferences();
     setIsLoading(true);
     setError(null);
 
@@ -132,11 +217,13 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
     void getTaskBoard(workspaceId, boardId)
       .then((payload) => {
         if (cancelled) return;
-        setBoardConfig(payload.boardConfig);
-        setGroups(payload.groups);
+        const preferredColumns = applyColumnOrder(payload.boardConfig.columns, preferences.columnOrder);
+        const preferredGroups = applyGroupAndTaskOrder(payload.groups, preferences);
+        setBoardConfig({ ...payload.boardConfig, columns: preferredColumns });
+        setGroups(preferredGroups);
         setTasks(payload.tasks);
         setUsers(payload.users);
-        setManualGroupOrder(payload.groups.map((g) => g.id));
+        setManualGroupOrder(preferredGroups.map((g) => g.id));
         setAvailableBoards(payload.availableBoards);
         setError(null);
       })
@@ -150,7 +237,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, boardId]);
+  }, [workspaceId, boardId, loadOrderPreferences]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // Backend is the source of truth; this keeps optimistic update call sites simple.
@@ -160,11 +247,14 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
 
   // ─── Actions ───
   const applyBoardPayload = useCallback((payload: TaskBoardPayload) => {
-    setBoardConfig(payload.boardConfig);
-    setGroups(payload.groups);
+    const preferences = orderPreferencesRef.current;
+    const preferredColumns = applyColumnOrder(payload.boardConfig.columns, preferences.columnOrder);
+    const preferredGroups = applyGroupAndTaskOrder(payload.groups, preferences);
+    setBoardConfig({ ...payload.boardConfig, columns: preferredColumns });
+    setGroups(preferredGroups);
     setTasks(payload.tasks);
     setUsers(payload.users);
-    setManualGroupOrder(payload.groups.map((g) => g.id));
+    setManualGroupOrder(preferredGroups.map((g) => g.id));
     setAvailableBoards(payload.availableBoards);
   }, []);
 
@@ -522,6 +612,16 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       setGroups(updatedGroups);
       setTasks(updatedTasks);
       syncStorage(boardConfig, updatedGroups, updatedTasks, manualGroupOrder);
+      saveOrderPreferences((current) => ({
+        ...current,
+        taskOrderByGroup: {
+          ...current.taskOrderByGroup,
+          ...Object.fromEntries(updatedGroups.map((group) => [group.id, group.taskIds])),
+        },
+      }));
+      if (fromGroupId === toGroupId) {
+        return;
+      }
       void moveTaskRequest(workspaceId, boardId, taskId, {
         toBoardId: boardId,
         toGroupId,
@@ -530,7 +630,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
         .then(refreshBoardPayload)
         .catch((e) => setError(e instanceof Error ? e.message : 'Failed to move task'));
     },
-    [workspaceId, boardId, groups, tasks, boardConfig, manualGroupOrder, syncStorage, refreshBoardPayload]
+    [workspaceId, boardId, groups, tasks, boardConfig, manualGroupOrder, syncStorage, refreshBoardPayload, saveOrderPreferences]
   );
 
   const moveTaskToGroup = useCallback(
@@ -560,6 +660,13 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       setGroups(updatedGroups);
       setTasks(updatedTasks);
       syncStorage(boardConfig, updatedGroups, updatedTasks, manualGroupOrder);
+      saveOrderPreferences((current) => ({
+        ...current,
+        taskOrderByGroup: {
+          ...current.taskOrderByGroup,
+          ...Object.fromEntries(updatedGroups.map((group) => [group.id, group.taskIds])),
+        },
+      }));
       void moveTaskRequest(workspaceId, boardId, taskId, {
         toBoardId: boardId,
         toGroupId,
@@ -568,7 +675,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
         .then(refreshBoardPayload)
         .catch((e) => setError(e instanceof Error ? e.message : 'Failed to move task'));
     },
-    [workspaceId, boardId, tasks, groups, boardConfig, manualGroupOrder, syncStorage, refreshBoardPayload]
+    [workspaceId, boardId, tasks, groups, boardConfig, manualGroupOrder, syncStorage, refreshBoardPayload, saveOrderPreferences]
   );
 
   const moveTaskToBoardGroup = useCallback(
@@ -719,14 +826,19 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       const updatedConfig = { ...boardConfig, columns };
       setBoardConfig(updatedConfig);
       syncStorage(updatedConfig, groups, tasks, manualGroupOrder);
+      if (isColumnOrderOnlyChange(boardConfig.columns, columns)) {
+        saveOrderPreferences((current) => ({ ...current, columnOrder: [...columns].sort((a, b) => a.order - b.order).map((column) => column.id) }));
+        return;
+      }
       void replaceColumns(workspaceId, boardId, columns)
         .then((savedColumns) => {
-          setBoardConfig((prev) => ({ ...prev, columns: savedColumns }));
+          const preferredColumns = applyColumnOrder(savedColumns, orderPreferencesRef.current.columnOrder);
+          setBoardConfig((prev) => ({ ...prev, columns: preferredColumns }));
           refreshBoardPayload();
         })
         .catch((e) => setError(e instanceof Error ? e.message : 'Failed to update columns'));
     },
-    [workspaceId, boardId, boardConfig, groups, tasks, manualGroupOrder, syncStorage, refreshBoardPayload]
+    [workspaceId, boardId, boardConfig, groups, tasks, manualGroupOrder, syncStorage, refreshBoardPayload, saveOrderPreferences]
   );
 
   const addColumn = useCallback(
@@ -753,13 +865,9 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       const updatedOrder = newGroups.map((g) => g.id);
       setManualGroupOrder(updatedOrder);
       syncStorage(boardConfig, groups, tasks, updatedOrder);
-      newGroups.forEach((group, index) => {
-        void updateTaskGroup(workspaceId, boardId, group.id, { order: index })
-          .then(refreshBoardPayload)
-          .catch((e) => setError(e instanceof Error ? e.message : 'Failed to reorder groups'));
-      });
+      saveOrderPreferences((current) => ({ ...current, groupOrder: updatedOrder }));
     },
-    [workspaceId, boardId, boardConfig, groups, tasks, syncStorage, refreshBoardPayload]
+    [boardConfig, groups, tasks, syncStorage, saveOrderPreferences]
   );
 
   const updateGroupColor = useCallback(
