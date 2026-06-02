@@ -2,16 +2,20 @@ package com.mahindra.backend.service;
 
 import java.util.List;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.mahindra.backend.dto.CreateUserRequest;
 import com.mahindra.backend.dto.UserDto;
 import com.mahindra.backend.dto.UserUpdateDto;
+import com.mahindra.backend.exception.DuplicateEmailException;
 import com.mahindra.backend.entity.Role;
 import com.mahindra.backend.entity.User;
 import com.mahindra.backend.entity.UserStatus;
@@ -23,12 +27,20 @@ import com.mahindra.backend.repository.UserRepository;
 @Transactional
 public class UserService {
 
+    private static final Set<String> ASSIGNABLE_ROLES = Set.of(
+            "ADMIN", "TEAM_LEAD", "DEVELOPER", "VIEW_ONLY");
+
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository, RoleRepository roleRepository) {
+    public UserService(
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional(readOnly = true)
@@ -57,6 +69,23 @@ public class UserService {
         return userRepository.findByStatus(status).stream()
                 .map(this::mapToDto)
                 .toList();
+    }
+
+    public UserDto createUser(CreateUserRequest request) {
+        String email = request.email().trim().toLowerCase(Locale.ROOT);
+        if (userRepository.existsByEmail(email)) {
+            throw new DuplicateEmailException();
+        }
+
+        User user = new User();
+        user.setName(request.name().trim());
+        user.setEmail(email);
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        user.setStatus(request.status() != null ? request.status() : UserStatus.active);
+        user.setRoles(resolveRoles(request.roles()));
+
+        user = userRepository.save(user);
+        return mapToDto(user);
     }
 
     public UserDto updateUser(Long id, UserUpdateDto updateDto) {
@@ -140,6 +169,23 @@ public class UserService {
         if (filterMode != null && !Set.of("kpis", "filters").contains(filterMode)) {
             throw new IllegalArgumentException("Invalid myTasks.filterMode");
         }
+    }
+
+    private Set<Role> resolveRoles(Set<String> roleNames) {
+        if (roleNames == null || roleNames.isEmpty()) {
+            throw new IllegalArgumentException("At least one role is required");
+        }
+        return roleNames.stream()
+                .map(String::trim)
+                .map(String::toUpperCase)
+                .peek(name -> {
+                    if (!ASSIGNABLE_ROLES.contains(name)) {
+                        throw new IllegalArgumentException("Role not allowed: " + name);
+                    }
+                })
+                .map(roleName -> roleRepository.findByName(roleName)
+                        .orElseThrow(() -> new ResourceNotFoundException("Role not found: " + roleName)))
+                .collect(Collectors.toSet());
     }
 
     private UserDto mapToDto(User user) {
