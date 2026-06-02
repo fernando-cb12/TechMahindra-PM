@@ -57,7 +57,7 @@ interface RewardRedemptionModalProps {
   onClose: () => void;
   /** Called when the user confirms the redemption.
    *  The parent is responsible for deducting points from the balance. */
-  onRedeem: (reward: RewardModalItem) => void;
+  onRedeem: (reward: RewardModalItem) => void | Promise<void>;
 }
 
 // ─── Design tokens (matching the page palette) ────────────────────────────────
@@ -101,6 +101,7 @@ export default function RewardRedemptionModal({
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const [redeemed, setRedeemed] = useState(false);
+  const [redeeming, setRedeeming] = useState(false);
 
 
 if (!reward) return null;
@@ -113,13 +114,19 @@ if (!reward) return null;
   // Clamp the bar so it never overflows visually when balance > cost
   const progressPct = Math.min(100, Math.round((userBalance / reward.cost) * 100));
 
-  function handleRedeem() {
-    onRedeem(reward!);
-    setRedeemed(true);
+  async function handleRedeem() {
+    setRedeeming(true);
+    try {
+      await onRedeem(reward!);
+      setRedeemed(true);
+    } finally {
+      setRedeeming(false);
+    }
   }
 
   function handleClose() {
     setRedeemed(false);
+    setRedeeming(false);
     onClose();
   }
 
@@ -406,7 +413,7 @@ if (!reward) return null;
 
             <Button
               variant="contained"
-              disabled={!canAfford}
+              disabled={!canAfford || redeeming}
               onClick={handleRedeem}
               disableElevation
               sx={{
@@ -428,7 +435,7 @@ if (!reward) return null;
                 transition: "opacity 0.12s ease, transform 0.1s ease",
               }}
             >
-              Redeem reward
+              {redeeming ? "Redeeming..." : "Redeem reward"}
             </Button>
           </Box>
         </Box>

@@ -101,6 +101,7 @@ public class TaskBoardService {
     private final TaskUpdateRepository taskUpdateRepository;
     private final TaskFileRepository taskFileRepository;
     private final TaskActivityRepository taskActivityRepository;
+    private final CareerRewardsService careerRewardsService;
 
     public TaskBoardService(WorkspaceRepository workspaceRepository, BoardRepository boardRepository,
             BoardMemberRepository boardMemberRepository, UserRepository userRepository,
@@ -108,7 +109,7 @@ public class TaskBoardService {
             BoardColumnOptionRepository boardColumnOptionRepository, BoardViewRepository boardViewRepository,
             TaskRepository taskRepository, TaskCustomValueRepository taskCustomValueRepository,
             TaskUpdateRepository taskUpdateRepository, TaskFileRepository taskFileRepository,
-            TaskActivityRepository taskActivityRepository) {
+            TaskActivityRepository taskActivityRepository, CareerRewardsService careerRewardsService) {
         this.workspaceRepository = workspaceRepository;
         this.boardRepository = boardRepository;
         this.boardMemberRepository = boardMemberRepository;
@@ -122,6 +123,7 @@ public class TaskBoardService {
         this.taskUpdateRepository = taskUpdateRepository;
         this.taskFileRepository = taskFileRepository;
         this.taskActivityRepository = taskActivityRepository;
+        this.careerRewardsService = careerRewardsService;
     }
 
     @Transactional
@@ -336,6 +338,7 @@ public class TaskBoardService {
         resolveEditableBoard(user, workspaceId, boardId);
         Task task = resolveTask(boardId, taskId);
         Map<String, Object> before = taskSnapshot(task);
+        boolean wasDone = "done".equals(task.getStatus());
 
         if (request.name() != null) {
             task.setTitle(request.name().trim());
@@ -375,6 +378,9 @@ public class TaskBoardService {
         task.setUpdatedAt(Instant.now());
         taskRepository.save(task);
         recordChangedTaskFields(task, user, before, taskSnapshot(task));
+        if (!wasDone && "done".equals(task.getStatus())) {
+            careerRewardsService.awardTaskCompletion(task);
+        }
         return toTaskDto(task,
                 taskCustomValueRepository.findByTaskBoardIdAndTaskDeletedAtIsNull(boardId),
                 taskUpdateRepository.findByTaskBoardIdAndDeletedAtIsNullOrderByCreatedAtAsc(boardId),

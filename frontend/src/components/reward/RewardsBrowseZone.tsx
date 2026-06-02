@@ -11,6 +11,7 @@ import CardGiftcardOutlinedIcon from "@mui/icons-material/CardGiftcardOutlined";
 import { useTheme } from "@mui/material/styles";
 import RewardCard from "./RewardCard";
 import type { RewardModalItem } from "./RewardRedemptionModal";
+import type { RewardItem } from "../../services/rewardsService";
 
 const TABS = ["All", "Time off", "Perks", "Tools", "Team"] as const;
 type Tab = (typeof TABS)[number];
@@ -20,93 +21,67 @@ type SortOption = (typeof SORT_OPTIONS)[number];
 
 interface RewardsBrowseZoneProps {
   onRedeem?: (reward: RewardModalItem) => void;
+  rewards?: RewardItem[];
 }
 
-export default function RewardsBrowseZone({ onRedeem }: RewardsBrowseZoneProps) {
+function iconForCategory(category: string) {
+  switch (category) {
+    case "time_off":
+      return <WbSunnyOutlinedIcon sx={{ fontSize: 18 }} />;
+    case "tools":
+      return <BuildOutlinedIcon sx={{ fontSize: 18 }} />;
+    case "team":
+      return <GroupsOutlinedIcon sx={{ fontSize: 18 }} />;
+    case "perks":
+      return <SchoolOutlinedIcon sx={{ fontSize: 18 }} />;
+    default:
+      return <CardGiftcardOutlinedIcon sx={{ fontSize: 18 }} />;
+  }
+}
+
+function tabMatchesReward(tab: Tab, reward: RewardModalItem & { category?: string }) {
+  if (tab === "All") return true;
+  if (tab === "Time off") return reward.category === "time_off";
+  if (tab === "Perks") return reward.category === "perks";
+  if (tab === "Tools") return reward.category === "tools";
+  if (tab === "Team") return reward.category === "team";
+  return true;
+}
+
+export default function RewardsBrowseZone({ onRedeem, rewards = [] }: RewardsBrowseZoneProps) {
   const [activeTab, setActiveTab] = useState<Tab>("All");
   const [sortOpen, setSortOpen] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("Cost: Low to high");
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
 
-  const rewardItems: RewardModalItem[] = [
-    {
-      id: "half-day-off",
-      icon: <WbSunnyOutlinedIcon sx={{ fontSize: 18 }} />,
-      iconVariant: "crimson",
-      name: "Half-day off",
-      description: "Take a well-earned afternoon away from the desk.",
-      meta: "Routed directly to HR",
-      cost: 800,
-      badge: "popular",
-    },
-    {
-      id: "learning-budget",
-      icon: <SchoolOutlinedIcon sx={{ fontSize: 18 }} />,
-      iconVariant: "blue",
-      name: "Learning budget",
-      description: "Add $100 to your L&D fund for any approved course or resource.",
-      meta: "One-time per quarter",
-      cost: 1200,
-      badge: "new",
-    },
-    {
-      id: "premium-tool-access",
-      icon: <BuildOutlinedIcon sx={{ fontSize: 18 }} />,
-      iconVariant: "green",
-      name: "Premium tool access",
-      description: "Unlock any premium integration in your workspace.",
-      meta: "30-day access",
-      cost: 600,
-      badge: "limited",
-    },
-    {
-      id: "team-lunch",
-      icon: <GroupsOutlinedIcon sx={{ fontSize: 18 }} />,
-      iconVariant: "amber",
-      name: "Team lunch",
-      description: "Organize a lunch for your squad — covered up to 5 people.",
-      meta: "Expense claim included",
-      cost: 500,
-    },
-    {
-      id: "full-day-off",
-      icon: <CalendarMonthOutlinedIcon sx={{ fontSize: 18 }} />,
-      iconVariant: "grey",
-      name: "Full day off",
-      description: "A complete day away. Submitted automatically to HR.",
-      cost: 0,
-    },
-    {
-      id: "merch-credit",
-      icon: <CardGiftcardOutlinedIcon sx={{ fontSize: 18 }} />,
-      iconVariant: "crimson",
-      name: "Merch credit",
-      description: "Redeem against the company store — hoodies, gear, and more.",
-      meta: "Ships within 5 days",
-      cost: 400,
-    },
-  ];
+  const rewardItems = rewards
+    .map((reward) => ({
+      id: reward.id,
+      icon: reward.category === "time_off" && reward.name.toLowerCase().includes("day")
+        ? <CalendarMonthOutlinedIcon sx={{ fontSize: 18 }} />
+        : iconForCategory(reward.category),
+      iconVariant: reward.iconVariant,
+      name: reward.name,
+      description: reward.description,
+      meta: reward.meta ?? undefined,
+      cost: reward.cost,
+      badge: reward.badge ?? undefined,
+      category: reward.category,
+    }))
+    .filter((reward) => tabMatchesReward(activeTab, reward))
+    .sort((a, b) => {
+      if (sortBy === "Cost: High to low") return b.cost - a.cost;
+      if (sortBy === "Newest") return Number(b.id) - Number(a.id);
+      return a.cost - b.cost;
+    });
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", mb: 2 }}>
-
-      {/* Section header */}
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          mb: 1,
-        }}
-      >
-        <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
-          <Typography
-            sx={{ fontSize: 13, fontWeight: 700, color: "text.primary", letterSpacing: "-0.01em" }}
-          >
-            Browse rewards
-          </Typography>
-        </Box>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
+        <Typography sx={{ fontSize: 13, fontWeight: 700, color: "text.primary", letterSpacing: "-0.01em" }}>
+          Browse rewards
+        </Typography>
 
         <Typography
           tabIndex={0}
@@ -125,7 +100,6 @@ export default function RewardsBrowseZone({ onRedeem }: RewardsBrowseZoneProps) 
         </Typography>
       </Box>
 
-      {/* Filter + sort bar */}
       <Box
         role="toolbar"
         aria-label="Filter and sort rewards"
@@ -163,23 +137,21 @@ export default function RewardsBrowseZone({ onRedeem }: RewardsBrowseZoneProps) 
               lineHeight: 1.5,
               transition: "background 0.1s, color 0.1s",
               whiteSpace: "nowrap",
-              "&:hover":
-                activeTab !== tab
-                  ? { bgcolor: isDark ? "rgba(255,255,255,0.05)" : "#F2F3F5", color: "text.primary" }
-                  : {},
+              "&:hover": activeTab !== tab
+                ? { bgcolor: isDark ? "rgba(255,255,255,0.05)" : "#F2F3F5", color: "text.primary" }
+                : {},
             }}
           >
             {tab}
           </Box>
         ))}
 
-        {/* Right side sort */}
         <Box sx={{ ml: "auto", position: "relative" }}>
           <Box
             component="button"
             aria-label="Sort rewards"
             aria-expanded={sortOpen}
-            onClick={() => setSortOpen((o) => !o)}
+            onClick={() => setSortOpen((open) => !open)}
             sx={{
               display: "flex",
               alignItems: "center",
@@ -206,7 +178,6 @@ export default function RewardsBrowseZone({ onRedeem }: RewardsBrowseZoneProps) 
             {sortBy.split(":")[0]}
           </Box>
 
-          {/* Dropdown */}
           {sortOpen && (
             <Box
               sx={{
@@ -220,16 +191,17 @@ export default function RewardsBrowseZone({ onRedeem }: RewardsBrowseZoneProps) 
                 py: 0.5,
                 zIndex: 10,
                 minWidth: 170,
-                boxShadow: isDark
-                  ? "0 4px 16px rgba(0,0,0,0.5)"
-                  : "0 4px 16px rgba(0,0,0,0.1)",
+                boxShadow: isDark ? "0 4px 16px rgba(0,0,0,0.5)" : "0 4px 16px rgba(0,0,0,0.1)",
               }}
             >
-              {SORT_OPTIONS.map((opt) => (
+              {SORT_OPTIONS.map((option) => (
                 <Box
-                  key={opt}
+                  key={option}
                   component="button"
-                  onClick={() => { setSortBy(opt); setSortOpen(false); }}
+                  onClick={() => {
+                    setSortBy(option);
+                    setSortOpen(false);
+                  }}
                   sx={{
                     display: "block",
                     width: "100%",
@@ -237,8 +209,8 @@ export default function RewardsBrowseZone({ onRedeem }: RewardsBrowseZoneProps) 
                     px: 1.5,
                     py: 0.75,
                     fontSize: 12,
-                    fontWeight: opt === sortBy ? 700 : 400,
-                    color: opt === sortBy ? "primary.main" : "text.primary",
+                    fontWeight: option === sortBy ? 700 : 400,
+                    color: option === sortBy ? "primary.main" : "text.primary",
                     bgcolor: "transparent",
                     border: "none",
                     cursor: "pointer",
@@ -247,7 +219,7 @@ export default function RewardsBrowseZone({ onRedeem }: RewardsBrowseZoneProps) 
                     "&:hover": { bgcolor: isDark ? "rgba(255,255,255,0.05)" : "#F7F7F7" },
                   }}
                 >
-                  {opt}
+                  {option}
                 </Box>
               ))}
             </Box>
@@ -255,17 +227,31 @@ export default function RewardsBrowseZone({ onRedeem }: RewardsBrowseZoneProps) 
         </Box>
       </Box>
 
-      {/* Cards grid */}
       <Box
         component="section"
         aria-label="Available rewards"
-        sx={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-          gap: "8px",
-        }}
+        sx={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "8px" }}
       >
-        {rewardItems.map((reward) => (
+        {rewardItems.length === 0 ? (
+          <Box
+            sx={{
+              gridColumn: "1 / -1",
+              bgcolor: "background.paper",
+              border: "0.5px solid",
+              borderColor: "divider",
+              borderRadius: "10px",
+              px: 2,
+              py: 2,
+            }}
+          >
+            <Typography sx={{ fontSize: 13, fontWeight: 700, color: "text.primary" }}>
+              No rewards available
+            </Typography>
+            <Typography sx={{ fontSize: 11.5, color: "text.secondary", mt: 0.5 }}>
+              Try another category or check back later.
+            </Typography>
+          </Box>
+        ) : rewardItems.map((reward) => (
           <RewardCard
             key={reward.id}
             icon={reward.icon}

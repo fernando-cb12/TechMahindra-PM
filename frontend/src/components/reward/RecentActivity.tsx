@@ -2,36 +2,35 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
 import Typography from "@mui/material/Typography";
+import type { RewardActivity } from "../../services/rewardsService";
 
 interface RecentActivityProps {
   onSeeAll?: () => void;
+  items?: RewardActivity[];
 }
 
-const recentItems = [
-  {
-    id: "item-1",
-    title: "Closed design review tasks",
-    subtitle: "Sprint update",
-    points: "+120 pts",
-  },
-  {
-    id: "item-2",
-    title: "Redeemed team lunch",
-    subtitle: "Reward used",
-    points: "-500 pts",
-  },
-  {
-    id: "item-3",
-    title: "Peer recognition bonus",
-    subtitle: "Kudos from product team",
-    points: "+200 pts",
-  },
-];
+const fallbackItems: RewardActivity[] = [];
 
-export default function RecentActivity({ onSeeAll }: RecentActivityProps) {
+export default function RecentActivity({ onSeeAll, items = fallbackItems }: RecentActivityProps) {
+  const recentItems = items.map((item) => ({
+    id: item.id,
+    title: item.label,
+    subtitle: item.detail ?? item.category,
+    points: `${item.points >= 0 ? "+" : ""}${item.points.toLocaleString()} pts`,
+  }));
+
   return (
     <Box sx={{ bgcolor: "background.paper", border: "1px solid", borderColor: "divider", borderRadius: 2, overflow: "hidden" }}>
-      {recentItems.map((item, index) => (
+      {recentItems.length === 0 ? (
+        <Box sx={{ px: 2, py: 2 }}>
+          <Typography sx={{ fontSize: 13, fontWeight: 600, color: "text.primary" }}>
+            No rewards activity yet
+          </Typography>
+          <Typography sx={{ fontSize: 11, color: "text.secondary", mt: 0.5 }}>
+            Complete assigned tasks to start earning reward points.
+          </Typography>
+        </Box>
+      ) : recentItems.map((item, index) => (
         <Box key={item.id} sx={{ px: 2, py: 1.5 }}>
           <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
             <Box sx={{ minWidth: 0 }}>
