@@ -1,12 +1,14 @@
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import RecentActivity from "./RecentActivity";
+import type { RewardActivity } from "../../services/rewardsService";
 
 interface RewardsActivityZoneProps {
   onSeeAll?: () => void;
+  items?: RewardActivity[];
 }
 
-export default function RewardsActivityZone({ onSeeAll }: RewardsActivityZoneProps) {
+export default function RewardsActivityZone({ onSeeAll, items }: RewardsActivityZoneProps) {
   return (
     <Box sx={{ display: "flex", flexDirection: "column" }}>
       <Box
@@ -33,7 +35,7 @@ export default function RewardsActivityZone({ onSeeAll }: RewardsActivityZonePro
         </Typography>
       </Box>
 
-      <RecentActivity onSeeAll={onSeeAll} />
+      <RecentActivity onSeeAll={onSeeAll} items={items} />
     </Box>
   );
 }

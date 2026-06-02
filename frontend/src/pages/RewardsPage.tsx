@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
 import RewardsHero from '../components/reward/RewardsHero';
 import RewardsBrowseZone from '../components/reward/RewardsBrowseZone';
@@ -7,23 +8,54 @@ import RewardsActivityZone from '../components/reward/RewardsActivityZone';
 import ActivityHistoryPage from "../components/reward/ActivityHistoryPage";
 import RewardRedemptionModal from "../components/reward/RewardRedemptionModal";
 import type { RewardModalItem } from "../components/reward/RewardRedemptionModal";
+import { getRewardActivity, getRewardsPage, redeemReward, type RewardActivity, type RewardsPageData } from "../services/rewardsService";
+import { showAppError } from "../components/shared/appNotifications";
 
 type View = "rewards" | "history";
 
 export default function RewardsPage() {
   const [view, setView] = useState<View>("rewards");
-  const [userBalance, setUserBalance] = useState(2340);
+  const [data, setData] = useState<RewardsPageData | null>(null);
+  const [activity, setActivity] = useState<RewardActivity[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedReward, setSelectedReward] = useState<RewardModalItem | null>(null);
 
-  const handleRedeem = (reward: RewardModalItem) => {
-    setUserBalance((current) => Math.max(0, current - reward.cost));
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([getRewardsPage(), getRewardActivity()])
+      .then(([pageData, history]) => {
+        if (cancelled) return;
+        setData(pageData);
+        setActivity(history);
+      })
+      .catch((error) => showAppError(error, "Unable to load rewards"))
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleRedeem = async (reward: RewardModalItem) => {
+    const response = await redeemReward(String(reward.id));
+    setData((current) => current
+      ? {
+          ...current,
+          balance: response.balance,
+          redeemedTotal: current.redeemedTotal + reward.cost,
+          recentActivity: [response.activity, ...current.recentActivity].slice(0, 3),
+        }
+      : current);
+    setActivity((current) => [response.activity, ...current]);
   };
 
   if (view === "history") {
     return (
       <ActivityHistoryPage
         onBack={() => setView("rewards")}
-        userBalance={2340}
+        userBalance={data?.balance ?? 0}
+        activities={activity}
       />
     );
   }
@@ -84,22 +116,30 @@ export default function RewardsPage() {
           </Box>
         </Box>
 
-        <RewardsHero
-          balance={userBalance}
-          earnedThisMonth={840}
-          redeemedTotal={1200}
-          teamRank={2}
-        />
+        {loading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+            <CircularProgress size={28} />
+          </Box>
+        ) : (
+          <>
+            <RewardsHero
+              balance={data?.balance ?? 0}
+              earnedThisMonth={data?.earnedThisMonth ?? 0}
+              redeemedTotal={data?.redeemedTotal ?? 0}
+              teamRank={data?.teamRank ?? 1}
+            />
 
-        <RewardsBrowseZone onRedeem={setSelectedReward} />
+            <RewardsBrowseZone rewards={data?.rewards ?? []} onRedeem={setSelectedReward} />
 
-        <RewardsActivityZone onSeeAll={() => setView('history')} />
+            <RewardsActivityZone items={data?.recentActivity ?? []} onSeeAll={() => setView('history')} />
+          </>
+        )}
       </Box>
 
       <RewardRedemptionModal
         open={Boolean(selectedReward)}
         reward={selectedReward}
-        userBalance={userBalance}
+        userBalance={data?.balance ?? 0}
         onClose={() => setSelectedReward(null)}
         onRedeem={handleRedeem}
       />

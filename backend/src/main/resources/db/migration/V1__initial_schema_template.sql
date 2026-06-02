@@ -172,14 +172,37 @@ CREATE TABLE reward (
     name            VARCHAR(100) NOT NULL UNIQUE,
     description     TEXT,
     points_required INT NOT NULL,
-    active          BOOLEAN NOT NULL DEFAULT TRUE
+    active          BOOLEAN NOT NULL DEFAULT TRUE,
+    category        VARCHAR(40) NOT NULL DEFAULT 'perks',
+    icon_variant    VARCHAR(20) NOT NULL DEFAULT 'crimson',
+    badge           VARCHAR(20),
+    meta            VARCHAR(255),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE user_reward (
-    id          BIGSERIAL PRIMARY KEY,
-    user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    reward_id   BIGINT NOT NULL REFERENCES reward(id) ON DELETE CASCADE,
-    redeemed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id           BIGSERIAL PRIMARY KEY,
+    user_id      BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    reward_id    BIGINT NOT NULL REFERENCES reward(id) ON DELETE CASCADE,
+    redeemed_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    status       VARCHAR(20) NOT NULL DEFAULT 'pending'
+                 CHECK (status IN ('pending', 'fulfilled', 'cancelled')),
+    points_spent INT NOT NULL DEFAULT 0,
+    fulfilled_at TIMESTAMPTZ,
+    notes        TEXT
+);
+
+CREATE TABLE reward_points_ledger (
+    id            BIGSERIAL PRIMARY KEY,
+    user_id       BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    task_id       BIGINT REFERENCES task(id) ON DELETE SET NULL,
+    reward_id     BIGINT REFERENCES reward(id) ON DELETE SET NULL,
+    redemption_id BIGINT REFERENCES user_reward(id) ON DELETE SET NULL,
+    points_delta  INT NOT NULL,
+    reason        VARCHAR(50) NOT NULL
+                  CHECK (reason IN ('task_completed', 'reward_redeemed', 'manual_adjustment')),
+    description   VARCHAR(255) NOT NULL,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE requirement_document (
@@ -261,8 +284,16 @@ CREATE INDEX idx_task_history_task ON task_history(task_id);
 CREATE INDEX idx_task_history_changed_at ON task_history(changed_at);
 CREATE INDEX idx_user_points_user ON user_points(user_id);
 CREATE INDEX idx_user_points_task ON user_points(task_id);
+CREATE UNIQUE INDEX ux_user_points_task_completed
+    ON user_points(user_id, task_id, reason)
+    WHERE reason = 'task_completed';
 CREATE INDEX idx_user_badge_user ON user_badge(user_id);
 CREATE INDEX idx_user_reward_user ON user_reward(user_id);
+CREATE INDEX idx_reward_points_user_created ON reward_points_ledger(user_id, created_at DESC);
+CREATE INDEX idx_reward_points_task ON reward_points_ledger(task_id);
+CREATE UNIQUE INDEX ux_reward_points_task_completed
+    ON reward_points_ledger(user_id, task_id, reason)
+    WHERE reason = 'task_completed';
 CREATE INDEX idx_ai_session_user ON ai_session(user_id);
 CREATE INDEX idx_ai_session_workspace ON ai_session(workspace_id);
 CREATE INDEX idx_ai_rec_workspace ON ai_recommendation(workspace_id);

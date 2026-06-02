@@ -12,6 +12,7 @@ import LocalFireDepartmentOutlinedIcon from "@mui/icons-material/LocalFireDepart
 import CardGiftcardOutlinedIcon from "@mui/icons-material/CardGiftcardOutlined";
 import EmojiEventsOutlinedIcon from "@mui/icons-material/EmojiEventsOutlined";
 import type { ReactNode } from "react";
+import type { RewardActivity } from "../../services/rewardsService";
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
@@ -294,30 +295,63 @@ function ActivityRow({ entry, isDark, isLast }: { entry: ActivityEntry; isDark: 
 interface ActivityHistoryPageProps {
   onBack?: () => void;
   userBalance?: number;
+  activities?: RewardActivity[];
 }
 
-export default function ActivityHistoryPage({ onBack, userBalance = 2340 }: ActivityHistoryPageProps) {
+function formatActivityDate(createdAt: string) {
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) {
+    return { date: createdAt, dateGroup: "Recent" };
+  }
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const sameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  const time = date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  if (sameDay(date, now)) return { date: `Today, ${time}`, dateGroup: "Today" };
+  if (sameDay(date, yesterday)) return { date: `Yesterday, ${time}`, dateGroup: "Yesterday" };
+  const dateGroup = date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return { date: `${dateGroup}, ${time}`, dateGroup };
+}
+
+function toHistoryEntry(activity: RewardActivity): ActivityEntry {
+  const formatted = formatActivityDate(activity.createdAt);
+  return {
+    id: activity.id,
+    type: activity.type,
+    category: (activity.category in catMeta ? activity.category : "task") as ActivityCategory,
+    label: activity.label,
+    detail: activity.detail ?? undefined,
+    points: activity.points,
+    date: formatted.date,
+    dateGroup: formatted.dateGroup,
+  };
+}
+
+export default function ActivityHistoryPage({ onBack, userBalance = 2340, activities }: ActivityHistoryPageProps) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
 
   const [typeFilter, setTypeFilter] = useState<(typeof FILTER_TABS)[number]>("All");
   const [catFilter, setCatFilter] = useState<ActivityCategory | "all">("all");
   const [search, setSearch] = useState("");
+  const history = useMemo(() => activities?.map(toHistoryEntry) ?? HISTORY, [activities]);
 
   // Derived totals
-  const totalEarned = HISTORY.filter((e) => e.type === "earned").reduce((s, e) => s + e.points, 0);
-  const totalSpent = Math.abs(HISTORY.filter((e) => e.type === "spent").reduce((s, e) => s + e.points, 0));
+  const totalEarned = history.filter((e) => e.type === "earned").reduce((s, e) => s + e.points, 0);
+  const totalSpent = Math.abs(history.filter((e) => e.type === "spent").reduce((s, e) => s + e.points, 0));
 
   // Filtered list
   const filtered = useMemo(() => {
-    return HISTORY.filter((e) => {
+    return history.filter((e) => {
       if (typeFilter === "Earned" && e.type !== "earned") return false;
       if (typeFilter === "Redeemed" && e.type !== "spent") return false;
       if (catFilter !== "all" && e.category !== catFilter) return false;
       if (search && !e.label.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
-  }, [typeFilter, catFilter, search]);
+  }, [history, typeFilter, catFilter, search]);
 
   // Group by date
   const grouped = useMemo(() => {
