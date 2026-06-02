@@ -40,6 +40,7 @@ export interface TaskBoardContextValue extends Omit<TaskBoardState, 'manualGroup
   updateStatusOptions: (options: SelectOption[]) => void;
   updatePriorityOptions: (options: SelectOption[]) => void;
   renameBoard: (name: string) => void;
+  inviteBoardMembers: (userIds: number[]) => Promise<void>;
   reorderGroups: (newGroups: TaskGroup[]) => void;
   addGroupAtSecondPosition: () => void;
   updateGroupColor: (groupId: string, color: string) => void;

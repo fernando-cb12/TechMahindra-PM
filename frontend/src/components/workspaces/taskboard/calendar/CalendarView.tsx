@@ -65,7 +65,7 @@ export default function CalendarView() {
   const [createMenu, setCreateMenu] = useState<{ mouseX: number; mouseY: number; dueDate: string } | null>(null);
   const [taskMenu, setTaskMenu] = useState<{ mouseX: number; mouseY: number; taskId: string } | null>(null);
 
-  const [currentDate, setCurrentDate] = useState(() => new Date(2026, 4, 1));
+  const [currentDate, setCurrentDate] = useState(() => new Date());
 
   useEffect(() => {
     window.sessionStorage.setItem(filterStorageKey, JSON.stringify(filters));

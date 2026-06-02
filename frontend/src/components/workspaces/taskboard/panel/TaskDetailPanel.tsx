@@ -41,6 +41,7 @@ import type { TaskUpdate, FileAttachment, User, TaskActivity } from '../types';
 import { useParams } from 'react-router-dom';
 import { uploadTaskUpdateFile } from '../../../../services/taskBoardService';
 import { useAuth } from '../../../../auth/useAuth';
+import { showAppNotification } from '../../../shared/appNotifications';
 
 // Format file size in KB or MB
 function formatFileSize(bytes: number): string {
@@ -145,14 +146,19 @@ function UpdatesTab({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    let fileUrl = URL.createObjectURL(file);
+    let fileUrl = '';
     try {
       if (workspaceId && boardId && taskId) {
         const uploaded = await uploadTaskUpdateFile(workspaceId, boardId, taskId, file);
         fileUrl = uploaded.publicUrl;
+      } else {
+        throw new Error('Missing task context for upload');
       }
     } catch (error) {
       console.error('Failed to upload task file', error);
+      showAppNotification({ message: 'File upload failed. Please try again.', severity: 'error' });
+      e.target.value = '';
+      return;
     }
 
     const newFileAttach: FileAttachment = {
@@ -166,6 +172,7 @@ function UpdatesTab({
     };
 
     setDraftFiles((prev) => [...prev, newFileAttach]);
+    e.target.value = '';
   };
 
   const getMentionedIds = (content: string) => {
