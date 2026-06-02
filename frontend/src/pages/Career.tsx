@@ -60,7 +60,6 @@ const CareerPage: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     getCareerPage()
       .then((pageData) => {
         if (!cancelled) setData(pageData);

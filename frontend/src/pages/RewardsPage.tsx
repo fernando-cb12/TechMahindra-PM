@@ -22,7 +22,6 @@ export default function RewardsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     Promise.all([getRewardsPage(), getRewardActivity()])
       .then(([pageData, history]) => {
         if (cancelled) return;
