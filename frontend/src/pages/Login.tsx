@@ -7,7 +7,7 @@ import loginBg from "../assets/loginbg.png";
 import LoginForm from "../components/login/LoginForm";
 import { ROUTES } from "../app/routes";
 import { useAuth } from "../auth/useAuth";
-import { hasMinimumRole } from "../auth/auth";
+import { canAccessMainApp, isAdminOnly } from "../auth/auth";
 import { showAppNotification, showAppError } from "../components/shared/appNotifications";
 
 function Login() {
@@ -41,8 +41,11 @@ function Login() {
         password,
         persistent: stayLoggedIn,
       });
-      const canAccess = hasMinimumRole(session.roles, "DEVELOPER");
-      if (!canAccess) {
+      if (isAdminOnly(session.roles)) {
+        navigate(ROUTES.admin, { replace: true });
+        return;
+      }
+      if (!canAccessMainApp(session.roles)) {
         logout();
         showAppNotification({ message: accessDeniedMessage, severity: "error" });
         return;

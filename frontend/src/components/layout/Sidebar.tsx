@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useMemo, useState, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -21,9 +22,16 @@ import {
   TextField,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
+import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
+import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined';
+import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
+import EmojiEventsOutlinedIcon from '@mui/icons-material/EmojiEventsOutlined';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import LogoutIcon from '@mui/icons-material/Logout';
+import RedeemOutlinedIcon from '@mui/icons-material/RedeemOutlined';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+import WorkOutlineOutlinedIcon from '@mui/icons-material/WorkOutlineOutlined';
 import PushPinIcon from '@mui/icons-material/PushPin';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
@@ -45,6 +53,16 @@ const defaultNavItems: NavItem[] = [
   { label: 'Career', value: 'career' },
   { label: 'Settings', value: 'settings' },
 ];
+
+const navItemIcons: Record<string, ReactNode> = {
+  dashboard: <DashboardOutlinedIcon sx={{ fontSize: 18, mr: 1.5 }} />,
+  workspaces: <WorkOutlineOutlinedIcon sx={{ fontSize: 18, mr: 1.5 }} />,
+  issues: <AssignmentOutlinedIcon sx={{ fontSize: 18, mr: 1.5 }} />,
+  metrics: <BarChartOutlinedIcon sx={{ fontSize: 18, mr: 1.5 }} />,
+  career: <EmojiEventsOutlinedIcon sx={{ fontSize: 18, mr: 1.5 }} />,
+  settings: <SettingsOutlinedIcon sx={{ fontSize: 18, mr: 1.5 }} />,
+  rewards: <RedeemOutlinedIcon sx={{ fontSize: 18, mr: 1.5 }} />,
+};
 
 const defaultProjects: Project[] = [
   { label: 'Magenta', id: 'magenta', subsections: [{ label: 'Frontend Design', id: 'frontend' }] },
@@ -331,6 +349,7 @@ function Sidebar({
                 '&:hover': { backgroundColor: (theme) => alpha(theme.palette.common.white, 0.1) },
               }}
             >
+              {navItemIcons[item.value]}
               <ListItemText
                 primary={item.label}
                 primaryTypographyProps={{ fontSize: 12, fontWeight: item.value === activeNavItem ? 700 : 500, color: 'common.white' }}

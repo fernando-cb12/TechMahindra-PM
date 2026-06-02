@@ -95,6 +95,15 @@ export function hasMinimumRole(roles: AppRole[], minimumRole: AppRole): boolean 
   });
 }
 
+/** True when the user should use the admin panel instead of the main app. */
+export function isAdminOnly(roles: AppRole[]): boolean {
+  return roles.includes('ADMIN') && !roles.some((role) => role === 'DEVELOPER' || role === 'TEAM_LEAD');
+}
+
+export function canAccessMainApp(roles: AppRole[]): boolean {
+  return hasMinimumRole(roles, 'DEVELOPER') && !isAdminOnly(roles);
+}
+
 export async function login(credentials: LoginCredentials): Promise<AuthSession> {
   let payload: AuthResponse;
   try {
