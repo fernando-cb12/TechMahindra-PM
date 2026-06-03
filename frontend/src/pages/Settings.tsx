@@ -1,30 +1,44 @@
 import { useEffect, useState } from 'react';
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, CircularProgress, Stack, Typography } from '@mui/material';
 import { SettingsAppearanceCard } from '../components/settings/SettingsAppearanceCard';
 import { SettingsNotificationsCard } from '../components/settings/SettingsNotificationsCard';
 import { SettingsProfileEditModal } from '../components/settings/SettingsProfileEditModal';
 import { SettingsProfileCard } from '../components/settings/SettingsProfileCard';
-import { getUserProfile, updateUserProfile, type UserProfile } from '../services/userService';
-
-const defaultProfile: UserProfile = {
-  name: 'Antonio Calderon',
-  email: 'antioniocraft@gmail.com',
-  role: 'Developer',
-  timezone: 'GMT-6',
-};
+import { useAuth } from '../auth/useAuth';
+import {
+  getUserProfile,
+  updateUserProfile,
+  type NotificationSettings,
+  type UpdateUserProfilePayload,
+  type UserProfile,
+} from '../services/userService';
+import { showAppError, showAppNotification } from '../components/shared/appNotifications';
 
 function Settings() {
-  const [profile, setProfile] = useState<UserProfile>(defaultProfile);
+  const { profile: currentProfile, setProfile: setCurrentProfile } = useAuth();
+  const [profile, setProfile] = useState<UserProfile | null>(currentProfile);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(!currentProfile);
 
   useEffect(() => {
     let mounted = true;
 
     const loadProfile = async () => {
-      if (!mounted) return;
-      const userProfile = await getUserProfile();
-      if (mounted) {
-        setProfile(userProfile);
+      setIsLoading(true);
+      try {
+        const userProfile = await getUserProfile();
+        if (mounted) {
+          setProfile(userProfile);
+          setCurrentProfile(userProfile);
+        }
+      } catch (error) {
+        if (mounted) {
+          showAppError(error, 'Failed to load profile');
+        }
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     };
 
@@ -33,13 +47,63 @@ function Settings() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [setCurrentProfile]);
 
-  const handleSaveProfile = async (updatedProfile: UserProfile) => {
+  useEffect(() => {
+    if (currentProfile) {
+      setProfile(currentProfile);
+    }
+  }, [currentProfile]);
+
+  const handleSaveProfile = async (updatedProfile: UpdateUserProfilePayload) => {
     const savedProfile = await updateUserProfile(updatedProfile);
     setProfile(savedProfile);
+    setCurrentProfile(savedProfile);
     setIsEditOpen(false);
+    showAppNotification({ message: 'Profile updated', severity: 'success' });
   };
+
+  const handleNotificationsChange = async (notifications: NotificationSettings) => {
+    if (!profile) return;
+
+    const previousProfile = profile;
+    const optimisticProfile = { ...profile, notifications };
+    setProfile(optimisticProfile);
+    setCurrentProfile(optimisticProfile);
+
+    try {
+      const savedProfile = await updateUserProfile({
+        name: profile.name,
+        timezone: profile.timezone,
+        avatarUrl: profile.avatarUrl,
+        notifications,
+      });
+      setProfile(savedProfile);
+      setCurrentProfile(savedProfile);
+    } catch (error) {
+      setProfile(previousProfile);
+      setCurrentProfile(previousProfile);
+      showAppError(error, 'Failed to update notifications');
+    }
+  };
+
+  if (isLoading || !profile) {
+    return (
+      <Box
+        component="main"
+        sx={{
+          flex: 1,
+          minHeight: '100vh',
+          backgroundColor: 'background.default',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <CircularProgress size={36} sx={{ color: 'primary.main' }} />
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -52,48 +116,45 @@ function Settings() {
         py: 3,
       }}
     >
-        <Typography
-          sx={{
-            fontFamily: 'Montserrat, sans-serif',
-            fontWeight: 700,
-            fontSize: 21.5,
-            color: (theme) =>
-              theme.palette.mode === 'dark'
-                ? theme.palette.text.primary
-                : theme.palette.primary.main,
-            mb: 3,
-          }}
-        >
-          Settings
-        </Typography>
+      <Typography
+        sx={{
+          fontFamily: 'Montserrat, sans-serif',
+          fontWeight: 700,
+          fontSize: 21.5,
+          color: (theme) =>
+            theme.palette.mode === 'dark'
+              ? theme.palette.text.primary
+              : theme.palette.primary.main,
+          mb: 3,
+        }}
+      >
+        Settings
+      </Typography>
+
+      <Stack direction={{ xs: 'column', lg: 'row' }} spacing={3} alignItems="flex-start">
+        <Stack spacing={3} sx={{ flex: 1, width: '100%', maxWidth: { lg: 720 } }}>
+          <SettingsProfileCard profile={profile} onEdit={() => setIsEditOpen(true)} />
+          <SettingsAppearanceCard />
+        </Stack>
+
+        <SettingsProfileEditModal
+          open={isEditOpen}
+          profile={profile}
+          onClose={() => setIsEditOpen(false)}
+          onSave={handleSaveProfile}
+        />
 
         <Stack
-          direction={{ xs: 'column', lg: 'row' }}
           spacing={3}
-          alignItems="flex-start"
+          sx={{
+            width: '100%',
+            maxWidth: { lg: 340 },
+            alignSelf: 'stretch',
+          }}
         >
-          <Stack spacing={3} sx={{ flex: 1, width: '100%', maxWidth: { lg: 720 } }}>
-            <SettingsProfileCard profile={profile} onEdit={() => setIsEditOpen(true)} />
-            <SettingsAppearanceCard />
-          </Stack>
-          <SettingsProfileEditModal
-            open={isEditOpen}
-            profile={profile}
-            onClose={() => setIsEditOpen(false)}
-            onSave={handleSaveProfile}
-          />
-
-          <Stack
-            spacing={3}
-            sx={{
-              width: '100%',
-              maxWidth: { lg: 340 },
-              alignSelf: 'stretch',
-            }}
-          >
-            <SettingsNotificationsCard />
-          </Stack>
+          <SettingsNotificationsCard value={profile.notifications} onChange={handleNotificationsChange} />
         </Stack>
+      </Stack>
     </Box>
   );
 }

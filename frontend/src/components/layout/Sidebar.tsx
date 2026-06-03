@@ -108,10 +108,15 @@ function Sidebar({
   projects = defaultProjects,
 }: SidebarProps) {
   const navigate = useNavigate();
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
   const emailPrefix = session?.email?.split('@')[0] ?? 'User';
-  const userName = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
-  const userInitials = emailPrefix.slice(0, 2).toUpperCase();
+  const userName = profile?.name ?? (emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1));
+  const userInitials = userName
+    .split(' ')
+    .map((word) => word[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
   const storageUser = session?.email ?? 'anonymous';
   const pinnedStorageKey = `sidebar_pinned_workspaces_${storageUser}`;
   const recentStorageKey = `sidebar_recent_workspaces_${storageUser}`;
@@ -395,7 +400,7 @@ function Sidebar({
       <Divider sx={{ borderColor: (theme) => alpha(theme.palette.common.white, 0.2), mb: 2 }} />
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        <Avatar sx={{ width: 36, height: 36, bgcolor: 'secondary.main', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
+        <Avatar src={profile?.avatarUrl ?? undefined} sx={{ width: 36, height: 36, bgcolor: 'secondary.main', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
           {userInitials}
         </Avatar>
         <Box sx={{ flex: 1, minWidth: 0 }}>

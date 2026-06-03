@@ -6,6 +6,7 @@ public record WorkspaceMemberDto(
         String id,
         String name,
         String email,
+        String avatarUrl,
         List<String> roles,
         String workspaceRole) {
 }

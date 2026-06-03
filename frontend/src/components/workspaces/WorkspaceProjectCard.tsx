@@ -22,6 +22,7 @@ export interface WorkspaceMemberData {
   id: string;
   name: string;
   email: string;
+  avatarUrl?: string | null;
   roles: string[];
   workspaceRole: string;
 }
@@ -148,15 +149,18 @@ function WorkspaceProjectCard({ project, onSelect }: WorkspaceProjectCardProps) 
       </Typography>
 
       <Box sx={{ display: 'flex', alignItems: 'center', mt: 1.25 }}>
-        {project.members.map((member, index) => {
-          const initials = member
+        {(project.memberDetails && project.memberDetails.length > 0
+          ? project.memberDetails
+          : project.members.map((member) => ({ name: member, avatarUrl: null }))).map((member, index) => {
+          const initials = member.name
             .split(' ')
             .map((word) => word[0])
             .join('')
             .toUpperCase();
           return (
             <Avatar
-              key={`${project.id}-${member}-${index}`}
+              key={`${project.id}-${member.name}-${index}`}
+              src={member.avatarUrl ?? undefined}
               sx={{
                 width: 18,
                 height: 18,

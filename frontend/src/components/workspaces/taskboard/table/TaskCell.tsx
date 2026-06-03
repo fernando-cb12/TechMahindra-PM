@@ -210,7 +210,7 @@ export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellP
                   }}
                 >
                   {assignedUsers.map((u) => (
-                    <Avatar key={u.id}>{u.initials}</Avatar>
+                    <Avatar key={u.id} src={u.avatarUrl ?? undefined}>{u.initials}</Avatar>
                   ))}
                 </AvatarGroup>
                 
@@ -264,7 +264,7 @@ export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellP
                     }}
                   >
                     <Checkbox checked={isChecked} size="small" sx={{ p: 0.5, mr: 0.5 }} />
-                    <Avatar sx={{ width: 22, height: 22, fontSize: 10, bgcolor: 'primary.light', mr: 1 }}>
+                    <Avatar src={user.avatarUrl ?? undefined} sx={{ width: 22, height: 22, fontSize: 10, bgcolor: 'primary.light', mr: 1 }}>
                       {user.initials}
                     </Avatar>
                     <Typography sx={{ fontSize: 12.5 }}>{user.name}</Typography>

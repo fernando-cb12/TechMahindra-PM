@@ -354,6 +354,7 @@ public class WorkspaceService {
                             String.valueOf(member.getUser().getId()),
                             member.getUser().getName(),
                             member.getUser().getEmail(),
+                            avatarUrl(member.getUser()),
                             member.getUser().getRoles().stream()
                                     .map(role -> role.getName())
                                     .sorted(this::compareRolePriority)
@@ -503,5 +504,18 @@ public class WorkspaceService {
             case "VIEW_ONLY" -> 1;
             default -> 0;
         };
+    }
+
+    @SuppressWarnings("unchecked")
+    private String avatarUrl(User user) {
+        if (user.getPreferences() == null) {
+            return null;
+        }
+        Object profile = user.getPreferences().get("profile");
+        if (!(profile instanceof Map<?, ?> profileMap)) {
+            return null;
+        }
+        Object avatarUrl = ((Map<String, Object>) profileMap).get("avatarUrl");
+        return avatarUrl instanceof String value && !value.isBlank() ? value : null;
     }
 }

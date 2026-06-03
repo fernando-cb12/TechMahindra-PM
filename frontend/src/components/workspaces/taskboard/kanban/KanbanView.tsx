@@ -244,7 +244,7 @@ function EditableAssignees({ task }: EditableAssigneesProps) {
             sx={{ borderRadius: 1.25, mb: 0.25, fontSize: 12.5 }}
           >
             <Checkbox checked={assigneeIds.includes(user.id)} size="small" sx={{ p: 0.25, mr: 0.75 }} />
-            <Avatar sx={{ width: 22, height: 22, fontSize: 10, mr: 1 }}>
+            <Avatar src={user.avatarUrl ?? undefined} sx={{ width: 22, height: 22, fontSize: 10, mr: 1 }}>
               {user.initials}
             </Avatar>
             {user.name}

@@ -113,9 +113,7 @@ function WorkspaceIssuesSection({ workspace }: WorkspaceIssuesSectionProps) {
         <Button
           onClick={() =>
             navigate(
-              `/issues?workspaceId=${encodeURIComponent(workspace.id)}&project=${encodeURIComponent(
-                workspace.title,
-              )}`,
+              `/issues?workspaceId=${encodeURIComponent(workspace.id)}&project=${encodeURIComponent(workspace.title)}`,
             )
           }
           sx={{
@@ -124,7 +122,9 @@ function WorkspaceIssuesSection({ workspace }: WorkspaceIssuesSectionProps) {
             minWidth: 0,
             fontWeight: 700,
             fontSize: 20,
-            color: (t) => (t.palette.mode === 'dark' ? t.palette.text.primary : t.palette.primary.main),
+            color: (currentTheme) => (
+              currentTheme.palette.mode === 'dark' ? currentTheme.palette.text.primary : currentTheme.palette.primary.main
+            ),
             '&:hover': { bgcolor: 'transparent' },
             justifyContent: 'flex-start',
           }}
@@ -190,6 +190,7 @@ function WorkspaceIssuesSection({ workspace }: WorkspaceIssuesSectionProps) {
               }}
             >
               <Avatar
+                src={issue.assigneeAvatarUrl ?? undefined}
                 sx={{
                   width: 32,
                   height: 32,

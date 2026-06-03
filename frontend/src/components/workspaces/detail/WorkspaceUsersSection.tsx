@@ -8,6 +8,7 @@ interface WorkspaceUsersSectionProps {
 
 interface TeamUser {
   name: string;
+  avatarUrl?: string | null;
   roles: string[];
 }
 
@@ -17,10 +18,12 @@ function WorkspaceUsersSection({ workspace }: WorkspaceUsersSectionProps) {
   const teamUsers: TeamUser[] = workspace.memberDetails && workspace.memberDetails.length > 0
     ? workspace.memberDetails.map((member) => ({
         name: member.name,
+        avatarUrl: member.avatarUrl,
         roles: member.roles.length > 0 ? member.roles : [member.workspaceRole],
       }))
     : workspace.members.map((name) => ({
         name,
+        avatarUrl: null,
         roles: ['Collaborator'],
       }));
 
@@ -79,10 +82,10 @@ function WorkspaceUsersSection({ workspace }: WorkspaceUsersSectionProps) {
           variant="h6"
           sx={{
             fontWeight: 700,
-            color: (theme) =>
-              theme.palette.mode === 'dark'
-                ? theme.palette.text.primary
-                : theme.palette.primary.main,
+            color: (currentTheme) =>
+              currentTheme.palette.mode === 'dark'
+                ? currentTheme.palette.text.primary
+                : currentTheme.palette.primary.main,
           }}
         >
           Users
@@ -147,6 +150,7 @@ function WorkspaceUsersSection({ workspace }: WorkspaceUsersSectionProps) {
               }}
             >
               <Avatar
+                src={user.avatarUrl ?? undefined}
                 sx={{
                   width: 36,
                   height: 36,

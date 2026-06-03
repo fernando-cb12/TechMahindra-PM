@@ -10,6 +10,7 @@ export type WorkspaceIssueSummary = {
   title: string;
   description: string;
   assignee: string;
+  assigneeAvatarUrl?: string | null;
   priority: WorkspaceIssuePriority;
   status: WorkspaceIssueStatus;
   boardId: string;
@@ -59,20 +60,11 @@ const MOCK_ISSUES: IssueCardProps[] = [
   },
 ];
 
-/**
- * Service layer for issues.
- *
- * This file is the only place that knows about mock data.
- * When backend endpoints are ready, replace each function body
- * with API calls and keep the same function contracts.
- */
 export async function getIssues(): Promise<IssueCardProps[]> {
-  // TODO: Replace with API call, e.g. return (await apiClient.get('/api/issues')).data;
   return Promise.resolve(MOCK_ISSUES);
 }
 
 export async function createIssue(payload: CreateIssuePayload): Promise<IssueCardProps> {
-  // TODO: Replace with API call, e.g. return (await apiClient.post('/api/issues', payload)).data;
   const newIssue: IssueCardProps = {
     issueKey: `APP-${Math.floor(Math.random() * 900) + 100}`,
     project: payload.project,
@@ -126,6 +118,7 @@ export async function getWorkspaceIssues(workspaceId: string): Promise<Workspace
       return Object.values(payload.tasks).map((task) => {
         const assigneeId = task.assigneeIds[0] ?? task.assigneeId;
         const assignee = assigneeId ? payload.users[assigneeId]?.name ?? 'Unassigned' : 'Unassigned';
+        const assigneeAvatarUrl = assigneeId ? payload.users[assigneeId]?.avatarUrl ?? null : null;
         const groupName = groupNames.get(task.groupId);
         const statusOption = statusOptions.get(task.status);
         const priorityOption = priorityOptions.get(task.priority);
@@ -136,6 +129,7 @@ export async function getWorkspaceIssues(workspaceId: string): Promise<Workspace
           title: task.name,
           description: `${board.name}${groupName ? ` • ${groupName}` : ''}${dueDateLabel}`,
           assignee,
+          assigneeAvatarUrl,
           priority: normalizePriority(task.priority, priorityOption?.label ?? ''),
           status: normalizeStatus(task.status, statusOption?.label ?? '', statusOption?.workflowMeaning),
           boardId: board.id,

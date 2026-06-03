@@ -7,7 +7,6 @@ import {
   Typography,
 } from '@mui/material';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import profilePhoto from '../../assets/settings/profile-photo.png';
 import { SettingsCard } from './SettingsCard';
 import type { UserProfile } from '../../services/userService';
 
@@ -64,15 +63,25 @@ function SettingsProfileCard({ profile, onEdit }: SettingsProfileCardProps) {
             onMouseLeave={() => setHoverAvatar(false)}
           >
             <Avatar
-              src={profilePhoto}
+              src={profile.avatarUrl ?? undefined}
               alt={profile.name}
               sx={{
                 width: 147,
                 height: 148,
                 border: (theme) => `3px solid ${theme.palette.primary.main}`,
                 boxSizing: 'border-box',
+                bgcolor: 'primary.main',
+                fontSize: 48,
+                fontWeight: 700,
               }}
-            />
+            >
+              {profile.name
+                .split(' ')
+                .map((word) => word[0])
+                .join('')
+                .slice(0, 2)
+                .toUpperCase()}
+            </Avatar>
             <Box
               sx={{
                 position: 'absolute',

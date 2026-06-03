@@ -37,3 +37,26 @@ export async function uploadWorkspaceBanner(file: File): Promise<string> {
     throw new Error(getErrorMessage(e));
   }
 }
+
+export async function uploadProfilePhoto(file: File): Promise<string> {
+  try {
+    const contentType = file.type || 'application/octet-stream';
+    const { data } = await apiClient.post<UploadResponse>('/api/uploads/profile-photo/presign', {
+      fileName: file.name,
+      contentType,
+    });
+    const uploadResponse = await fetch(data.uploadUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': contentType,
+      },
+      body: file,
+    });
+    if (!uploadResponse.ok) {
+      throw new Error('Upload to S3 failed');
+    }
+    return data.publicUrl;
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}

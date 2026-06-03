@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   Box,
   Checkbox,
@@ -27,20 +26,13 @@ const LABELS: Record<NotificationKey, string> = {
 };
 
 type SettingsNotificationsCardProps = {
-  initialState?: Partial<Record<NotificationKey, boolean>>;
+  value: Record<NotificationKey, boolean>;
+  onChange: (next: Record<NotificationKey, boolean>) => void;
 };
 
-function SettingsNotificationsCard({ initialState }: SettingsNotificationsCardProps) {
-  const [flags, setFlags] = useState<Record<NotificationKey, boolean>>(() => ({
-    issuesAssigned: true,
-    mentions: true,
-    projectUpdates: true,
-    dailySummary: true,
-    ...initialState,
-  }));
-
+function SettingsNotificationsCard({ value, onChange }: SettingsNotificationsCardProps) {
   const toggle = (key: NotificationKey) => {
-    setFlags((prev) => ({ ...prev, [key]: !prev[key] }));
+    onChange({ ...value, [key]: !value[key] });
   };
 
   return (
@@ -76,7 +68,7 @@ function SettingsNotificationsCard({ initialState }: SettingsNotificationsCardPr
                 }}
                 control={
                   <Checkbox
-                    checked={flags[key]}
+                    checked={value[key]}
                     onChange={() => toggle(key)}
                     icon={
                       <Box

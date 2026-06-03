@@ -1,26 +1,96 @@
+import { apiClient } from './apiClient';
+import { uploadProfilePhoto } from './uploadsService';
+
+export type NotificationSettings = {
+  issuesAssigned: boolean;
+  mentions: boolean;
+  projectUpdates: boolean;
+  dailySummary: boolean;
+};
+
 export type UserProfile = {
+  id: number;
   name: string;
   email: string;
   role: string;
   timezone: string;
+  avatarUrl: string | null;
+  notifications: NotificationSettings;
 };
 
-const userProfileMock: UserProfile = {
-  name: 'Antonio Calderon',
-  email: 'antioniocraft@gmail.com',
-  role: 'Admin',
-  timezone: 'GMT-6',
+export type UpdateUserProfilePayload = {
+  name: string;
+  timezone: string;
+  avatarUrl?: string | null;
+  avatarFile?: File | null;
+  notifications: NotificationSettings;
 };
 
-export async function getUserProfile(): Promise<UserProfile> {
-  // TODO: Replace with real API call when backend is available.
-  // Example: return (await apiClient.get('/users/me')).data;
-  return Promise.resolve(userProfileMock);
+type UserProfileApi = {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  timezone: string;
+  avatarUrl: string | null;
+  notifications?: Partial<NotificationSettings>;
+};
+
+const DEFAULT_NOTIFICATIONS: NotificationSettings = {
+  issuesAssigned: true,
+  mentions: true,
+  projectUpdates: true,
+  dailySummary: true,
+};
+
+function getErrorMessage(err: unknown): string {
+  if (err && typeof err === 'object' && 'response' in err) {
+    const data = (err as { response?: { data?: { error?: string; fields?: Record<string, string> } } }).response?.data;
+    if (data?.error) return data.error;
+    if (data?.fields) {
+      const first = Object.values(data.fields)[0];
+      if (first) return first;
+    }
+  }
+  if (err instanceof Error) return err.message;
+  return 'Profile request failed';
 }
 
-export async function updateUserProfile(profile: UserProfile): Promise<UserProfile> {
-  // TODO: Replace with real API call when backend is available.
-  // Example: return (await apiClient.put('/users/me', profile)).data;
-  Object.assign(userProfileMock, profile);
-  return Promise.resolve({ ...userProfileMock });
+function mapProfile(data: UserProfileApi): UserProfile {
+  return {
+    id: data.id,
+    name: data.name,
+    email: data.email,
+    role: data.role,
+    timezone: data.timezone,
+    avatarUrl: data.avatarUrl ?? null,
+    notifications: {
+      ...DEFAULT_NOTIFICATIONS,
+      ...data.notifications,
+    },
+  };
+}
+
+export async function getUserProfile(): Promise<UserProfile> {
+  try {
+    const { data } = await apiClient.get<UserProfileApi>('/api/users/me');
+    return mapProfile(data);
+  } catch (error) {
+    throw new Error(getErrorMessage(error));
+  }
+}
+
+export async function updateUserProfile(profile: UpdateUserProfilePayload): Promise<UserProfile> {
+  try {
+    const avatarUrl = profile.avatarFile ? await uploadProfilePhoto(profile.avatarFile) : profile.avatarUrl;
+    const { data } = await apiClient.patch<UserProfileApi>('/api/users/me', {
+      name: profile.name.trim(),
+      timezone: profile.timezone.trim(),
+      avatarUrl: avatarUrl ?? null,
+      notifications: profile.notifications,
+    });
+    return mapProfile(data);
+  } catch (error) {
+    throw new Error(getErrorMessage(error));
+  }
 }

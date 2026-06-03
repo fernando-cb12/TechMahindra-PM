@@ -280,7 +280,7 @@ function UpdatesTab({
         <List dense sx={{ py: 0.5 }}>
           {filteredMembers.map((m) => (
             <MenuItem key={m.id} onClick={() => handleSelectMention(m)}>
-              <Avatar sx={{ width: 20, height: 20, fontSize: 9, mr: 1, bgcolor: 'primary.main' }}>
+              <Avatar src={m.avatarUrl ?? undefined} sx={{ width: 20, height: 20, fontSize: 9, mr: 1, bgcolor: 'primary.main' }}>
                 {m.initials}
               </Avatar>
               <ListItemText primary={m.name} primaryTypographyProps={{ fontSize: 13 }} />
@@ -302,7 +302,7 @@ function UpdatesTab({
 
             return (
               <Box key={upd.id} sx={{ display: 'flex', gap: 2, mb: 4 }}>
-                <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: 13 }}>
+                <Avatar src={author?.avatarUrl ?? undefined} sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: 13 }}>
                   {author?.initials || '?'}
                 </Avatar>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
