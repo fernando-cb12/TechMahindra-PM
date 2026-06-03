@@ -1,4 +1,20 @@
 import type { IssueCardProps } from '../components/issue/types';
+import { getTaskBoard } from './taskBoardService';
+import { getWorkspaceBoards } from './workspacesService';
+
+export type WorkspaceIssuePriority = 'high' | 'medium' | 'low' | 'critical';
+export type WorkspaceIssueStatus = 'open' | 'in-progress' | 'closed' | 'on-hold';
+
+export type WorkspaceIssueSummary = {
+  id: string;
+  title: string;
+  description: string;
+  assignee: string;
+  priority: WorkspaceIssuePriority;
+  status: WorkspaceIssueStatus;
+  boardId: string;
+  boardName: string;
+};
 
 export type CreateIssuePayload = {
   project: string;
@@ -68,4 +84,64 @@ export async function createIssue(payload: CreateIssuePayload): Promise<IssueCar
 
   MOCK_ISSUES.unshift(newIssue);
   return Promise.resolve(newIssue);
+}
+
+function normalizePriority(key: string, label: string): WorkspaceIssuePriority {
+  const value = `${key} ${label}`.toLowerCase();
+  if (value.includes('critical') || value.includes('urgent')) return 'critical';
+  if (value.includes('high')) return 'high';
+  if (value.includes('low')) return 'low';
+  return 'medium';
+}
+
+function normalizeStatus(key: string, label: string, workflowMeaning?: string): WorkspaceIssueStatus {
+  const value = `${key} ${label}`.toLowerCase();
+  if (workflowMeaning === 'done' || value.includes('done') || value.includes('closed') || value.includes('resolved')) {
+    return 'closed';
+  }
+  if (workflowMeaning === 'in_progress' || value.includes('progress') || value.includes('doing')) {
+    return 'in-progress';
+  }
+  if (value.includes('hold') || value.includes('blocked') || value.includes('pause')) {
+    return 'on-hold';
+  }
+  return 'open';
+}
+
+export async function getWorkspaceIssues(workspaceId: string): Promise<WorkspaceIssueSummary[]> {
+  const boards = await getWorkspaceBoards(workspaceId);
+  const payloads = await Promise.all(
+    boards.map(async (board) => ({
+      board,
+      payload: await getTaskBoard(workspaceId, board.id),
+    })),
+  );
+
+  return payloads
+    .flatMap(({ board, payload }) => {
+      const statusOptions = new Map(payload.boardConfig.statusOptions.map((option) => [option.id, option]));
+      const priorityOptions = new Map(payload.boardConfig.priorityOptions.map((option) => [option.id, option]));
+      const groupNames = new Map(payload.groups.map((group) => [group.id, group.name]));
+
+      return Object.values(payload.tasks).map((task) => {
+        const assigneeId = task.assigneeIds[0] ?? task.assigneeId;
+        const assignee = assigneeId ? payload.users[assigneeId]?.name ?? 'Unassigned' : 'Unassigned';
+        const groupName = groupNames.get(task.groupId);
+        const statusOption = statusOptions.get(task.status);
+        const priorityOption = priorityOptions.get(task.priority);
+        const dueDateLabel = task.dueDate ? ` • Due ${task.dueDate}` : '';
+
+        return {
+          id: task.id,
+          title: task.name,
+          description: `${board.name}${groupName ? ` • ${groupName}` : ''}${dueDateLabel}`,
+          assignee,
+          priority: normalizePriority(task.priority, priorityOption?.label ?? ''),
+          status: normalizeStatus(task.status, statusOption?.label ?? '', statusOption?.workflowMeaning),
+          boardId: board.id,
+          boardName: board.name,
+        } satisfies WorkspaceIssueSummary;
+      });
+    })
+    .sort((left, right) => right.id.localeCompare(left.id, undefined, { numeric: true }));
 }

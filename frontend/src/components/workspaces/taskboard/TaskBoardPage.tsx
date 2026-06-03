@@ -32,7 +32,8 @@ import AddIcon from '@mui/icons-material/Add';
 import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
-import { useParams, useSearchParams } from 'react-router-dom';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { TaskBoardProvider } from './TaskBoardContext';
 import { useTaskBoard } from './useTaskBoard';
@@ -46,7 +47,7 @@ import { useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent, 
 import { useAuth } from '../../../auth/useAuth';
 import { showAppNotification } from '../../shared/appNotifications';
 import { getBoardMemberCandidates } from '../../../services/taskBoardService';
-import type { AssignableUser } from '../../../services/workspacesService';
+import { getWorkspace, type AssignableUser } from '../../../services/workspacesService';
 
 const OPTIONAL_VIEWS: Array<{ value: Exclude<BoardView, 'table'>; label: string; icon: ReactElement }> = [
   { value: 'insights', label: 'Insights', icon: <InsertChartIcon sx={{ fontSize: 18 }} /> },
@@ -83,6 +84,7 @@ function TaskBoardContent() {
     inviteBoardMembers,
   } = useTaskBoard();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { workspaceId: routeWorkspaceId = '', boardId: routeBoardId = '' } = useParams();
   const taskParamRef = useRef<string | null>(null);
   const hasAutoOpenedTaskRef = useRef(false);
@@ -97,6 +99,7 @@ function TaskBoardContent() {
   const [isLoadingAssignableUsers, setIsLoadingAssignableUsers] = useState(false);
   const [selectedInviteUserIds, setSelectedInviteUserIds] = useState<number[]>([]);
   const [isInvitingMembers, setIsInvitingMembers] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState('Workspace');
   
   // Format the board title (e.g., frontend -> Frontend Design)
   const boardTitle = boardConfig.boardName || 'Task Board';
@@ -120,6 +123,27 @@ function TaskBoardContent() {
   useEffect(() => {
     localStorage.setItem(viewPreferenceKey, JSON.stringify(visibleOptionalViews));
   }, [viewPreferenceKey, visibleOptionalViews]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!routeWorkspaceId) return;
+
+    void getWorkspace(routeWorkspaceId)
+      .then((workspace) => {
+        if (!cancelled) {
+          setWorkspaceName(workspace.title);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setWorkspaceName('Workspace');
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [routeWorkspaceId]);
 
   useEffect(() => {
     if (activeView !== 'table' && !visibleOptionalViews.includes(activeView as Exclude<BoardView, 'table'>)) {
@@ -271,6 +295,22 @@ function TaskBoardContent() {
       
       {/* Header */}
       <Box sx={{ px: 4, py: 3, pb: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate(`/workspaces/${routeWorkspaceId}`)}
+          sx={{
+            textTransform: 'none',
+            mb: 2,
+            px: 0,
+            minWidth: 0,
+            alignSelf: 'flex-start',
+            fontWeight: 600,
+            color: 'primary.main',
+            '&:hover': { bgcolor: 'transparent' },
+          }}
+        >
+          Back to {workspaceName}
+        </Button>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             {isRenamingBoard ? (

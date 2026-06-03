@@ -1,4 +1,8 @@
-import type { WorkspaceProjectCardData, WorkspaceProjectStatus } from '../components/workspaces/WorkspaceProjectCard';
+import type {
+  WorkspaceMemberData,
+  WorkspaceProjectCardData,
+  WorkspaceProjectStatus,
+} from '../components/workspaces/WorkspaceProjectCard';
 import { apiClient } from './apiClient';
 import { uploadWorkspaceBanner } from './uploadsService';
 
@@ -38,6 +42,7 @@ type WorkspaceProjectCardApi = {
   description: string;
   imageUrl?: string | null;
   members: string[];
+  memberDetails?: WorkspaceMemberData[];
   currentProgress: number;
   estimatedProgress: number;
   dueDate: string;
@@ -52,6 +57,7 @@ function mapCard(api: WorkspaceProjectCardApi): WorkspaceProjectCardData {
     description: api.description,
     imageUrl: api.imageUrl ?? undefined,
     members: api.members,
+    memberDetails: api.memberDetails ?? [],
     currentProgress: api.currentProgress,
     estimatedProgress: api.estimatedProgress,
     dueDate: api.dueDate,

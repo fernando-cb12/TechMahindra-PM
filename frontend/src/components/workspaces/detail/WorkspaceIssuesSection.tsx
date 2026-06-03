@@ -1,62 +1,55 @@
-import { Box, Paper, Typography, Chip, Avatar, Button, useTheme, alpha } from '@mui/material';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
+import { useEffect, useState } from 'react';
+import { Box, Paper, Typography, Chip, Avatar, Button, useTheme, alpha, CircularProgress } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import type { WorkspaceProjectCardData } from '../WorkspaceProjectCard';
+import {
+  getWorkspaceIssues,
+  type WorkspaceIssuePriority,
+  type WorkspaceIssueStatus,
+  type WorkspaceIssueSummary,
+} from '../../../services/issueService';
+import { showAppError } from '../../shared/appNotifications';
 
 interface WorkspaceIssuesSectionProps {
   workspace: WorkspaceProjectCardData;
 }
 
-interface Issue {
-  id: string;
-  title: string;
-  description: string;
-  assignee: string;
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  status: 'open' | 'in-progress' | 'closed' | 'on-hold';
-}
-
 function WorkspaceIssuesSection({ workspace }: WorkspaceIssuesSectionProps) {
   const theme = useTheme();
   const navigate = useNavigate();
+  const [issues, setIssues] = useState<WorkspaceIssueSummary[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Mock data - replace with actual API call
-  const issues: Issue[] = [
-    {
-      id: 'ISSUE-001',
-      title: 'Audit session management',
-      description: 'Implement comprehensive audit for session creation...',
-      assignee: workspace.members[0] || 'Unassigned',
-      priority: 'high',
-      status: 'in-progress',
-    },
-    {
-      id: 'ISSUE-002',
-      title: 'Implement user registration system',
-      description: 'Create new user registration with email verification...',
-      assignee: workspace.members[1] || 'Unassigned',
-      priority: 'high',
-      status: 'in-progress',
-    },
-    {
-      id: 'ISSUE-003',
-      title: 'Redesign navigation structure',
-      description: 'Improve navigation UI for better user experience...',
-      assignee: workspace.members[2] || 'Unassigned',
-      priority: 'medium',
-      status: 'on-hold',
-    },
-    {
-      id: 'ISSUE-004',
-      title: 'Setup navigation structure',
-      description: 'Configure navigation routes and structure...',
-      assignee: workspace.members[0] || 'Unassigned',
-      priority: 'medium',
-      status: 'closed',
-    },
-  ];
+  useEffect(() => {
+    let cancelled = false;
 
-  const priorityConfig: Record<Issue['priority'], { bg: string; color: string; label: string }> = {
+    const loadIssues = async () => {
+      setIsLoading(true);
+      try {
+        const data = await getWorkspaceIssues(workspace.id);
+        if (!cancelled) {
+          setIssues(data);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setIssues([]);
+          showAppError(error, 'Failed to load workspace issues');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadIssues();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspace.id]);
+
+  const priorityConfig: Record<WorkspaceIssuePriority, { bg: string; color: string; label: string }> = {
     critical: {
       bg: theme.palette.error.main,
       color: '#fff',
@@ -79,7 +72,7 @@ function WorkspaceIssuesSection({ workspace }: WorkspaceIssuesSectionProps) {
     },
   };
 
-  const statusConfig: Record<Issue['status'], { bg: string; color: string; label: string }> = {
+  const statusConfig: Record<WorkspaceIssueStatus, { bg: string; color: string; label: string }> = {
     open: {
       bg: alpha(theme.palette.info.main, 0.1),
       color: theme.palette.info.main,
@@ -138,9 +131,6 @@ function WorkspaceIssuesSection({ workspace }: WorkspaceIssuesSectionProps) {
         >
           Issues
         </Button>
-        <Typography sx={{ fontSize: 13, color: 'text.secondary', fontWeight: 600 }}>
-          + Create Issue
-        </Typography>
       </Box>
 
       <Box
@@ -162,7 +152,15 @@ function WorkspaceIssuesSection({ workspace }: WorkspaceIssuesSectionProps) {
           },
         }}
       >
-        {issues.map((issue) => {
+        {isLoading ? (
+          <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <CircularProgress size={24} sx={{ color: 'primary.main' }} />
+          </Box>
+        ) : issues.length === 0 ? (
+          <Typography sx={{ color: 'text.secondary', fontSize: 13, py: 2 }}>
+            No issues found in this workspace.
+          </Typography>
+        ) : issues.map((issue) => {
           const priority = priorityConfig[issue.priority];
           const status = statusConfig[issue.status];
           const initials = issue.assignee
@@ -174,6 +172,7 @@ function WorkspaceIssuesSection({ workspace }: WorkspaceIssuesSectionProps) {
           return (
             <Box
               key={issue.id}
+              onClick={() => navigate(`/workspaces/${workspace.id}/boards/${issue.boardId}`)}
               sx={{
                 display: 'flex',
                 alignItems: 'flex-start',
@@ -219,12 +218,6 @@ function WorkspaceIssuesSection({ workspace }: WorkspaceIssuesSectionProps) {
                   >
                     {issue.title}
                   </Typography>
-                  <Button
-                    size="small"
-                    sx={{ minWidth: 32, p: 0, color: 'text.secondary', ml: 1 }}
-                  >
-                    <MoreVertIcon sx={{ fontSize: 18 }} />
-                  </Button>
                 </Box>
 
                 <Typography

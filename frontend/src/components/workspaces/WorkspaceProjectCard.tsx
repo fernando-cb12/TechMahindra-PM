@@ -10,11 +10,20 @@ export interface WorkspaceProjectCardData {
   description: string;
   imageUrl?: string;
   members: string[];
+  memberDetails?: WorkspaceMemberData[];
   currentProgress: number;
   estimatedProgress: number;
   dueDate: string;
   budgetLabel: string;
   status: WorkspaceProjectStatus;
+}
+
+export interface WorkspaceMemberData {
+  id: string;
+  name: string;
+  email: string;
+  roles: string[];
+  workspaceRole: string;
 }
 
 interface WorkspaceProjectCardProps {
