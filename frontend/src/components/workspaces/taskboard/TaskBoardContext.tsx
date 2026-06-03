@@ -223,7 +223,6 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
   }, [hydrateUsersWithCurrentProfile]);
 
   // Re-init state when workspace/board ID changes
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     let cancelled = false;
     const preferences = loadOrderPreferences();
@@ -273,7 +272,6 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       cancelled = true;
     };
   }, [workspaceId, boardId, loadOrderPreferences, hydrateUsersWithCurrentProfile]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Backend is the source of truth; this keeps optimistic update call sites simple.
   const syncStorage = useCallback((...args: unknown[]) => {

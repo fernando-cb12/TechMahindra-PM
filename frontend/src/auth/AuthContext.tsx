@@ -19,7 +19,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     if (!session) {
-      setProfile(null);
       return;
     }
 
@@ -43,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
-      profile,
+      profile: session ? profile : null,
       isAuthenticated: session !== null,
       login: async ({ email, password, persistent }) => {
         const nextSession = await loginRequest({ email, password });
@@ -70,7 +69,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       refreshProfile: async () => {
         if (!session) {
-          setProfile(null);
           return null;
         }
         try {

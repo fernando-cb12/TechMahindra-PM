@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Button,
   Dialog,
@@ -22,12 +22,15 @@ function CreateBoardModal({ open, isSaving, onClose, onSave }: CreateBoardModalP
   const [name, setName] = useState('');
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (!open) {
-      setName('');
-      setError('');
-    }
-  }, [open]);
+  const resetForm = () => {
+    setName('');
+    setError('');
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
 
   const handleSave = async () => {
     const trimmed = name.trim();
@@ -36,13 +39,14 @@ function CreateBoardModal({ open, isSaving, onClose, onSave }: CreateBoardModalP
       return;
     }
     await onSave(trimmed);
+    resetForm();
   };
 
   return (
-    <Dialog open={open} onClose={isSaving ? undefined : onClose} fullWidth maxWidth="xs">
+    <Dialog open={open} onClose={isSaving ? undefined : handleClose} fullWidth maxWidth="xs">
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontWeight: 700 }}>
         Create Board
-        <IconButton onClick={onClose} size="small" disabled={isSaving}>
+        <IconButton onClick={handleClose} size="small" disabled={isSaving}>
           <CloseIcon />
         </IconButton>
       </DialogTitle>
@@ -70,7 +74,7 @@ function CreateBoardModal({ open, isSaving, onClose, onSave }: CreateBoardModalP
         />
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 3 }}>
-        <Button onClick={onClose} disabled={isSaving} sx={{ textTransform: 'none' }}>
+        <Button onClick={handleClose} disabled={isSaving} sx={{ textTransform: 'none' }}>
           Cancel
         </Button>
         <Button variant="contained" onClick={() => void handleSave()} disabled={isSaving} sx={{ textTransform: 'none', fontWeight: 700 }}>
