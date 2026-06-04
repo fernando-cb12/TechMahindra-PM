@@ -46,6 +46,10 @@ function WorkspaceGeneralInfo({ workspace }: WorkspaceGeneralInfoProps) {
       }).format(projectDueDate)
     : workspace.dueDate;
 
+  const visibleMembers = workspace.memberDetails && workspace.memberDetails.length > 0
+    ? workspace.memberDetails.slice(0, 4)
+    : workspace.members.slice(0, 4).map((member) => ({ name: member, avatarUrl: null }));
+
   return (
     <Paper
       elevation={0}
@@ -83,10 +87,10 @@ function WorkspaceGeneralInfo({ workspace }: WorkspaceGeneralInfoProps) {
               variant="h4"
               sx={{
                 fontWeight: 700,
-                color: (theme) =>
-                  theme.palette.mode === 'dark'
-                    ? theme.palette.text.primary
-                    : theme.palette.primary.main,
+                color: (currentTheme) =>
+                  currentTheme.palette.mode === 'dark'
+                    ? currentTheme.palette.text.primary
+                    : currentTheme.palette.primary.main,
                 mb: 0.5,
               }}
             >
@@ -167,15 +171,16 @@ function WorkspaceGeneralInfo({ workspace }: WorkspaceGeneralInfoProps) {
               Team Members ({workspace.members.length})
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              {workspace.members.slice(0, 4).map((member, index) => {
-                const initials = member
+              {visibleMembers.map((member, index) => {
+                const initials = member.name
                   .split(' ')
                   .map((word) => word[0])
                   .join('')
                   .toUpperCase();
                 return (
                   <Avatar
-                    key={`${workspace.id}-${member}-${index}`}
+                    key={`${workspace.id}-${member.name}-${index}`}
+                    src={member.avatarUrl ?? undefined}
                     sx={{
                       width: 32,
                       height: 32,
@@ -184,7 +189,7 @@ function WorkspaceGeneralInfo({ workspace }: WorkspaceGeneralInfoProps) {
                       bgcolor: 'primary.main',
                       color: theme.palette.mode === 'dark' ? '#F5F5F5' : undefined,
                     }}
-                    title={member}
+                    title={member.name}
                   >
                     {initials}
                   </Avatar>

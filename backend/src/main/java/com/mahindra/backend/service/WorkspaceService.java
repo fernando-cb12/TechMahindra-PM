@@ -9,6 +9,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import org.springframework.security.core.Authentication;
@@ -21,6 +22,7 @@ import com.mahindra.backend.dto.CreateWorkspaceRequest;
 import com.mahindra.backend.dto.UpdateWorkspaceRequest;
 import com.mahindra.backend.dto.WorkspaceBoardDto;
 import com.mahindra.backend.dto.WorkspaceCardDto;
+import com.mahindra.backend.dto.WorkspaceMemberDto;
 import com.mahindra.backend.dto.taskboard.CreateBoardRequest;
 import com.mahindra.backend.entity.Board;
 import com.mahindra.backend.entity.BoardMember;
@@ -346,6 +348,19 @@ public class WorkspaceService {
                     .map(member -> member.getUser().getName())
                     .sorted(String.CASE_INSENSITIVE_ORDER)
                     .toList();
+            List<WorkspaceMemberDto> memberDetails = w.getMembers().stream()
+                    .sorted(Comparator.comparing(member -> member.getUser().getName(), String.CASE_INSENSITIVE_ORDER))
+                    .map(member -> new WorkspaceMemberDto(
+                            String.valueOf(member.getUser().getId()),
+                            member.getUser().getName(),
+                            member.getUser().getEmail(),
+                            avatarUrl(member.getUser()),
+                            member.getUser().getRoles().stream()
+                                    .map(role -> role.getName())
+                                    .sorted(this::compareRolePriority)
+                                    .toList(),
+                            member.getRoleInWorkspace()))
+                    .toList();
 
             String due = w.getCardDueDate() != null ? w.getCardDueDate().format(ISO) : "No date";
             String budget = w.getBudgetLabel() != null && !w.getBudgetLabel().isBlank() ? w.getBudgetLabel() : "0k";
@@ -356,6 +371,7 @@ public class WorkspaceService {
                     w.getDescription() != null ? w.getDescription() : "",
                     w.getBannerImageUrl(),
                     memberNames,
+                    memberDetails,
                     current,
                     estimated,
                     due,
@@ -466,5 +482,40 @@ public class WorkspaceService {
         }
         String t = s.trim();
         return t.isEmpty() ? null : t;
+    }
+
+    private int compareRolePriority(String left, String right) {
+        int leftPriority = rolePriority(left);
+        int rightPriority = rolePriority(right);
+        if (leftPriority != rightPriority) {
+            return Integer.compare(rightPriority, leftPriority);
+        }
+        return left.compareToIgnoreCase(right);
+    }
+
+    private int rolePriority(String role) {
+        if (role == null) {
+            return 0;
+        }
+        return switch (role.toUpperCase(Locale.ROOT)) {
+            case "ADMIN" -> 4;
+            case "TEAM_LEAD" -> 3;
+            case "DEVELOPER" -> 2;
+            case "VIEW_ONLY" -> 1;
+            default -> 0;
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    private String avatarUrl(User user) {
+        if (user.getPreferences() == null) {
+            return null;
+        }
+        Object profile = user.getPreferences().get("profile");
+        if (!(profile instanceof Map<?, ?> profileMap)) {
+            return null;
+        }
+        Object avatarUrl = ((Map<String, Object>) profileMap).get("avatarUrl");
+        return avatarUrl instanceof String value && !value.isBlank() ? value : null;
     }
 }

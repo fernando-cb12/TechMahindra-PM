@@ -80,6 +80,31 @@ public class FileUploadService {
         }
     }
 
+    public PresignedUploadResponse createProfilePhotoUpload(String fileName, String contentType) {
+        validateConfiguration();
+        if (contentType == null || !contentType.toLowerCase().startsWith("image/")) {
+            throw new IllegalArgumentException("Profile photo must be an image");
+        }
+
+        String key = "profile-photos/%s-%s".formatted(
+                Instant.now().toEpochMilli(),
+                sanitizeFileName(fileName));
+        PutObjectRequest objectRequest = PutObjectRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .contentType(contentType)
+                .build();
+        PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofSeconds(presignedUrlExpirationSeconds))
+                .putObjectRequest(objectRequest)
+                .build();
+
+        try (S3Presigner presigner = buildPresigner()) {
+            String uploadUrl = presigner.presignPutObject(presignRequest).url().toString();
+            return new PresignedUploadResponse(uploadUrl, publicUrlFor(key), key);
+        }
+    }
+
     public PresignedUploadResponse createAiImportUpload(String fileName, String contentType, Long sizeBytes) {
         validateConfiguration();
         validateAiImportFile(fileName, contentType, sizeBytes);

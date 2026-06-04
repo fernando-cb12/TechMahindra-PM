@@ -8,27 +8,59 @@ interface WorkspaceUsersSectionProps {
 
 interface TeamUser {
   name: string;
-  role: string;
-  color?: string;
+  avatarUrl?: string | null;
+  roles: string[];
 }
 
 function WorkspaceUsersSection({ workspace }: WorkspaceUsersSectionProps) {
   const theme = useTheme();
 
-  // Convert workspace members to team users with roles
-  const teamUsers: TeamUser[] = workspace.members.map((name, index) => {
-    const roles = ['Team Lead', 'Developer', 'Developer', 'Developer'];
-    return {
-      name,
-      role: roles[index % roles.length] || 'Developer',
-    };
-  });
+  const teamUsers: TeamUser[] = workspace.memberDetails && workspace.memberDetails.length > 0
+    ? workspace.memberDetails.map((member) => ({
+        name: member.name,
+        avatarUrl: member.avatarUrl,
+        roles: member.roles.length > 0 ? member.roles : [member.workspaceRole],
+      }))
+    : workspace.members.map((name) => ({
+        name,
+        avatarUrl: null,
+        roles: ['Collaborator'],
+      }));
 
   const roleColors: Record<string, string> = {
-    'Team Lead': theme.palette.error.main,
-    'Developer': theme.palette.info.main,
-    'Designer': theme.palette.warning.main,
-    'Manager': theme.palette.success.main,
+    Admin: theme.palette.error.main,
+    'Team leader': theme.palette.warning.main,
+    Developer: theme.palette.info.main,
+    'View only': theme.palette.grey[700],
+    Owner: theme.palette.success.main,
+    Collaborator: theme.palette.primary.main,
+    Viewer: theme.palette.grey[700],
+  };
+
+  const formatRoleLabel = (role: string) => {
+    const normalized = role.trim().toUpperCase();
+    switch (normalized) {
+      case 'ADMIN':
+        return 'Admin';
+      case 'TEAM_LEAD':
+        return 'Team leader';
+      case 'DEVELOPER':
+        return 'Developer';
+      case 'VIEW_ONLY':
+        return 'View only';
+      case 'OWNER':
+        return 'Owner';
+      case 'COLLABORATOR':
+        return 'Collaborator';
+      case 'VIEWER':
+        return 'Viewer';
+      default:
+        return role
+          .toLowerCase()
+          .split('_')
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(' ');
+    }
   };
 
   return (
@@ -50,10 +82,10 @@ function WorkspaceUsersSection({ workspace }: WorkspaceUsersSectionProps) {
           variant="h6"
           sx={{
             fontWeight: 700,
-            color: (theme) =>
-              theme.palette.mode === 'dark'
-                ? theme.palette.text.primary
-                : theme.palette.primary.main,
+            color: (currentTheme) =>
+              currentTheme.palette.mode === 'dark'
+                ? currentTheme.palette.text.primary
+                : currentTheme.palette.primary.main,
           }}
         >
           Users
@@ -98,7 +130,6 @@ function WorkspaceUsersSection({ workspace }: WorkspaceUsersSectionProps) {
             .map((word) => word[0])
             .join('')
             .toUpperCase();
-          const roleColor = roleColors[user.role] || theme.palette.primary.main;
 
           return (
             <Box
@@ -119,6 +150,7 @@ function WorkspaceUsersSection({ workspace }: WorkspaceUsersSectionProps) {
               }}
             >
               <Avatar
+                src={user.avatarUrl ?? undefined}
                 sx={{
                   width: 36,
                   height: 36,
@@ -145,20 +177,29 @@ function WorkspaceUsersSection({ workspace }: WorkspaceUsersSectionProps) {
                 >
                   {user.name}
                 </Typography>
-                <Chip
-                  size="small"
-                  label={user.role}
-                  sx={{
-                    height: 18,
-                    mt: 0.25,
-                    borderRadius: '5px',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    bgcolor: alpha(roleColor, 0.15),
-                    color: roleColor,
-                    '& .MuiChip-label': { px: 0.75 },
-                  }}
-                />
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                  {user.roles.map((role) => {
+                    const label = formatRoleLabel(role);
+                    const roleColor = roleColors[label] || theme.palette.primary.main;
+
+                    return (
+                      <Chip
+                        key={`${user.name}-${role}`}
+                        size="small"
+                        label={label}
+                        sx={{
+                          height: 18,
+                          borderRadius: '5px',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          bgcolor: alpha(roleColor, 0.15),
+                          color: roleColor,
+                          '& .MuiChip-label': { px: 0.75 },
+                        }}
+                      />
+                    );
+                  })}
+                </Box>
               </Box>
             </Box>
           );

@@ -1177,9 +1177,22 @@ public class TaskBoardService {
         return new UserSummaryDto(
                 String.valueOf(user.getId()),
                 user.getName(),
-                null,
+                avatarUrl(user),
                 initials(user.getName()),
                 user.getEmail());
+    }
+
+    @SuppressWarnings("unchecked")
+    private String avatarUrl(User user) {
+        if (user.getPreferences() == null) {
+            return null;
+        }
+        Object profile = user.getPreferences().get("profile");
+        if (!(profile instanceof Map<?, ?> profileMap)) {
+            return null;
+        }
+        Object avatarUrl = ((Map<String, Object>) profileMap).get("avatarUrl");
+        return avatarUrl instanceof String value && !value.isBlank() ? value : null;
     }
 
     private BoardViewDto toViewDto(BoardView view) {

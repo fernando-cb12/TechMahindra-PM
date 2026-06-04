@@ -55,11 +55,16 @@ type AdminSidebarProps = {
 function AdminSidebar({ onLogout }: AdminSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
   const activeNavItem = pathToAdminNavItem(location.pathname);
   const emailPrefix = session?.email?.split('@')[0] ?? 'Admin';
-  const userName = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
-  const userInitials = emailPrefix.slice(0, 2).toUpperCase();
+  const userName = profile?.name ?? (emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1));
+  const userInitials = userName
+    .split(' ')
+    .map((word) => word[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
     <Box
@@ -140,6 +145,7 @@ function AdminSidebar({ onLogout }: AdminSidebarProps) {
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
         <Avatar
+          src={profile?.avatarUrl ?? undefined}
           sx={{
             width: 36,
             height: 36,

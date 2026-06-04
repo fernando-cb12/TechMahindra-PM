@@ -42,6 +42,7 @@ import {
   updateTaskUpdate as updateTaskUpdateRequest,
 } from '../../../services/taskBoardService';
 import { loadSession } from '../../../auth/auth';
+import { useAuth } from '../../../auth/useAuth';
 
 // ─── localStorage helpers (Section 18 of spec) ───
 interface DeletedTaskSnapshot {
@@ -129,6 +130,7 @@ interface TaskBoardProviderProps {
 }
 
 export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardProviderProps) {
+  const { profile } = useAuth();
   const userEmail = loadSession()?.email ?? 'anonymous';
   const orderPreferencesKey = `taskboard_order_preferences_${userEmail}_${workspaceId}_${boardId}`;
   const orderPreferencesRef = useRef<UserBoardOrderPreferences>(emptyOrderPreferences());
@@ -188,8 +190,39 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
   const [sortMode, setSortMode] = useState<'none' | 'taskCount' | 'alphabetical'>('none');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
+  const hydrateUsersWithCurrentProfile = useCallback(
+    (incomingUsers: Record<string, TaskBoardState['users'][string]>) => {
+      if (!profile) {
+        return incomingUsers;
+      }
+      const entry = Object.entries(incomingUsers).find(([, user]) => user.email === profile.email);
+      if (!entry) {
+        return incomingUsers;
+      }
+      const [userId, currentUser] = entry;
+      return {
+        ...incomingUsers,
+        [userId]: {
+          ...currentUser,
+          name: profile.name,
+          avatarUrl: profile.avatarUrl ?? null,
+          initials: profile.name
+            .split(' ')
+            .map((word) => word[0])
+            .join('')
+            .slice(0, 2)
+            .toUpperCase(),
+        },
+      };
+    },
+    [profile],
+  );
+
+  useEffect(() => {
+    setUsers((prev) => hydrateUsersWithCurrentProfile(prev));
+  }, [hydrateUsersWithCurrentProfile]);
+
   // Re-init state when workspace/board ID changes
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     let cancelled = false;
     const preferences = loadOrderPreferences();
@@ -223,7 +256,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
         setBoardConfig({ ...payload.boardConfig, columns: preferredColumns });
         setGroups(preferredGroups);
         setTasks(payload.tasks);
-        setUsers(payload.users);
+        setUsers(hydrateUsersWithCurrentProfile(payload.users));
         setManualGroupOrder(preferredGroups.map((g) => g.id));
         setAvailableBoards(payload.availableBoards);
         setError(null);
@@ -238,8 +271,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, boardId, loadOrderPreferences]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+  }, [workspaceId, boardId, loadOrderPreferences, hydrateUsersWithCurrentProfile]);
 
   // Backend is the source of truth; this keeps optimistic update call sites simple.
   const syncStorage = useCallback((...args: unknown[]) => {
@@ -254,10 +286,10 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
     setBoardConfig({ ...payload.boardConfig, columns: preferredColumns });
     setGroups(preferredGroups);
     setTasks(payload.tasks);
-    setUsers(payload.users);
+    setUsers(hydrateUsersWithCurrentProfile(payload.users));
     setManualGroupOrder(preferredGroups.map((g) => g.id));
     setAvailableBoards(payload.availableBoards);
-  }, []);
+  }, [hydrateUsersWithCurrentProfile]);
 
   const refreshBoardPayload = useCallback(() => {
     void getTaskBoard(workspaceId, boardId)
@@ -343,13 +375,13 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
           setBoardConfig(payload.boardConfig);
           setGroups(payload.groups);
           setTasks(payload.tasks);
-          setUsers(payload.users);
+          setUsers(hydrateUsersWithCurrentProfile(payload.users));
           setManualGroupOrder(payload.groups.map((g) => g.id));
           setAvailableBoards(payload.availableBoards);
         });
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to create update'));
-  }, [workspaceId, boardId, tasks, users]);
+  }, [workspaceId, boardId, tasks, users, hydrateUsersWithCurrentProfile]);
 
   const editTaskUpdate = useCallback((taskId: string, updateId: string, content: string, mentions: string[]) => {
     const existing = tasks[taskId];
@@ -1026,7 +1058,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
         setBoardConfig(payload.boardConfig);
         setGroups(payload.groups);
         setTasks(payload.tasks);
-        setUsers(payload.users);
+        setUsers(hydrateUsersWithCurrentProfile(payload.users));
         setManualGroupOrder(payload.groups.map((g) => g.id));
         setAvailableBoards(payload.availableBoards);
         window.dispatchEvent(new CustomEvent('taskboard:board-renamed', {
@@ -1038,7 +1070,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
         syncStorage(previousConfig, groups, tasks, manualGroupOrder);
         setError(e instanceof Error ? e.message : 'Failed to rename board');
       });
-  }, [workspaceId, boardId, boardConfig, groups, tasks, manualGroupOrder, syncStorage]);
+  }, [workspaceId, boardId, boardConfig, groups, tasks, manualGroupOrder, syncStorage, hydrateUsersWithCurrentProfile]);
 
   const inviteBoardMembers = useCallback(async (userIds: number[]) => {
     if (userIds.length === 0) return;

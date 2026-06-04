@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -13,6 +14,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.mahindra.backend.dto.CreateUserRequest;
+import com.mahindra.backend.dto.MyProfileDto;
+import com.mahindra.backend.dto.NotificationSettingsDto;
+import com.mahindra.backend.dto.UpdateMyProfileRequest;
 import com.mahindra.backend.dto.UserDto;
 import com.mahindra.backend.dto.UserUpdateDto;
 import com.mahindra.backend.exception.DuplicateEmailException;
@@ -122,6 +126,42 @@ public class UserService {
         return copyMap(user.getPreferences());
     }
 
+    @Transactional(readOnly = true)
+    public MyProfileDto getMyProfile(Authentication authentication) {
+        return mapToMyProfile(getAuthenticatedUser(authentication));
+    }
+
+    public MyProfileDto updateMyProfile(Authentication authentication, UpdateMyProfileRequest request) {
+        User user = getAuthenticatedUser(authentication);
+        if (request.name() != null && !request.name().isBlank()) {
+            user.setName(request.name().trim());
+        }
+
+        Map<String, Object> preferences = copyMap(user.getPreferences());
+        Map<String, Object> profile = nestedMap(preferences, "profile");
+        if (request.timezone() != null) {
+            profile.put("timezone", request.timezone().trim());
+        }
+        if (request.avatarUrl() != null) {
+            String trimmedAvatar = request.avatarUrl().trim();
+            profile.put("avatarUrl", trimmedAvatar.isEmpty() ? null : trimmedAvatar);
+        }
+        preferences.put("profile", profile);
+
+        if (request.notifications() != null) {
+            Map<String, Object> notifications = nestedMap(preferences, "notifications");
+            notifications.put("issuesAssigned", request.notifications().issuesAssigned());
+            notifications.put("mentions", request.notifications().mentions());
+            notifications.put("projectUpdates", request.notifications().projectUpdates());
+            notifications.put("dailySummary", request.notifications().dailySummary());
+            preferences.put("notifications", notifications);
+        }
+
+        validatePreferences(preferences);
+        user.setPreferences(preferences);
+        return mapToMyProfile(userRepository.save(user));
+    }
+
     public Map<String, Object> updatePreferences(Authentication authentication, Map<String, Object> patch) {
         User user = getAuthenticatedUser(authentication);
         Map<String, Object> merged = copyMap(user.getPreferences());
@@ -160,14 +200,19 @@ public class UserService {
     private void validatePreferences(Map<String, Object> preferences) {
         Object myTasks = preferences.get("myTasks");
         if (myTasks == null) {
-            return;
+        } else {
+            if (!(myTasks instanceof Map<?, ?> myTasksMap)) {
+                throw new IllegalArgumentException("myTasks preferences must be an object");
+            }
+            Object filterMode = ((Map<String, Object>) myTasksMap).get("filterMode");
+            if (filterMode != null && !Set.of("kpis", "filters").contains(filterMode)) {
+                throw new IllegalArgumentException("Invalid myTasks.filterMode");
+            }
         }
-        if (!(myTasks instanceof Map<?, ?> myTasksMap)) {
-            throw new IllegalArgumentException("myTasks preferences must be an object");
-        }
-        Object filterMode = ((Map<String, Object>) myTasksMap).get("filterMode");
-        if (filterMode != null && !Set.of("kpis", "filters").contains(filterMode)) {
-            throw new IllegalArgumentException("Invalid myTasks.filterMode");
+
+        Object notifications = preferences.get("notifications");
+        if (notifications != null && !(notifications instanceof Map<?, ?>)) {
+            throw new IllegalArgumentException("notifications preferences must be an object");
         }
     }
 
@@ -200,5 +245,87 @@ public class UserService {
                 user.getCreatedAt(),
                 roleNames
         );
+    }
+
+    @SuppressWarnings("unchecked")
+    private MyProfileDto mapToMyProfile(User user) {
+        Map<String, Object> preferences = copyMap(user.getPreferences());
+        Map<String, Object> profile = preferences.get("profile") instanceof Map<?, ?>
+                ? new LinkedHashMap<>((Map<String, Object>) preferences.get("profile"))
+                : new LinkedHashMap<>();
+        Map<String, Object> notifications = preferences.get("notifications") instanceof Map<?, ?>
+                ? new LinkedHashMap<>((Map<String, Object>) preferences.get("notifications"))
+                : new LinkedHashMap<>();
+
+        String primaryRole = user.getRoles().stream()
+                .map(Role::getName)
+                .filter(Objects::nonNull)
+                .sorted(this::compareRolePriority)
+                .findFirst()
+                .map(this::formatRoleLabel)
+                .orElse("User");
+
+        return new MyProfileDto(
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                primaryRole,
+                stringPreference(profile.get("timezone"), "GMT-6"),
+                stringPreference(profile.get("avatarUrl"), null),
+                new NotificationSettingsDto(
+                        booleanPreference(notifications.get("issuesAssigned"), true),
+                        booleanPreference(notifications.get("mentions"), true),
+                        booleanPreference(notifications.get("projectUpdates"), true),
+                        booleanPreference(notifications.get("dailySummary"), true)));
+    }
+
+    private Map<String, Object> nestedMap(Map<String, Object> parent, String key) {
+        Object current = parent.get(key);
+        if (current instanceof Map<?, ?> existing) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> casted = new LinkedHashMap<>((Map<String, Object>) existing);
+            return casted;
+        }
+        return new LinkedHashMap<>();
+    }
+
+    private String stringPreference(Object value, String fallback) {
+        return value instanceof String text && !text.isBlank() ? text : fallback;
+    }
+
+    private boolean booleanPreference(Object value, boolean fallback) {
+        return value instanceof Boolean bool ? bool : fallback;
+    }
+
+    private int compareRolePriority(String left, String right) {
+        int leftPriority = rolePriority(left);
+        int rightPriority = rolePriority(right);
+        if (leftPriority != rightPriority) {
+            return Integer.compare(rightPriority, leftPriority);
+        }
+        return left.compareToIgnoreCase(right);
+    }
+
+    private int rolePriority(String role) {
+        if (role == null) {
+            return 0;
+        }
+        return switch (role.toUpperCase(Locale.ROOT)) {
+            case "ADMIN" -> 4;
+            case "TEAM_LEAD" -> 3;
+            case "DEVELOPER" -> 2;
+            case "VIEW_ONLY" -> 1;
+            default -> 0;
+        };
+    }
+
+    private String formatRoleLabel(String role) {
+        return switch (role) {
+            case "ADMIN" -> "Admin";
+            case "TEAM_LEAD" -> "Team leader";
+            case "DEVELOPER" -> "Developer";
+            case "VIEW_ONLY" -> "View only";
+            default -> role;
+        };
     }
 }

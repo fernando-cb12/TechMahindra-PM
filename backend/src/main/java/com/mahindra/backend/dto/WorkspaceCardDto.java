@@ -11,6 +11,7 @@ public record WorkspaceCardDto(
         String description,
         String imageUrl,
         List<String> members,
+        List<WorkspaceMemberDto> memberDetails,
         int currentProgress,
         int estimatedProgress,
         String dueDate,

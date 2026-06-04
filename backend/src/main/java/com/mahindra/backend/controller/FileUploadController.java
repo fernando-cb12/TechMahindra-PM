@@ -40,6 +40,15 @@ public class FileUploadController {
         return ResponseEntity.ok(upload);
     }
 
+    @PostMapping("/profile-photo/presign")
+    public ResponseEntity<PresignedUploadResponse> presignProfilePhoto(
+            @Valid @RequestBody PresignedUploadRequest request) {
+        PresignedUploadResponse upload = fileUploadService.createProfilePhotoUpload(
+                request.fileName(),
+                request.contentType());
+        return ResponseEntity.ok(upload);
+    }
+
     @PostMapping("/ai-imports/presign")
     @PreAuthorize("hasAnyRole('ADMIN','TEAM_LEAD')")
     public ResponseEntity<PresignedUploadResponse> presignAiImport(

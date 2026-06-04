@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   clearSession,
   hasMinimumRole,
@@ -9,23 +9,57 @@ import {
   type AuthSession,
 } from './auth';
 import { AuthContext, type AuthContextValue } from './AuthContextDefinition';
+import { getUserProfile, type UserProfile } from '../services/userService';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(() => loadSession());
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!session) {
+      return;
+    }
+
+    void getUserProfile()
+      .then((nextProfile) => {
+        if (!cancelled) {
+          setProfile(nextProfile);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setProfile(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
+      profile: session ? profile : null,
       isAuthenticated: session !== null,
       login: async ({ email, password, persistent }) => {
         const nextSession = await loginRequest({ email, password });
         saveSession(nextSession, persistent);
         setSession(nextSession);
+        try {
+          const nextProfile = await getUserProfile();
+          setProfile(nextProfile);
+        } catch {
+          setProfile(null);
+        }
         return nextSession;
       },
       logout: () => {
         clearSession();
         setSession(null);
+        setProfile(null);
       },
       hasRoleAtLeast: (role: AppRole) => {
         if (!session) {
@@ -33,8 +67,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         return hasMinimumRole(session.roles, role);
       },
+      refreshProfile: async () => {
+        if (!session) {
+          return null;
+        }
+        try {
+          const nextProfile = await getUserProfile();
+          setProfile(nextProfile);
+          return nextProfile;
+        } catch {
+          setProfile(null);
+          return null;
+        }
+      },
+      setProfile,
     }),
-    [session],
+    [profile, session],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

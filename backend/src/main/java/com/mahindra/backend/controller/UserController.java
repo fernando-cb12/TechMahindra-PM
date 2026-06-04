@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.mahindra.backend.dto.CreateUserRequest;
+import com.mahindra.backend.dto.MyProfileDto;
+import com.mahindra.backend.dto.UpdateMyProfileRequest;
 import com.mahindra.backend.dto.UserDto;
 import com.mahindra.backend.dto.UserUpdateDto;
 
@@ -50,7 +52,7 @@ public class UserController {
         return ResponseEntity.ok(userService.getAllUsers());
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{id:\\d+}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserDto> getUserById(@PathVariable Long id) {
         return ResponseEntity.ok(userService.getUserById(id));
@@ -67,6 +69,18 @@ public class UserController {
         return ResponseEntity.ok(userService.getPreferences(authentication));
     }
 
+    @GetMapping("/me")
+    public ResponseEntity<MyProfileDto> getMyProfile(Authentication authentication) {
+        return ResponseEntity.ok(userService.getMyProfile(authentication));
+    }
+
+    @PatchMapping("/me")
+    public ResponseEntity<MyProfileDto> updateMyProfile(
+            Authentication authentication,
+            @RequestBody UpdateMyProfileRequest request) {
+        return ResponseEntity.ok(userService.updateMyProfile(authentication, request));
+    }
+
     @PatchMapping("/me/preferences")
     public ResponseEntity<Map<String, Object>> updateMyPreferences(
             Authentication authentication,
@@ -74,13 +88,13 @@ public class UserController {
         return ResponseEntity.ok(userService.updatePreferences(authentication, preferences));
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("/{id:\\d+}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserDto> updateUser(@PathVariable Long id, @RequestBody UserUpdateDto updateDto) {
         return ResponseEntity.ok(userService.updateUser(id, updateDto));
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{id:\\d+}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
