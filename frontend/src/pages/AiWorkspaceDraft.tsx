@@ -170,7 +170,7 @@ function AiWorkspaceDraft() {
 
   if (loading) {
     return (
-      <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
+      <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center', bgcolor: 'background.default' }}>
         <CircularProgress />
       </Box>
     );
@@ -178,8 +178,8 @@ function AiWorkspaceDraft() {
 
   if (!draft) {
     return (
-      <Box sx={{ p: 4 }}>
-        <Typography sx={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: 24 }}>
+      <Box sx={{ minHeight: '100vh', p: 4, bgcolor: 'background.default' }}>
+        <Typography sx={{ fontWeight: 700, fontSize: 24 }}>
           Draft not found
         </Typography>
         <Button onClick={() => navigate('/workspaces')} sx={{ mt: 2, textTransform: 'none' }}>
@@ -190,14 +190,14 @@ function AiWorkspaceDraft() {
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#F7F8FA', p: { xs: 2, md: 4 } }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', p: { xs: 2, md: 4 } }}>
       <Stack spacing={3} sx={{ maxWidth: 1180, mx: 'auto' }}>
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ xs: 'stretch', md: 'center' }}>
           <Box>
-            <Typography sx={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, fontSize: { xs: 26, md: 32 } }}>
+            <Typography sx={{ fontWeight: 800, fontSize: { xs: 26, md: 32 } }}>
               Review AI Draft
             </Typography>
-            <Typography sx={{ color: 'text.secondary', fontFamily: 'Montserrat, sans-serif', mt: 0.5 }}>
+            <Typography sx={{ color: 'text.secondary', mt: 0.5 }}>
               {draft.sourceFileName || 'Imported PDF'}
             </Typography>
           </Box>
@@ -208,7 +208,15 @@ function AiWorkspaceDraft() {
           </Stack>
         </Stack>
 
-        <Box sx={{ p: 3, borderRadius: 2, border: '1px solid #E4E7EC', bgcolor: 'background.paper' }}>
+        <Box
+          sx={{
+            p: 3,
+            borderRadius: 3,
+            border: 1,
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
+          }}
+        >
           <Stack spacing={2}>
             <TextField
               label="Workspace title"
@@ -245,10 +253,21 @@ function AiWorkspaceDraft() {
 
         <Stack spacing={2}>
           {draft.boards.map((board, boardIndex) => (
-            <Accordion key={`${board.name}-${boardIndex}`} defaultExpanded={boardIndex === 0} sx={{ borderRadius: 2, '&:before': { display: 'none' } }}>
+            <Accordion
+              key={`${board.name}-${boardIndex}`}
+              defaultExpanded={boardIndex === 0}
+              sx={{
+                borderRadius: 3,
+                bgcolor: 'background.paper',
+                border: 1,
+                borderColor: 'divider',
+                overflow: 'hidden',
+                '&:before': { display: 'none' },
+              }}
+            >
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Stack direction="row" spacing={1.5} alignItems="center" sx={{ width: '100%', pr: 1 }}>
-                  <Typography sx={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, flex: 1 }}>
+                  <Typography sx={{ fontWeight: 800, flex: 1 }}>
                     {board.name || 'Untitled board'}
                   </Typography>
                   <Chip size="small" label={`${board.groups.length} groups`} />
@@ -281,7 +300,16 @@ function AiWorkspaceDraft() {
                     minRows={2}
                   />
                   {board.groups.map((group, groupIndex) => (
-                    <Box key={`${group.name}-${groupIndex}`} sx={{ p: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                    <Box
+                      key={`${group.name}-${groupIndex}`}
+                      sx={{
+                        p: 2,
+                        borderRadius: 2.5,
+                        border: 1,
+                        borderColor: 'divider',
+                        bgcolor: 'background.paper',
+                      }}
+                    >
                       <Stack spacing={2}>
                         <Stack direction="row" spacing={1} alignItems="center">
                           <TextField
@@ -295,7 +323,16 @@ function AiWorkspaceDraft() {
                           </IconButton>
                         </Stack>
                         {group.tasks.map((task, taskIndex) => (
-                          <Box key={`${task.name}-${taskIndex}`} sx={{ p: 2, borderRadius: 2, bgcolor: '#FFFFFF', border: '1px solid #EAECF0' }}>
+                          <Box
+                            key={`${task.name}-${taskIndex}`}
+                            sx={{
+                              p: 2,
+                              borderRadius: 2,
+                              bgcolor: 'background.paper',
+                              border: 1,
+                              borderColor: 'divider',
+                            }}
+                          >
                             <Stack spacing={1.5}>
                               <Stack direction="row" spacing={1} alignItems="center">
                                 <TextField
