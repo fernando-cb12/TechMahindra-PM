@@ -8,7 +8,7 @@ async function ensureCalendarView(page: Page) {
     return;
   }
 
-  await page.getByRole('button', { name: /add new view/i }).click();
+  await page.getByTitle(/add new view/i).click();
   await page.getByText('Calendar', { exact: true }).click();
 
   await expect(calendarTab).toBeVisible({ timeout: 10000 });
@@ -26,8 +26,9 @@ test('team leader can create an event from calendar view', async ({ page }) => {
     timeout: 15000,
   });
 
-  await page.getByRole('button', { name: /customer wayfinding/i }).click();
-  await page.getByRole('button', { name: 'Delivery' }).click();
+  await page.goto('/workspaces');
+  await page.locator('main').getByText(/customer wayfinding/i).first().click();
+  await page.locator('main').getByText('Delivery', { exact: true }).first().click();
 
   await ensureCalendarView(page);
 

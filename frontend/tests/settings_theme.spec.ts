@@ -17,7 +17,7 @@ test('team leader can switch between light and dark mode', async ({ page }) => {
     page.getByRole('main').getByText('Settings', { exact: true }),
   ).toBeVisible({ timeout: 10000 });
 
-  const main = page.getByRole('main').nth(1);
+  const main = page.locator('main').last();
 
   const beforeBackground = await main.evaluate(
     (element) => window.getComputedStyle(element).backgroundColor,

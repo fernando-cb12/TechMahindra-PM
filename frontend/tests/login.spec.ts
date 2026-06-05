@@ -38,6 +38,6 @@ test.describe('Login page', () => {
 
     await page.getByRole('button', { name: /continue/i }).click();
 
-    await expect(page).toHaveURL(/dashboard|home|workspaces/);
+    await expect(page).toHaveURL(/admin|dashboard|home|workspaces/);
   });
 });

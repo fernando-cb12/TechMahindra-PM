@@ -11,16 +11,16 @@ test('team leader can create the three board views', async ({ page }) => {
 
   await page.goto('/workspaces');
 
-  await page.getByRole('button', { name: /customer wayfinding/i }).click();
+  await page.locator('main').getByText(/customer wayfinding/i).first().click();
 
-  await page.getByRole('button', { name: 'Delivery' }).click();
+  await page.locator('main').getByText('Delivery', { exact: true }).first().click();
 
   await expect(page.getByRole('heading', { name: 'Delivery' })).toBeVisible();
 
   const views = ['Insights', 'Calendar', 'Kanban'];
 
   for (const view of views) {
-    await page.getByRole('button', { name: /add new view/i }).click();
+    await page.getByTitle(/add new view/i).click();
 
     await page.getByText(view, { exact: true }).click();
 

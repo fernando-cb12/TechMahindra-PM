@@ -23,10 +23,7 @@ test('team leader can redeem a reward', async ({ page }) => {
     timeout: 10000,
   });
 
-  await page
-    .getByText(/half-day off/i)
-    .first()
-    .click();
+  await page.getByRole('button', { name: /half-day off/i }).click();
 
   const redeemDialog = page.getByRole('dialog');
 

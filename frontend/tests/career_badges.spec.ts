@@ -17,7 +17,11 @@ test('team leader can open a badge details modal', async ({ page }) => {
     timeout: 10000,
   });
 
-  await page.getByText('Primero').click();
+  const primeroBadge = page
+    .getByText('Primero', { exact: true })
+    .locator('xpath=ancestor::*[contains(@class, "MuiPaper-root")][1]');
+
+  await primeroBadge.dispatchEvent('click');
 
   const dialog = page.getByRole('dialog');
 

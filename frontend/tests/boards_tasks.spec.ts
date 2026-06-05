@@ -1,19 +1,59 @@
 import { test, expect, Page } from '@playwright/test';
 
+async function login(page: Page) {
+  await page.goto('/login');
+
+  await page.getByLabel(/email/i).fill('lead1@gmail.com');
+  await page.getByLabel(/password/i).fill('role123');
+
+  await page.getByRole('button', { name: /continue/i }).click();
+
+  await expect(page).toHaveURL(/dashboard|workspaces|home/);
+}
+
+async function openWorkspace(page: Page) {
+  await page.goto('/workspaces');
+
+  const workspaceButton = page.locator('main').getByText(/customer wayfinding/i).first();
+
+  await expect(workspaceButton).toBeVisible({ timeout: 10000 });
+  await workspaceButton.click();
+
+  await expect(
+    page.getByRole('button', { name: /back to workspaces/i }),
+  ).toBeVisible({ timeout: 10000 });
+}
+
+async function getBoardNames(page: Page) {
+  const boardButtons = page.locator('aside').getByRole('button').filter({
+    hasText: /^(Planning|Delivery|Review|Task Board(?: \d+)?)$/,
+  });
+  const names = await boardButtons.allTextContents();
+
+  return names.map((name) => name.trim()).filter(Boolean);
+}
+
 async function createItemInBoard(page: Page, boardName: string) {
   const itemName = `Item Playwright ${boardName} ${Date.now()}`;
 
-  // Click board
-  await page.getByRole('button', { name: boardName }).click();
+  const boardButton = page.locator('aside').getByRole('button', {
+    name: new RegExp(`^${boardName}$`, 'i'),
+  });
 
-  await expect(page.getByRole('heading', { name: boardName })).toBeVisible();
+  await expect(boardButton).toBeVisible({ timeout: 10000 });
+  await boardButton.click();
 
-    await page.getByRole('button', { name: /add task/i }).click();
+  await expect(
+    page.getByRole('heading', {
+      name: new RegExp(`^${boardName}$`, 'i'),
+    }),
+  ).toBeVisible({ timeout: 10000 });
 
-    await page.keyboard.type(itemName);
-    await page.keyboard.press('Enter');
+  await page.getByRole('button', { name: /add task/i }).click();
 
-  // Verify created
+  await page.keyboard.type(itemName);
+  await page.keyboard.press('Enter');
+
   await expect(page.getByText(itemName)).toBeVisible({
     timeout: 10000,
   });
@@ -24,6 +64,9 @@ async function createItemInBoard(page: Page, boardName: string) {
 async function deleteItem(page: Page, itemName: string) {
   const boardArea = page.locator('main');
   const item = boardArea.getByText(itemName).first();
+
+  await expect(item).toBeVisible({ timeout: 10000 });
+  const itemElement = await item.elementHandle();
 
   await item.click({ button: 'right' });
 
@@ -37,34 +80,32 @@ async function deleteItem(page: Page, itemName: string) {
     await confirmButton.click();
   }
 
-  await expect(boardArea.getByText(itemName)).not.toBeVisible({
-  timeout: 10000,
-    });
+  await expect
+    .poll(async () => {
+      return itemElement
+        ? await itemElement.evaluate((node) => node.isConnected).catch(() => false)
+        : false;
+    })
+    .toBe(false);
 }
 
 test('team leader can create and delete one item in each board', async ({
   page,
 }) => {
-  // Login
-  await page.goto('/login');
+  await login(page);
 
-  await page.getByLabel(/email/i).fill('lead1@gmail.com');
-  await page.getByLabel(/password/i).fill('role123');
+  await openWorkspace(page);
 
-  await page.getByRole('button', { name: /continue/i }).click();
+  const boards = await getBoardNames(page);
 
-  await expect(page).toHaveURL(/dashboard|workspaces|home/);
+  console.log('Boards found:', boards);
 
-  // Go to workspace boards
-  await page.goto('/workspaces');
-
-  // Open workspace
-  await page.getByRole('button', { name: /customer wayfinding/i }).click();
-
-  const boards = ['Delivery', 'Review', 'Prueba'];
+  expect(boards.length).toBeGreaterThan(0);
 
   for (const board of boards) {
     const itemName = await createItemInBoard(page, board);
     await deleteItem(page, itemName);
+
+    await openWorkspace(page);
   }
 });

@@ -56,6 +56,6 @@ test('team leader can create a workspace from scratch', async ({ page }) => {
 
   // Verify workspace was created
   await expect(
-    page.getByRole('button', { name: workspaceName }).first(),
+    page.getByText(workspaceName, { exact: true }).first(),
   ).toBeVisible();
 });
