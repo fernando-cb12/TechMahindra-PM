@@ -42,6 +42,8 @@ export type AiWorkspaceApproveResponse = {
   firstBoardId: string | null;
 };
 
+export type AiWorkspaceMode = 'EXTRACTION' | 'GENERATION';
+
 function getErrorMessage(err: unknown): string {
   if (err && typeof err === 'object' && 'response' in err) {
     const data = (err as { response?: { data?: { error?: string; fields?: Record<string, string> } } }).response?.data;
@@ -77,12 +79,13 @@ export async function uploadAiWorkspacePdf(file: File): Promise<{ key: string }>
   }
 }
 
-export async function processAiWorkspacePdf(file: File): Promise<AiWorkspaceDraft> {
+export async function processAiWorkspacePdf(file: File, mode: AiWorkspaceMode): Promise<AiWorkspaceDraft> {
   try {
     const { key } = await uploadAiWorkspacePdf(file);
     const { data } = await apiClient.post<AiWorkspaceDraft>('/api/ai/workspace-imports/process', {
       key,
       fileName: file.name,
+      mode,
     });
     return data;
   } catch (e) {

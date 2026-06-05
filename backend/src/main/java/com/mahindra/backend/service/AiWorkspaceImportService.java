@@ -30,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mahindra.backend.dto.ai.AiImportProcessRequest;
+import com.mahindra.backend.dto.ai.AiWorkspaceMode;
 import com.mahindra.backend.dto.ai.AiWorkspaceApproveRequest;
 import com.mahindra.backend.dto.ai.AiWorkspaceApproveResponse;
 import com.mahindra.backend.dto.ai.AiWorkspaceDraftDto;
@@ -113,8 +114,9 @@ public class AiWorkspaceImportService {
         if (text.length() < 80) {
             throw new IllegalArgumentException("Could not extract enough text from the PDF");
         }
-        AiWorkspaceDraftDto generated = generateDraft(text, request.fileName());
+        AiWorkspaceDraftDto generated = generateDraft(text, request.fileName(), request.mode());
         AiWorkspaceDraftDto normalized = normalizeDraft(generated, request.fileName());
+        validateGeneratedStructure(normalized, request.mode());
         drafts.put(normalized.id(), normalized);
         return normalized;
     }
@@ -233,34 +235,13 @@ public class AiWorkspaceImportService {
         }
     }
 
-    private AiWorkspaceDraftDto generateDraft(String text, String fileName) {
+    private AiWorkspaceDraftDto generateDraft(String text, String fileName, AiWorkspaceMode mode) {
         validateAzureConfig();
         try {
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("messages", List.of(
-                    Map.of("role", "system", "content", """
-                            You convert project requirements into rich draft workspace taskboards.
-                            Create 2 to 3 taskboards, each representing a major workstream such as Product, Engineering, Design, QA, Launch, Operations, or Documentation.
-                            Every taskboard must contain 3 to 5 task groups. Use lifecycle-oriented groups such as Discovery, Planning, Implementation, Validation, Release, or Adoption.
-                            Every task group must contain at least 3 concrete tasks.
-                            Tasks must be actionable work items written as imperative or outcome-focused phrases.
-                            Prefer specific tasks grounded in the PDF over generic placeholders.
-                            Avoid duplicate boards, duplicate groups, and duplicate tasks.
-                            Return concise but useful descriptions when the source gives enough context.
-                            Use empty strings or nulls when the source does not provide a value.
-                            Do not invent private personal data or assignees.
-                            """),
-                    Map.of("role", "user", "content", """
-                            Create a workspace draft from this PDF text.
-                            Target structure:
-                            - 2 or 3 taskboards total.
-                            - 3 to 5 task groups per taskboard.
-                            - At least 3 tasks per group.
-                            - Use the board/group/task names to make the generated plan easy to scan.
-
-                            PDF text:
-
-                            """ + text)));
+                    Map.of("role", "system", "content", systemPrompt(mode)),
+                    Map.of("role", "user", "content", userPrompt(mode, text))));
             body.put("temperature", 0.2);
             body.put("max_tokens", 5000);
             if (usesFoundryV1Api()) {
@@ -271,7 +252,7 @@ public class AiWorkspaceImportService {
                     "json_schema", Map.of(
                             "name", "workspace_taskboards",
                             "strict", true,
-                            "schema", responseSchema())));
+                            "schema", responseSchema(mode))));
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(chatCompletionsUrl()))
@@ -298,7 +279,53 @@ public class AiWorkspaceImportService {
         }
     }
 
-    private Map<String, Object> responseSchema() {
+    private String systemPrompt(AiWorkspaceMode mode) {
+        if (mode == AiWorkspaceMode.EXTRACTION) {
+            return """
+                    You faithfully import explicit project requirements into draft workspace tickets.
+                    Extract only requirements, deliverables, constraints, and actions stated in the source.
+                    Do not invent new requirements, implementation steps, validation work, or follow-up tasks.
+                    Preserve meaningful source wording while rewriting each ticket as a concise actionable work item.
+                    Group related tickets using the document's own sections or themes.
+                    Use the smallest useful number of boards and groups for the extracted tickets.
+                    Avoid duplicate boards, groups, and tasks.
+                    Use empty strings or nulls when the source does not provide a value.
+                    Do not invent private personal data, assignees, dates, or budgets.
+                    Use todo status and medium priority when the source does not explicitly provide them.
+                    """;
+        }
+        return """
+                You turn project documentation into a comprehensive draft execution plan.
+                Extract explicit requirements and create useful new tasks needed to deliver them.
+                Create 2 to 3 taskboards representing major workstreams such as Product, Engineering, Design, QA, Launch, Operations, or Documentation.
+                Every taskboard must contain 3 to 5 lifecycle-oriented task groups.
+                Every task group must contain at least 3 concrete, actionable tasks.
+                Clearly ground the plan in the source and avoid speculative features unrelated to it.
+                Avoid duplicate boards, groups, and tasks.
+                Return concise but useful descriptions when the source gives enough context.
+                Use empty strings or nulls when the source does not provide a value.
+                Do not invent private personal data or assignees.
+                """;
+    }
+
+    private String userPrompt(AiWorkspaceMode mode, String text) {
+        String instruction = mode == AiWorkspaceMode.EXTRACTION
+                ? """
+                        Import the requirements from this PDF as tickets.
+                        Include only work explicitly supported by the source. Do not fill perceived gaps.
+                        """
+                : """
+                        Generate a complete workspace plan from this PDF.
+                        Include extracted requirements and the additional work needed to deliver them.
+                        Target 2 or 3 taskboards, 3 to 5 groups per board, and at least 3 tasks per group.
+                        """;
+        return instruction + "\nPDF text:\n\n" + text;
+    }
+
+    private Map<String, Object> responseSchema(AiWorkspaceMode mode) {
+        int minBoards = mode == AiWorkspaceMode.EXTRACTION ? 1 : MIN_BOARDS;
+        int minGroups = mode == AiWorkspaceMode.EXTRACTION ? 1 : MIN_GROUPS_PER_BOARD;
+        int minTasks = mode == AiWorkspaceMode.EXTRACTION ? 1 : MIN_TASKS_PER_GROUP;
         Map<String, Object> nullableString = Map.of("anyOf", List.of(Map.of("type", "string"), Map.of("type", "null")));
         Map<String, Object> task = object(Map.of(
                 "name", Map.of("type", "string"),
@@ -310,7 +337,7 @@ public class AiWorkspaceImportService {
                 "name", Map.of("type", "string"),
                 "tasks", Map.of(
                         "type", "array",
-                        "minItems", MIN_TASKS_PER_GROUP,
+                        "minItems", minTasks,
                         "maxItems", MAX_TASKS_PER_GROUP,
                         "items", task)), List.of("name", "tasks"));
         Map<String, Object> board = object(Map.of(
@@ -318,7 +345,7 @@ public class AiWorkspaceImportService {
                 "description", nullableString,
                 "groups", Map.of(
                         "type", "array",
-                        "minItems", MIN_GROUPS_PER_BOARD,
+                        "minItems", minGroups,
                         "maxItems", MAX_GROUPS_PER_BOARD,
                         "items", group)), List.of("name", "description", "groups"));
         Map<String, Object> workspace = object(Map.of(
@@ -332,7 +359,7 @@ public class AiWorkspaceImportService {
                 "workspace", workspace,
                 "boards", Map.of(
                         "type", "array",
-                        "minItems", MIN_BOARDS,
+                        "minItems", minBoards,
                         "maxItems", MAX_BOARDS,
                         "items", board)), List.of("id", "sourceFileName", "workspace", "boards"));
     }
@@ -386,25 +413,39 @@ public class AiWorkspaceImportService {
                             status,
                             normalizeDate(rawTask.dueDate())));
                 }
-                if (tasks.size() < MIN_TASKS_PER_GROUP) {
+                if (tasks.isEmpty()) {
                     continue;
                 }
                 groups.add(new DraftGroupDto(groupName, tasks));
             }
-            if (groups.size() < MIN_GROUPS_PER_BOARD) {
+            if (groups.isEmpty()) {
                 continue;
             }
             boards.add(new DraftBoardDto(boardName, limit(defaultString(rawBoard.description()), 1200), groups));
         }
-        if (boards.size() < MIN_BOARDS) {
-            throw new IllegalArgumentException(
-                    "AI draft was too sparse; expected at least 2 boards, 3 groups per board, and 3 tasks per group");
+        if (boards.isEmpty()) {
+            throw new IllegalArgumentException("AI draft must contain at least one board, group, and task");
         }
         return new AiWorkspaceDraftDto(
                 draft.id() != null && !draft.id().isBlank() ? draft.id() : UUID.randomUUID().toString(),
                 workspace,
                 boards,
                 sourceFileName);
+    }
+
+    private void validateGeneratedStructure(AiWorkspaceDraftDto draft, AiWorkspaceMode mode) {
+        if (mode == AiWorkspaceMode.EXTRACTION) {
+            return;
+        }
+        boolean isSparse = draft.boards().size() < MIN_BOARDS
+                || draft.boards().stream().anyMatch(board -> board.groups().size() < MIN_GROUPS_PER_BOARD)
+                || draft.boards().stream()
+                        .flatMap(board -> board.groups().stream())
+                        .anyMatch(group -> group.tasks().size() < MIN_TASKS_PER_GROUP);
+        if (isSparse) {
+            throw new IllegalArgumentException(
+                    "Generated plan was too sparse; expected at least 2 boards, 3 groups per board, and 3 tasks per group");
+        }
     }
 
     private User resolveUser(Authentication authentication) {
