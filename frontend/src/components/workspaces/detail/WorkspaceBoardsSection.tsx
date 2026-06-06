@@ -5,6 +5,7 @@ import AddIcon from '@mui/icons-material/Add';
 import { createWorkspaceBoard, getWorkspaceBoards, type WorkspaceBoard } from '../../../services/workspacesService';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/useAuth';
+import { canManageWorkspaces } from '../../../auth/permissions';
 import { showAppError, showAppNotification } from '../../shared/appNotifications';
 import CreateBoardModal from './CreateBoardModal';
 
@@ -15,12 +16,12 @@ interface WorkspaceBoardsSectionProps {
 function WorkspaceBoardsSection({ workspaceId }: WorkspaceBoardsSectionProps): React.ReactNode {
   const theme = useTheme();
   const navigate = useNavigate();
-  const { hasRoleAtLeast } = useAuth();
+  const { session } = useAuth();
   const [boards, setBoards] = useState<WorkspaceBoard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const canCreateBoard = hasRoleAtLeast('TEAM_LEAD');
+  const canCreateBoard = canManageWorkspaces(session?.roles ?? []);
 
   useEffect(() => {
     let cancelled = false;

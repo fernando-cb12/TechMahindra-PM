@@ -12,6 +12,7 @@ import TaskBoardPage from "../components/workspaces/taskboard/TaskBoardPage";
 import { ROUTES } from "./routes";
 import PublicOnlyRoute from "../components/routes/PublicOnlyRoute";
 import MainAppRoute from "../components/routes/MainAppRoute";
+import ProtectedRoute from "../components/routes/ProtectedRoute";
 import AdminRoute from "../components/routes/AdminRoute";
 import AdminLayout from "../layouts/AdminLayout";
 import AdminUsers from "../pages/admin/AdminUsers";
@@ -48,7 +49,11 @@ export const router = createBrowserRouter([
           { path: ROUTES.workspaceDetail, element: <WorkspaceDetail /> },
           { path: ROUTES.workspaceBoard, element: <TaskBoardPage /> },
           { path: ROUTES.issues, element: <Issues /> },
-          { path: ROUTES.metrics, element: <Metrics /> },
+          {
+            path: ROUTES.metrics,
+            element: <ProtectedRoute minimumRole="TEAM_LEAD" />,
+            children: [{ index: true, element: <Metrics /> }],
+          },
           { path: ROUTES.settings, element: <Settings /> },
           { path: ROUTES.career, element: <Career /> },
           { path: ROUTES.rewards, element: <RewardsPage /> },

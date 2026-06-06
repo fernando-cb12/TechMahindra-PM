@@ -5,6 +5,7 @@ import { SettingsNotificationsCard } from '../components/settings/SettingsNotifi
 import { SettingsProfileEditModal } from '../components/settings/SettingsProfileEditModal';
 import { SettingsProfileCard } from '../components/settings/SettingsProfileCard';
 import { useAuth } from '../auth/useAuth';
+import { canEditSettings } from '../auth/permissions';
 import {
   getUserProfile,
   updateUserProfile,
@@ -15,7 +16,7 @@ import {
 import { showAppError, showAppNotification } from '../components/shared/appNotifications';
 
 function Settings() {
-  const { profile: currentProfile, setProfile: setCurrentProfile } = useAuth();
+  const { profile: currentProfile, session, setProfile: setCurrentProfile } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(currentProfile);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(!currentProfile);
@@ -56,6 +57,7 @@ function Settings() {
   }, [currentProfile]);
 
   const handleSaveProfile = async (updatedProfile: UpdateUserProfilePayload) => {
+    if (!canEditSettings(session?.roles ?? [])) return;
     const savedProfile = await updateUserProfile(updatedProfile);
     setProfile(savedProfile);
     setCurrentProfile(savedProfile);
@@ -133,12 +135,19 @@ function Settings() {
 
       <Stack direction={{ xs: 'column', lg: 'row' }} spacing={3} alignItems="flex-start">
         <Stack spacing={3} sx={{ flex: 1, width: '100%', maxWidth: { lg: 720 } }}>
-          <SettingsProfileCard profile={profile} onEdit={() => setIsEditOpen(true)} />
+          <SettingsProfileCard
+            profile={profile}
+            canEdit={canEditSettings(session?.roles ?? [])}
+            editDisabledReason="You do not have enough privileges to edit settings."
+            onEdit={() => {
+              if (canEditSettings(session?.roles ?? [])) setIsEditOpen(true);
+            }}
+          />
           <SettingsAppearanceCard />
         </Stack>
 
         <SettingsProfileEditModal
-          open={isEditOpen}
+          open={canEditSettings(session?.roles ?? []) && isEditOpen}
           profile={profile}
           onClose={() => setIsEditOpen(false)}
           onSave={handleSaveProfile}

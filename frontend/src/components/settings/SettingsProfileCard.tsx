@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Stack,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
@@ -13,10 +14,40 @@ import type { UserProfile } from '../../services/userService';
 type SettingsProfileCardProps = {
   profile: UserProfile;
   onEdit?: () => void;
+  canEdit?: boolean;
+  editDisabledReason?: string;
 };
 
-function SettingsProfileCard({ profile, onEdit }: SettingsProfileCardProps) {
+function SettingsProfileCard({ profile, onEdit, canEdit = true, editDisabledReason }: SettingsProfileCardProps) {
   const [hoverAvatar, setHoverAvatar] = useState(false);
+  const editButton = (
+    <span>
+      <Button
+        variant="contained"
+        disableElevation
+        disabled={!canEdit}
+        onClick={onEdit}
+        sx={{
+          bgcolor: 'primary.main',
+          borderRadius: '5px',
+          minHeight: 28,
+          px: 1.5,
+          py: 0.25,
+          fontFamily: 'Montserrat, sans-serif',
+          fontWeight: 700,
+          fontSize: 14,
+          textTransform: 'none',
+          '&:hover': { bgcolor: 'primary.dark' },
+          '&.Mui-disabled': {
+            bgcolor: (theme) => theme.palette.action.disabledBackground,
+            color: (theme) => theme.palette.text.disabled,
+          },
+        }}
+      >
+        Edit
+      </Button>
+    </span>
+  );
 
   return (
     <SettingsCard>
@@ -35,25 +66,11 @@ function SettingsProfileCard({ profile, onEdit }: SettingsProfileCardProps) {
           >
             Profile
           </Typography>
-          <Button
-            variant="contained"
-            disableElevation
-            onClick={onEdit}
-            sx={{
-              bgcolor: 'primary.main',
-              borderRadius: '5px',
-              minHeight: 28,
-              px: 1.5,
-              py: 0.25,
-              fontFamily: 'Montserrat, sans-serif',
-              fontWeight: 700,
-              fontSize: 14,
-              textTransform: 'none',
-              '&:hover': { bgcolor: 'primary.dark' },
-            }}
-          >
-            Edit
-          </Button>
+          {canEdit ? editButton : (
+            <Tooltip title={editDisabledReason ?? 'You do not have enough privileges to edit settings.'} placement="left">
+              {editButton}
+            </Tooltip>
+          )}
         </Stack>
 
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} alignItems={{ xs: 'center', sm: 'flex-start' }}>
