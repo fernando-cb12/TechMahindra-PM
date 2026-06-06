@@ -40,6 +40,7 @@ export default function MainTableView() {
   const visibleColumns = boardConfig.columns
     .filter((c) => c.isVisible)
     .sort((a, b) => a.order - b.order);
+  const tableWidth = 4 + 50 + visibleColumns.reduce((total, column) => total + (column.width || 120), 0) + 40;
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
@@ -111,13 +112,15 @@ export default function MainTableView() {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <Box sx={{ mt: 2 }}>
-          {/* Outer Sortable Context for Group Reordering */}
-          <SortableContext items={groupIds} strategy={verticalListSortingStrategy}>
-            {visibleGroups.map((group) => (
-              <TaskGroup key={group.id} group={group} />
-            ))}
-          </SortableContext>
+        <Box sx={{ mt: 2, overflowX: 'auto', overflowY: 'visible', pb: 2, minWidth: 0 }}>
+          <Box sx={{ width: tableWidth, minWidth: '100%' }}>
+            {/* Outer Sortable Context for Group Reordering */}
+            <SortableContext items={groupIds} strategy={verticalListSortingStrategy}>
+              {visibleGroups.map((group) => (
+                <TaskGroup key={group.id} group={group} />
+              ))}
+            </SortableContext>
+          </Box>
         </Box>
 
         <DragOverlay>

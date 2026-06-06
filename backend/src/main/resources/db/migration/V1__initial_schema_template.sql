@@ -93,7 +93,9 @@ CREATE TABLE task (
     priority     VARCHAR(100) NOT NULL DEFAULT 'medium',
     points_value INT NOT NULL DEFAULT 10 CHECK (points_value IN (10, 25, 50, 100)),
     due_date     TIMESTAMPTZ,
+    first_started_at TIMESTAMPTZ,
     completed_at TIMESTAMPTZ,
+    last_reopened_at TIMESTAMPTZ,
     created_by   BIGINT NOT NULL REFERENCES users(id),
     assigned_to  BIGINT REFERENCES users(id) ON DELETE SET NULL,
     milestone_id BIGINT REFERENCES milestone(id) ON DELETE SET NULL,
@@ -116,6 +118,44 @@ CREATE TABLE dashboard_config (
     layout_config JSONB NOT NULL DEFAULT '{}',
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE metric_dashboards (
+    id         BIGSERIAL PRIMARY KEY,
+    user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name       VARCHAR(255) NOT NULL,
+    scope_type VARCHAR(20) NOT NULL DEFAULT 'global'
+               CHECK (scope_type IN ('global', 'workspace', 'board')),
+    scope_id   BIGINT,
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    visibility VARCHAR(20) NOT NULL DEFAULT 'private'
+               CHECK (visibility IN ('private', 'shared')),
+    config     JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ
+);
+
+CREATE TABLE metric_preset_overrides (
+    id         BIGSERIAL PRIMARY KEY,
+    user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    preset_id  VARCHAR(80) NOT NULL,
+    config     JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (user_id, preset_id)
+);
+
+CREATE TABLE board_metric_field_mappings (
+    id           BIGSERIAL PRIMARY KEY,
+    board_id     BIGINT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+    semantic_key VARCHAR(80) NOT NULL,
+    source_type  VARCHAR(40) NOT NULL
+                 CHECK (source_type IN ('core_field', 'custom_field')),
+    source_key   VARCHAR(160) NOT NULL,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (board_id, semantic_key)
 );
 
 CREATE TABLE rank_config (
@@ -302,3 +342,4 @@ CREATE INDEX idx_req_doc_session ON requirement_document(session_id);
 CREATE INDEX idx_ai_gen_task_session ON ai_generated_task(session_id);
 CREATE INDEX idx_snapshot_workspace_date ON workspace_analytic_snapshot(workspace_id, snapshot_date DESC);
 CREATE INDEX idx_milestone_workspace ON milestone(workspace_id);
+CREATE INDEX idx_board_metric_field_mappings_board ON board_metric_field_mappings(board_id);

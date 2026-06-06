@@ -44,6 +44,7 @@ export default function TaskRow({ task, columns, groupColor }: TaskRowProps) {
   const [boardGroupMenuAnchor, setBoardGroupMenuAnchor] = useState<HTMLElement | null>(null);
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
   const [renameSignal, setRenameSignal] = useState(0);
+  const columnsWidth = columns.reduce((total, column) => total + (column.width || 120), 0);
 
   const {
     attributes,
@@ -117,6 +118,7 @@ export default function TaskRow({ task, columns, groupColor }: TaskRowProps) {
           },
           position: 'relative',
           minHeight: 42,
+          width: '100%',
         }}
       >
       {/* Selection border indicator */}
@@ -171,7 +173,8 @@ export default function TaskRow({ task, columns, groupColor }: TaskRowProps) {
       <Box
         sx={{
           display: 'flex',
-          flex: 1,
+          flex: `0 0 ${columnsWidth}px`,
+          width: columnsWidth,
           opacity: isComplete ? 0.6 : 1,
         }}
       >
