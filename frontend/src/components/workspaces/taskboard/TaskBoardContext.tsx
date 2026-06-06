@@ -64,6 +64,68 @@ interface TaskCreateOptions {
   renameInDetails?: boolean;
 }
 
+const STATUS_PROGRESS_BY_KEY: Record<string, number | null> = {
+  todo: 0,
+  to_do: 0,
+  'to do': 0,
+  in_progress: 25,
+  'in progress': 25,
+  review: 75,
+  done: 100,
+  blocked: null,
+};
+
+const STATUS_KEYS_BY_PROGRESS: Record<number, string[]> = {
+  0: ['todo', 'to_do', 'to do'],
+  25: ['in_progress', 'in progress'],
+  75: ['review'],
+  100: ['done'],
+};
+
+const normalizeStatusKey = (value: string) => value.trim().toLowerCase().replace(/[-\s]+/g, '_');
+
+function getStatusProgress(statusId: string, statusOptions: SelectOption[]) {
+  const option = statusOptions.find((status) => status.id === statusId);
+  const candidates = [statusId, option?.label ?? ''];
+  for (const candidate of candidates) {
+    const exact = candidate.trim().toLowerCase();
+    const normalized = normalizeStatusKey(candidate);
+    if (exact in STATUS_PROGRESS_BY_KEY) return STATUS_PROGRESS_BY_KEY[exact];
+    if (normalized in STATUS_PROGRESS_BY_KEY) return STATUS_PROGRESS_BY_KEY[normalized];
+  }
+  return undefined;
+}
+
+function findStatusId(statusOptions: SelectOption[], keys: string[]) {
+  const normalizedKeys = new Set(keys.map(normalizeStatusKey));
+  return statusOptions.find((status) => (
+    normalizedKeys.has(normalizeStatusKey(status.id)) ||
+    normalizedKeys.has(normalizeStatusKey(status.label))
+  ))?.id;
+}
+
+function syncTaskPatch(patch: Partial<Task>, statusOptions: SelectOption[]) {
+  const syncedPatch = { ...patch };
+
+  if (patch.status !== undefined) {
+    const mappedProgress = getStatusProgress(String(patch.status), statusOptions);
+    if (typeof mappedProgress === 'number') {
+      syncedPatch.progress = mappedProgress;
+    }
+  }
+
+  if (patch.progress !== undefined) {
+    const nextProgress = Math.min(100, Math.max(0, Number(patch.progress) || 0));
+    syncedPatch.progress = nextProgress;
+    const statusId = findStatusId(statusOptions, STATUS_KEYS_BY_PROGRESS[nextProgress] ?? []);
+    if (statusId) {
+      syncedPatch.status = statusId;
+    }
+  }
+
+  return syncedPatch;
+}
+
 // ─── Provider ───
 interface UserBoardOrderPreferences {
   columnOrder: string[];
@@ -319,6 +381,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
   }, []);
 
   const updateTask = useCallback((taskId: string, patch: Partial<Task>) => {
+    const syncedPatch = syncTaskPatch(patch, boardConfig.statusOptions);
     setTasks((prev) => {
       const existing = prev[taskId];
       if (!existing) return prev;
@@ -326,18 +389,18 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
         ...prev,
         [taskId]: {
           ...existing,
-          ...patch,
+          ...syncedPatch,
           updatedAt: new Date().toISOString(),
         },
       };
       // Keep assigneeId in sync with the first item in assigneeIds for safety/legacy components
-      if (patch.assigneeIds !== undefined) {
-        updated[taskId].assigneeId = patch.assigneeIds.length > 0 ? patch.assigneeIds[0] : null;
+      if (syncedPatch.assigneeIds !== undefined) {
+        updated[taskId].assigneeId = syncedPatch.assigneeIds.length > 0 ? syncedPatch.assigneeIds[0] : null;
       }
       syncStorage(boardConfig, groups, updated, manualGroupOrder);
       return updated;
     });
-    void patchTask(workspaceId, boardId, taskId, patch)
+    void patchTask(workspaceId, boardId, taskId, syncedPatch)
       .then((savedTask) => {
         setTasks((prev) => ({ ...prev, [savedTask.id]: savedTask }));
       })

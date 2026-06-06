@@ -363,38 +363,44 @@ function Sidebar({
           ))}
         </List>
 
-        <Box sx={{ mt: 2 }}>
-          <Typography
-            sx={{
-              fontSize: 10,
-              fontWeight: 800,
-              color: (theme) => alpha(theme.palette.common.white, 0.7),
-              textTransform: 'uppercase',
-              px: 2,
-              mb: 0.75,
-              letterSpacing: '0.5px',
-            }}
-          >
-            Workspaces
-          </Typography>
+        {projects.length > 0 && (
+          <Box sx={{ mt: 2 }}>
+            <Typography
+              sx={{
+                fontSize: 10,
+                fontWeight: 800,
+                color: (theme) => alpha(theme.palette.common.white, 0.7),
+                textTransform: 'uppercase',
+                px: 2,
+                mb: 0.75,
+                letterSpacing: '0.5px',
+              }}
+            >
+              Workspaces
+            </Typography>
 
-          <List disablePadding>
-            {pinnedProjects.length > 0 && (
-              <>
-                {renderSectionHeader('Pinned')}
-                {pinnedProjects.map((project) => renderWorkspaceRow(project, { compact: true, showBoards: true }))}
-              </>
-            )}
-            {recentProjects.length > 0 && (
-              <>
-                {renderSectionHeader('Recent')}
-                {recentProjects.map((project) => renderWorkspaceRow(project, { compact: true, showBoards: true }))}
-              </>
-            )}
-            {renderSectionHeader('All')}
-            {allProjects.map((project) => renderWorkspaceRow(project, { showBoards: true }))}
-          </List>
-        </Box>
+            <List disablePadding>
+              {pinnedProjects.length > 0 && (
+                <>
+                  {renderSectionHeader('Pinned')}
+                  {pinnedProjects.map((project) => renderWorkspaceRow(project, { compact: true, showBoards: true }))}
+                </>
+              )}
+              {recentProjects.length > 0 && (
+                <>
+                  {renderSectionHeader('Recent')}
+                  {recentProjects.map((project) => renderWorkspaceRow(project, { compact: true, showBoards: true }))}
+                </>
+              )}
+              {allProjects.length > 0 && (
+                <>
+                  {renderSectionHeader('All')}
+                  {allProjects.map((project) => renderWorkspaceRow(project, { showBoards: true }))}
+                </>
+              )}
+            </List>
+          </Box>
+        )}
       </Box>
 
       <Divider sx={{ borderColor: (theme) => alpha(theme.palette.common.white, 0.2), mb: 2 }} />
