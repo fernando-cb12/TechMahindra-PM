@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -12,13 +13,22 @@ import {
   FormControl,
   InputLabel,
   Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import CheckIcon from '@mui/icons-material/Check';
+import LinkIcon from '@mui/icons-material/Link';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { useTaskBoard } from '../useTaskBoard';
 import type { ColumnDefinition, ColumnType, SelectOption } from '../types';
+import { getMetricCatalog, updateMetricFieldMapping, type MetricSemanticField } from '../../../../services/metricsService';
+import { showAppError, showAppNotification } from '../../../shared/appNotifications';
 
 const generateColumnId = () => `col_${Date.now()}`;
 
@@ -72,7 +82,38 @@ const FIELD_TYPES: { value: ColumnType; label: string }[] = [
   { value: 'formula', label: 'Formula' },
 ];
 
+type SemanticMappingKey = 'budget' | 'progress' | 'due_date' | 'priority' | 'effort';
+
+const SEMANTIC_COMPATIBLE_TYPES: Record<SemanticMappingKey, ColumnType[]> = {
+  budget: ['number', 'currency', 'budget'],
+  progress: ['number', 'percentage', 'progress'],
+  due_date: ['date', 'timeline'],
+  priority: ['priority', 'singleSelect'],
+  effort: ['number', 'time'],
+};
+
+const isColumnCompatibleWithSemantic = (column: ColumnDefinition | null, semanticKey: SemanticMappingKey) => (
+  Boolean(column && SEMANTIC_COMPATIBLE_TYPES[semanticKey].includes(column.type))
+);
+
+const coreSourceKeyForColumn = (column: ColumnDefinition, semanticKey: SemanticMappingKey) => {
+  if (semanticKey === 'budget' && column.type === 'budget') return 'budget';
+  if (semanticKey === 'progress' && column.type === 'progress') return 'progress';
+  if (semanticKey === 'due_date' && column.id === 'col_due_date') return 'due_date';
+  if (semanticKey === 'priority' && column.type === 'priority') return 'priority';
+  return null;
+};
+
+type PendingMapping = {
+  semanticKey: SemanticMappingKey;
+  sourceType: 'core_field' | 'custom_field';
+  sourceKey: string;
+  columnLabel: string;
+  currentMapping: MetricSemanticField;
+};
+
 export default function ColumnHeader({ groupColor }: ColumnHeaderProps) {
+  const { boardId } = useParams<{ workspaceId: string; boardId: string }>();
   const { boardConfig, updateColumns, addColumn } = useTaskBoard();
   
   const [addColumnAnchor, setAddColumnAnchor] = useState<HTMLButtonElement | null>(null);
@@ -86,10 +127,14 @@ export default function ColumnHeader({ groupColor }: ColumnHeaderProps) {
   const [selectedColumn, setSelectedColumn] = useState<ColumnDefinition | null>(null);
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState('');
+  const [mappingMenuAnchor, setMappingMenuAnchor] = useState<HTMLElement | null>(null);
+  const [fieldTypeMenuAnchor, setFieldTypeMenuAnchor] = useState<HTMLElement | null>(null);
+  const [pendingMapping, setPendingMapping] = useState<PendingMapping | null>(null);
 
   const visibleColumns = boardConfig.columns
     .filter((c) => c.isVisible)
     .sort((a, b) => a.order - b.order);
+  const columnsWidth = visibleColumns.reduce((total, column) => total + (column.width || 120), 0);
 
   const handleOpenAddColumn = (e: React.MouseEvent<HTMLButtonElement>) => {
     setAddColumnAnchor(e.currentTarget);
@@ -133,6 +178,14 @@ export default function ColumnHeader({ groupColor }: ColumnHeaderProps) {
     setSettingsAnchor(e.currentTarget);
     setRenameValue(col.label);
     setIsRenaming(false);
+    setMappingMenuAnchor(null);
+    setFieldTypeMenuAnchor(null);
+  };
+
+  const closeColumnMenus = () => {
+    setSettingsAnchor(null);
+    setMappingMenuAnchor(null);
+    setFieldTypeMenuAnchor(null);
   };
 
   const handleRenameSave = () => {
@@ -143,7 +196,7 @@ export default function ColumnHeader({ groupColor }: ColumnHeaderProps) {
       updateColumns(updated);
     }
     setIsRenaming(false);
-    setSettingsAnchor(null);
+    closeColumnMenus();
   };
 
   const handleChangeType = (newType: ColumnType) => {
@@ -153,15 +206,60 @@ export default function ColumnHeader({ groupColor }: ColumnHeaderProps) {
       );
       updateColumns(updated);
     }
-    setSettingsAnchor(null);
+    closeColumnMenus();
   };
 
   const handleDeleteColumn = () => {
-    if (selectedColumn) {
+    if (selectedColumn && !selectedColumn.isSystemColumn) {
       const updated = boardConfig.columns.filter((c) => c.id !== selectedColumn.id);
       updateColumns(updated);
     }
-    setSettingsAnchor(null);
+    closeColumnMenus();
+  };
+
+  const handleHideColumn = () => {
+    if (selectedColumn) {
+      const updated = boardConfig.columns.map((c) =>
+        c.id === selectedColumn.id ? { ...c, isVisible: false } : c
+      );
+      updateColumns(updated);
+    }
+    closeColumnMenus();
+  };
+
+  const saveMetricMapping = async (semanticKey: SemanticMappingKey, sourceType: 'core_field' | 'custom_field', sourceKey: string, columnLabel: string) => {
+    if (!boardId) return;
+    try {
+      await updateMetricFieldMapping(boardId, semanticKey, { sourceType, sourceKey });
+      window.dispatchEvent(new CustomEvent('metric-field-mapping-updated', { detail: { boardId } }));
+      showAppNotification({ message: `${columnLabel} mapped as ${semanticKey}`, severity: 'success' });
+    } catch (e) {
+      showAppError(e, `Failed to map ${columnLabel}`);
+    } finally {
+      setPendingMapping(null);
+      closeColumnMenus();
+    }
+  };
+
+  const handleMapColumn = async (semanticKey: SemanticMappingKey) => {
+    if (!selectedColumn || !boardId) return;
+    const coreSourceKey = coreSourceKeyForColumn(selectedColumn, semanticKey);
+    const sourceType = coreSourceKey ? 'core_field' : 'custom_field';
+    const sourceKey = coreSourceKey ?? selectedColumn.id;
+    const columnLabel = selectedColumn.label;
+    try {
+      const catalog = await getMetricCatalog({ boardIds: [boardId] });
+      const currentMapping = catalog.semanticFields.find((field) => field.boardId === boardId && field.semanticKey === semanticKey);
+      const isSameMapping = currentMapping?.sourceType === sourceType && currentMapping.sourceKey === sourceKey;
+      if (currentMapping && !isSameMapping) {
+        setPendingMapping({ semanticKey, sourceType, sourceKey, columnLabel, currentMapping });
+        return;
+      }
+      await saveMetricMapping(semanticKey, sourceType, sourceKey, columnLabel);
+    } catch (e) {
+      showAppError(e, `Failed to map ${columnLabel}`);
+      closeColumnMenus();
+    }
   };
 
   return (
@@ -174,6 +272,7 @@ export default function ColumnHeader({ groupColor }: ColumnHeaderProps) {
         minHeight: 38,
         bgcolor: 'background.default',
         zIndex: 1,
+        width: '100%',
       }}
     >
       {/* Spacer for Selection border indicator */}
@@ -189,13 +288,17 @@ export default function ColumnHeader({ groupColor }: ColumnHeaderProps) {
       />
 
       {/* Dynamic Headers */}
-      <Box sx={{ display: 'flex', flex: 1 }}>
+      <Box sx={{ display: 'flex', flex: `0 0 ${columnsWidth}px`, width: columnsWidth }}>
         {visibleColumns.map((col) => {
           const isSystem = col.id === 'col_name';
           return (
-            <Box
+              <Box
               key={col.id}
               group-hover="header"
+              onContextMenu={(e) => {
+                if (!isSystem) handleOpenSettings(e, col);
+                e.preventDefault();
+              }}
               sx={{
                 flex: col.width ? `0 0 ${col.width}px` : 1,
                 minWidth: col.width || 120,
@@ -250,7 +353,7 @@ export default function ColumnHeader({ groupColor }: ColumnHeaderProps) {
       <Menu
         anchorEl={settingsAnchor}
         open={Boolean(settingsAnchor)}
-        onClose={() => setSettingsAnchor(null)}
+        onClose={closeColumnMenus}
         slotProps={{ paper: { sx: { mt: 0.5, minWidth: 200, borderRadius: 2 } } }}
       >
         {isRenaming ? (
@@ -274,9 +377,89 @@ export default function ColumnHeader({ groupColor }: ColumnHeaderProps) {
         )}
         
         <Divider />
-        <Typography sx={{ px: 2, py: 0.75, fontSize: 10, fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase' }}>
-          Change Field Type
-        </Typography>
+        <MenuItem
+          onClick={(event) => setMappingMenuAnchor(event.currentTarget)}
+          sx={{ py: 1, display: 'flex', justifyContent: 'space-between', gap: 2 }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <LinkIcon fontSize="small" sx={{ mr: 1 }} />
+            <Typography sx={{ fontSize: 13 }}>Metrics Mapping</Typography>
+          </Box>
+          <ChevronRightIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+        </MenuItem>
+        <MenuItem
+          disabled={selectedColumn?.isSystemColumn}
+          onClick={(event) => setFieldTypeMenuAnchor(event.currentTarget)}
+          sx={{ py: 1, display: 'flex', justifyContent: 'space-between', gap: 2 }}
+        >
+          <Typography sx={{ fontSize: 13 }}>Change Field Type</Typography>
+          <ChevronRightIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+        </MenuItem>
+
+        <Divider />
+        <MenuItem onClick={handleHideColumn} sx={{ py: 1 }}>
+          <VisibilityOffIcon fontSize="small" sx={{ mr: 1 }} />
+          <Typography sx={{ fontSize: 13 }}>Hide Column</Typography>
+        </MenuItem>
+        <MenuItem disabled={selectedColumn?.isSystemColumn} onClick={handleDeleteColumn} sx={{ color: 'error.main', py: 1 }}>
+          <DeleteOutlineIcon fontSize="small" sx={{ mr: 1 }} />
+          <Typography sx={{ fontSize: 13 }}>Delete Column</Typography>
+        </MenuItem>
+      </Menu>
+
+      <Menu
+        anchorEl={mappingMenuAnchor}
+        open={Boolean(mappingMenuAnchor)}
+        onClose={() => setMappingMenuAnchor(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        slotProps={{ paper: { sx: { ml: 0.5, minWidth: 190, borderRadius: 2 } } }}
+      >
+        <MenuItem
+          disabled={!isColumnCompatibleWithSemantic(selectedColumn, 'budget')}
+          onClick={() => void handleMapColumn('budget')}
+          sx={{ py: 0.75 }}
+        >
+          <Typography sx={{ fontSize: 13 }}>Map as Budget</Typography>
+        </MenuItem>
+        <MenuItem
+          disabled={!isColumnCompatibleWithSemantic(selectedColumn, 'progress')}
+          onClick={() => void handleMapColumn('progress')}
+          sx={{ py: 0.75 }}
+        >
+          <Typography sx={{ fontSize: 13 }}>Map as Progress</Typography>
+        </MenuItem>
+        <MenuItem
+          disabled={!isColumnCompatibleWithSemantic(selectedColumn, 'due_date')}
+          onClick={() => void handleMapColumn('due_date')}
+          sx={{ py: 0.75 }}
+        >
+          <Typography sx={{ fontSize: 13 }}>Map as Due Date</Typography>
+        </MenuItem>
+        <MenuItem
+          disabled={!isColumnCompatibleWithSemantic(selectedColumn, 'priority')}
+          onClick={() => void handleMapColumn('priority')}
+          sx={{ py: 0.75 }}
+        >
+          <Typography sx={{ fontSize: 13 }}>Map as Priority</Typography>
+        </MenuItem>
+        <MenuItem
+          disabled={!isColumnCompatibleWithSemantic(selectedColumn, 'effort')}
+          onClick={() => void handleMapColumn('effort')}
+          sx={{ py: 0.75 }}
+        >
+          <Typography sx={{ fontSize: 13 }}>Map as Effort</Typography>
+        </MenuItem>
+      </Menu>
+
+      <Menu
+        anchorEl={fieldTypeMenuAnchor}
+        open={Boolean(fieldTypeMenuAnchor)}
+        onClose={() => setFieldTypeMenuAnchor(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        slotProps={{ paper: { sx: { ml: 0.5, minWidth: 190, borderRadius: 2, maxHeight: 360 } } }}
+      >
         {FIELD_TYPES.map((t) => {
           const isSelected = selectedColumn?.type === t.value;
           return (
@@ -290,13 +473,43 @@ export default function ColumnHeader({ groupColor }: ColumnHeaderProps) {
             </MenuItem>
           );
         })}
-
-        <Divider />
-        <MenuItem onClick={handleDeleteColumn} sx={{ color: 'error.main', py: 1 }}>
-          <DeleteOutlineIcon fontSize="small" sx={{ mr: 1 }} />
-          <Typography sx={{ fontSize: 13 }}>Delete Column</Typography>
-        </MenuItem>
       </Menu>
+
+      <Dialog open={Boolean(pendingMapping)} onClose={() => setPendingMapping(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 900, fontSize: 18 }}>
+          Replace {pendingMapping?.currentMapping.label} mapping?
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
+            {pendingMapping?.currentMapping.label} is currently mapped to{' '}
+            <Box component="span" sx={{ fontWeight: 800, color: 'text.primary' }}>
+              {pendingMapping?.currentMapping.sourceLabel}
+            </Box>
+            . Changing it to{' '}
+            <Box component="span" sx={{ fontWeight: 800, color: 'text.primary' }}>
+              {pendingMapping?.columnLabel}
+            </Box>{' '}
+            will affect every metric that reads this semantic field for this board.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setPendingMapping(null)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              if (!pendingMapping) return;
+              void saveMetricMapping(
+                pendingMapping.semanticKey,
+                pendingMapping.sourceType,
+                pendingMapping.sourceKey,
+                pendingMapping.columnLabel
+              );
+            }}
+          >
+            Replace mapping
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Final '+' Column Header (Section 6.1 of spec) */}
       <Box

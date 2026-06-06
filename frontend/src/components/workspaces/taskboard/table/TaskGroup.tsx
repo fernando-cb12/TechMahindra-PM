@@ -97,6 +97,7 @@ export default function TaskGroup({ group }: TaskGroupProps) {
   const visibleColumns = boardConfig.columns
     .filter((c) => c.isVisible)
     .sort((a, b) => a.order - b.order);
+  const columnsWidth = visibleColumns.reduce((total, column) => total + (column.width || 120), 0);
 
   const handleAddTask = () => {
     if (!newTaskName.trim()) {
@@ -436,11 +437,12 @@ export default function TaskGroup({ group }: TaskGroupProps) {
                 bgcolor: 'background.paper',
                 minHeight: 40,
                 pl: 1,
+                width: '100%',
               }}
             >
               <Box sx={{ width: 4, bgcolor: group.color, height: 32, mr: 0.5, borderRadius: 0.5 }} />
               <Box sx={{ width: 50, mr: 1 }} />
-              <Box sx={{ flex: 1, px: 2, display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ width: columnsWidth, px: 2, display: 'flex', alignItems: 'center' }}>
                 <input
                   autoFocus
                   value={newTaskName}
@@ -480,6 +482,7 @@ export default function TaskGroup({ group }: TaskGroupProps) {
                 bgcolor: 'background.paper',
                 cursor: 'pointer',
                 pl: 1,
+                width: '100%',
                 '&:hover': { bgcolor: 'action.hover' },
               }}
               onClick={() => setIsAdding(true)}

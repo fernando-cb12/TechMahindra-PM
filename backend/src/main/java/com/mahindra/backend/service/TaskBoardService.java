@@ -389,6 +389,8 @@ public class TaskBoardService {
 
         Map<String, BoardColumnOption> statusOptions = optionMap(boardId, "col_status");
         Map<String, BoardColumnOption> priorityOptions = optionMap(boardId, "col_priority");
+        BoardColumnOption initialStatus = statusOptions.get("todo");
+        BoardColumnOption initialPriority = priorityOptions.get("medium");
 
         Task task = new Task();
         task.setBoard(board);
@@ -397,14 +399,14 @@ public class TaskBoardService {
         task.setCreatedBy(user);
         task.setStatus("todo");
         task.setPriority("medium");
-        task.setStatusOption(statusOptions.get("todo"));
-        task.setPriorityOption(priorityOptions.get("medium"));
+        task.setStatusOption(initialStatus);
+        task.setPriorityOption(initialPriority);
         if (request.dueDate() != null && !request.dueDate().isBlank()) {
             task.setDueDate(parseDate(request.dueDate()));
         }
         task.setPosition(taskRepository.findByGroupIdAndDeletedAtIsNullOrderByPositionAscIdAsc(groupId).size());
         taskRepository.save(task);
-        recordActivity(board, task, user, "task_created", "task", null, task.getTitle(), "user");
+        recordActivity(board, task, user, "task.created", "task", null, taskEventSnapshot(task), "user");
         return toTaskDto(task, List.of(), List.of(), List.of(),
                 taskActivityRepository.findTop100ByBoardIdAndVisibilityOrderByCreatedAtDesc(boardId, "user"));
     }
@@ -416,7 +418,8 @@ public class TaskBoardService {
         resolveEditableBoard(user, workspaceId, boardId);
         Task task = resolveTask(boardId, taskId);
         Map<String, Object> before = taskSnapshot(task);
-        boolean wasDone = "done".equals(task.getStatus());
+        boolean wasDone = isDone(task);
+        String previousWorkflow = workflowMeaning(task.getStatusOption(), task.getStatus());
 
         if (request.name() != null) {
             task.setTitle(request.name().trim());
@@ -424,11 +427,6 @@ public class TaskBoardService {
         if (request.status() != null) {
             task.setStatus(request.status());
             task.setStatusOption(optionMap(boardId, "col_status").get(request.status()));
-            if ("done".equals(request.status()) && task.getCompletedAt() == null) {
-                task.setCompletedAt(Instant.now());
-            } else if (!"done".equals(request.status())) {
-                task.setCompletedAt(null);
-            }
         }
         if (request.priority() != null) {
             task.setPriority(request.priority());
@@ -451,12 +449,34 @@ public class TaskBoardService {
             task.setAssignedTo(assignees.isEmpty() ? null : assignees.get(0));
         }
         if (request.values() != null) {
-            applyCustomValues(task, request.values());
+            applyCustomValues(task, user, request.values());
+        }
+        String currentWorkflow = workflowMeaning(task.getStatusOption(), task.getStatus());
+        Instant transitionTime = Instant.now();
+        if ("in_progress".equals(currentWorkflow) && task.getFirstStartedAt() == null) {
+            task.setFirstStartedAt(transitionTime);
+        }
+        if ("done".equals(currentWorkflow) && task.getCompletedAt() == null) {
+            task.setCompletedAt(transitionTime);
+        } else if (!"done".equals(currentWorkflow) && wasDone) {
+            task.setCompletedAt(null);
+            task.setLastReopenedAt(transitionTime);
         }
         task.setUpdatedAt(Instant.now());
         taskRepository.save(task);
         recordChangedTaskFields(task, user, before, taskSnapshot(task));
-        if (!wasDone && "done".equals(task.getStatus())) {
+        if (!Objects.equals(previousWorkflow, currentWorkflow)) {
+            recordActivity(task.getBoard(), task, user, "task.workflow_changed", "workflow",
+                    previousWorkflow, currentWorkflow, "user");
+        }
+        if (!wasDone && "done".equals(currentWorkflow)) {
+            recordActivity(task.getBoard(), task, user, "task.completed", "workflow",
+                    previousWorkflow, currentWorkflow, "user");
+        } else if (wasDone && !"done".equals(currentWorkflow)) {
+            recordActivity(task.getBoard(), task, user, "task.reopened", "workflow",
+                    "done", currentWorkflow, "user");
+        }
+        if (!wasDone && "done".equals(currentWorkflow)) {
             careerRewardsService.awardTaskCompletion(task);
         }
         return toTaskDto(task,
@@ -475,7 +495,7 @@ public class TaskBoardService {
         task.setDeletedBy(user);
         task.setPurgeAfter(Instant.now().plusSeconds(30L * 24 * 60 * 60));
         taskRepository.save(task);
-        recordActivity(task.getBoard(), task, user, "task_deleted", "task", task.getTitle(), null, "user");
+        recordActivity(task.getBoard(), task, user, "task.deleted", "task", taskEventSnapshot(task), null, "user");
     }
 
     @Transactional
@@ -490,7 +510,7 @@ public class TaskBoardService {
         task.setPurgeAfter(null);
         task.setUpdatedAt(Instant.now());
         taskRepository.save(task);
-        recordActivity(task.getBoard(), task, user, "task_restored", "task", null, task.getTitle(), "user");
+        recordActivity(task.getBoard(), task, user, "task.restored", "task", null, taskEventSnapshot(task), "user");
         return toTaskDto(task,
                 taskCustomValueRepository.findByTaskBoardIdAndTaskDeletedAtIsNull(boardId),
                 taskUpdateRepository.findByTaskBoardIdAndDeletedAtIsNullOrderByCreatedAtAsc(boardId),
@@ -672,7 +692,7 @@ public class TaskBoardService {
         Map<String, Object> after = new LinkedHashMap<>();
         after.put("board", targetBoard.getName());
         after.put("group", targetGroup.getName());
-        recordActivity(targetBoard, task, user, "task_moved",
+        recordActivity(targetBoard, task, user, "task.moved",
                 sourceBoard.getId().equals(targetBoard.getId()) ? "group" : "board",
                 before, after, "user");
     }
@@ -939,7 +959,7 @@ public class TaskBoardService {
                 .collect(Collectors.toMap(u -> String.valueOf(u.getId()), this::toUserDto, (a, b) -> a, LinkedHashMap::new));
     }
 
-    private void applyCustomValues(Task task, Map<String, Object> values) {
+    private void applyCustomValues(Task task, User user, Map<String, Object> values) {
         Map<String, BoardColumn> columns = boardColumnRepository
                 .findByBoardIdAndDeletedAtIsNullOrderByPositionAscIdAsc(task.getBoard().getId()).stream()
                 .collect(Collectors.toMap(BoardColumn::getKey, Function.identity()));
@@ -951,6 +971,7 @@ public class TaskBoardService {
                 continue;
             }
             TaskCustomValue value = existing.get(entry.getKey());
+            Object oldValue = value != null ? value.getValue() : null;
             if (value == null) {
                 value = new TaskCustomValue();
                 value.setTask(task);
@@ -959,6 +980,12 @@ public class TaskBoardService {
             }
             value.setValue(entry.getValue());
             value.setUpdatedAt(Instant.now());
+            if (!Objects.equals(oldValue, entry.getValue())) {
+                Map<String, Object> oldSnapshot = customValueSnapshot(column, oldValue);
+                Map<String, Object> newSnapshot = customValueSnapshot(column, entry.getValue());
+                recordActivity(task.getBoard(), task, user, "task.custom_value_changed", column.getKey(),
+                        oldSnapshot, newSnapshot, "user");
+            }
         }
     }
 
@@ -974,7 +1001,7 @@ public class TaskBoardService {
             Map<String, Object> oldValues = discarded.stream()
                     .collect(Collectors.toMap(v -> v.getColumn().getKey(), TaskCustomValue::getValue));
             task.getCustomValues().removeAll(discarded);
-            recordActivity(targetBoard, task, user, "custom_values_discarded", "custom_values", oldValues, null, "internal");
+            recordActivity(targetBoard, task, user, "task.custom_values_discarded", "custom_values", oldValues, null, "internal");
         }
     }
 
@@ -1026,11 +1053,15 @@ public class TaskBoardService {
     private Map<String, Object> taskSnapshot(Task task) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("name", task.getTitle());
-        map.put("status", task.getStatus());
-        map.put("priority", task.getPriority());
+        map.put("status", optionSnapshot(task.getStatusOption(), task.getStatus()));
+        map.put("priority", optionSnapshot(task.getPriorityOption(), task.getPriority()));
         map.put("dueDate", task.getDueDate() != null ? task.getDueDate().toString() : null);
         map.put("progress", task.getProgress());
         map.put("budget", task.getBudget());
+        map.put("assignees", task.getAssignees().stream()
+                .sorted(Comparator.comparing(User::getName, String.CASE_INSENSITIVE_ORDER))
+                .map(this::userSnapshot)
+                .toList());
         return map;
     }
 
@@ -1038,9 +1069,87 @@ public class TaskBoardService {
         after.forEach((field, newValue) -> {
             Object oldValue = before.get(field);
             if (!Objects.equals(oldValue, newValue)) {
-                recordActivity(task.getBoard(), task, user, "task_updated", field, oldValue, newValue, "user");
+                recordActivity(task.getBoard(), task, user, eventTypeForTaskField(field), field, oldValue, newValue, "user");
             }
         });
+    }
+
+    private String eventTypeForTaskField(String field) {
+        return switch (field) {
+            case "status" -> "task.status_changed";
+            case "priority" -> "task.priority_changed";
+            case "dueDate" -> "task.due_date_changed";
+            case "progress" -> "task.progress_changed";
+            case "budget" -> "task.budget_changed";
+            case "assignees" -> "task.assignee_changed";
+            default -> "task.updated";
+        };
+    }
+
+    private boolean isDone(Task task) {
+        return "done".equals(workflowMeaning(task.getStatusOption(), task.getStatus()));
+    }
+
+    private String workflowMeaning(BoardColumnOption option, String fallbackStatus) {
+        if (option != null && option.getWorkflowMeaning() != null && !"none".equals(option.getWorkflowMeaning())) {
+            return option.getWorkflowMeaning();
+        }
+        return switch (fallbackStatus == null ? "" : fallbackStatus) {
+            case "todo", "new" -> "new";
+            case "in_progress" -> "in_progress";
+            case "done" -> "done";
+            default -> "unclassified";
+        };
+    }
+
+    private Map<String, Object> optionSnapshot(BoardColumnOption option, String fallbackKey) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("optionId", option != null ? String.valueOf(option.getId()) : null);
+        snapshot.put("key", option != null ? option.getKey() : fallbackKey);
+        snapshot.put("label", option != null ? option.getLabel() : humanize(fallbackKey));
+        snapshot.put("color", option != null ? option.getColor() : null);
+        snapshot.put("workflowMeaning", workflowMeaning(option, fallbackKey));
+        return snapshot;
+    }
+
+    private Map<String, Object> customValueSnapshot(BoardColumn column, Object value) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("columnId", String.valueOf(column.getId()));
+        snapshot.put("key", column.getKey());
+        snapshot.put("label", column.getLabel());
+        snapshot.put("type", column.getType());
+        snapshot.put("value", value);
+        return snapshot;
+    }
+
+    private Map<String, Object> taskEventSnapshot(Task task) {
+        Map<String, Object> snapshot = taskSnapshot(task);
+        snapshot.put("id", String.valueOf(task.getId()));
+        snapshot.put("boardId", String.valueOf(task.getBoard().getId()));
+        snapshot.put("workspaceId", String.valueOf(task.getBoard().getWorkspace().getId()));
+        snapshot.put("groupId", task.getGroup() != null ? String.valueOf(task.getGroup().getId()) : null);
+        snapshot.put("firstStartedAt", task.getFirstStartedAt() != null ? task.getFirstStartedAt().toString() : null);
+        snapshot.put("completedAt", task.getCompletedAt() != null ? task.getCompletedAt().toString() : null);
+        snapshot.put("lastReopenedAt", task.getLastReopenedAt() != null ? task.getLastReopenedAt().toString() : null);
+        return snapshot;
+    }
+
+    private Map<String, Object> userSnapshot(User user) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("id", String.valueOf(user.getId()));
+        snapshot.put("name", user.getName());
+        snapshot.put("email", user.getEmail());
+        return snapshot;
+    }
+
+    private String humanize(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        return java.util.Arrays.stream(value.split("[_\\-\\s]+"))
+                .filter(part -> !part.isBlank())
+                .map(part -> part.substring(0, 1).toUpperCase() + part.substring(1).toLowerCase())
+                .collect(Collectors.joining(" "));
     }
 
     private void recordActivity(Board board, Task task, User actor, String eventType, String fieldKey,

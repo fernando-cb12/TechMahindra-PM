@@ -63,8 +63,14 @@ public class Task {
     @Column(name = "due_date")
     private LocalDate dueDate;
 
+    @Column(name = "first_started_at")
+    private Instant firstStartedAt;
+
     @Column(name = "completed_at")
     private Instant completedAt;
+
+    @Column(name = "last_reopened_at")
+    private Instant lastReopenedAt;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false)

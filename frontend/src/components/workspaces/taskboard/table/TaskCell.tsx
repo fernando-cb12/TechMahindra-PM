@@ -107,13 +107,15 @@ export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellP
 
   if (!task) return null;
 
+  const boundedPercentage = (val: string | number | string[] | null) => Math.min(100, Math.max(0, Number(val) || 0));
+
   const commitValue = (val: string | number | string[] | null) => {
     if (column.id === 'col_name') {
       updateTask(taskId, { name: String(val) });
     } else if (column.id === 'col_date') {
       updateTask(taskId, { dueDate: val ? String(val) : null });
     } else if (column.id === 'col_progress') {
-      updateTask(taskId, { progress: Math.min(100, Math.max(0, Number(val) || 0)) });
+      updateTask(taskId, { progress: boundedPercentage(val) });
     } else if (column.id === 'col_budget') {
       updateTask(taskId, { budget: val != null && val !== '' ? Number(val) : null });
     } else if (column.id === 'col_status') {
@@ -128,7 +130,10 @@ export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellP
       });
     } else {
       // Custom columns
-      const updatedValues = { ...(task.values || {}), [column.id]: val };
+      const updatedValues = {
+        ...(task.values || {}),
+        [column.id]: column.type === 'percentage' || column.type === 'progress' ? boundedPercentage(val) : val,
+      };
       updateTask(taskId, { values: updatedValues });
     }
     setEditing(false);
@@ -136,7 +141,7 @@ export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellP
   };
 
   const handleCellClick = (e: React.MouseEvent<HTMLElement>) => {
-    if (['status', 'priority', 'assignee', 'singleSelect', 'multiSelect', 'progress'].includes(column.type) || 
+    if (['status', 'priority', 'assignee', 'singleSelect', 'multiSelect', 'progress', 'percentage'].includes(column.type) || 
         ['col_status', 'col_priority', 'col_assignee', 'col_progress'].includes(column.id)) {
       setAnchorEl(e.currentTarget);
       setIsEditingOptions(false);
@@ -670,7 +675,9 @@ export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellP
   // ─── 3. PROGRESS CELL EDITOR (Section 8.1 of spec) ───
   if (column.id === 'col_progress' || column.type === 'percentage' || column.type === 'progress') {
     const pVal = Number(cellValue ?? 0);
+    const draftPercentageValue = Number.isFinite(Number(draftText)) ? boundedPercentage(draftText) : pVal;
     const progressColor = pVal === 100 ? 'success.main' : 'primary.main';
+    const editorTitle = column.id === 'col_progress' || column.type === 'progress' ? 'Edit Progress Value' : `Edit ${column.label}`;
 
     const QUICK_PROGRESS_BUTTONS = [0, 25, 50, 75, 100];
 
@@ -718,16 +725,17 @@ export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellP
           slotProps={{ paper: { sx: { mt: 0.5, p: 2, borderRadius: 2, width: 220, display: 'flex', flexDirection: 'column', gap: 2 } } }}
         >
           <Typography variant="subtitle2" sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase' }}>
-            Edit Progress Value
+            {editorTitle}
           </Typography>
 
           {/* Slider */}
           <Box sx={{ px: 1 }}>
             <Slider
-              value={pVal}
+              value={draftPercentageValue}
               min={0}
               max={100}
-              onChange={(_, val) => commitValue(val)}
+              onChange={(_, val) => setDraftText(String(Array.isArray(val) ? val[0] : val))}
+              onChangeCommitted={(_, val) => commitValue(Array.isArray(val) ? val[0] : val)}
               sx={{ color: progressColor }}
             />
           </Box>

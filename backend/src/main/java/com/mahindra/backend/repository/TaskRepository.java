@@ -13,7 +13,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
     @Query("""
             select t.board.workspace.id,
-                   sum(case when t.status = 'done' then 1 else 0 end),
+                   sum(case when t.completedAt is not null then 1 else 0 end),
                    count(t)
             from Task t
             where t.board.workspace.id in :ids
