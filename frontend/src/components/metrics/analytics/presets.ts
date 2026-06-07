@@ -19,16 +19,16 @@ const NO_IMPLICIT_COMPARISON_METRICS = new Set([
 
 export const PRESET_WIDGETS: Record<string, MetricWidgetConfig[]> = {
   delivery: [
-    widget('Completion Rate', 'completion_rate', 'none', 'kpi', 0, 0, 3, 3),
-    widget('Open Tasks by Board', 'open_tasks', 'board', 'bar', 3, 0, 5, 3),
+    widget('Completion Rate', 'completion_rate', 'none', 'kpi', 0, 0, 2, 2),
+    widget('Open Tasks by Board', 'open_tasks', 'board', 'bar', 2, 0, 6, 3),
     widget('Created vs Completed', 'created_vs_completed', 'none', 'line', 8, 0, 4, 3),
     widget('Average Progress by Workspace', 'average_progress', 'workspace', 'bar', 0, 3, 6, 3),
   ],
   risk: [
-    widget('Overdue Tasks', 'overdue_tasks', 'none', 'kpi', 0, 0, 3, 3),
-    widget('Stale by Board', 'stale_tasks', 'board', 'bar', 3, 0, 5, 3),
+    widget('Overdue Tasks', 'overdue_tasks', 'none', 'kpi', 0, 0, 2, 2),
+    widget('Stale by Board', 'stale_tasks', 'board', 'bar', 2, 0, 6, 3),
     widget('Due Soon by Priority', 'due_soon_tasks', 'priority', 'bar', 8, 0, 4, 3),
-    widget('Unassigned Tasks', 'unassigned_tasks', 'none', 'kpi', 0, 3, 3, 3),
+    widget('Unassigned Tasks', 'unassigned_tasks', 'none', 'kpi', 0, 2, 2, 2),
   ],
   workload: [
     widget('Open by Priority', 'open_tasks', 'priority', 'bar', 0, 0, 5, 3),
@@ -41,13 +41,13 @@ export const PRESET_WIDGETS: Record<string, MetricWidgetConfig[]> = {
     widget('Created vs Completed', 'created_vs_completed', 'none', 'line', 0, 3, 8, 3),
   ],
   budget: [
-    widget('Total Budget', 'total_budget', 'none', 'kpi', 0, 0, 3, 3),
-    widget('Budget by Workspace', 'total_budget', 'workspace', 'bar', 3, 0, 5, 3),
+    widget('Total Budget', 'total_budget', 'none', 'kpi', 0, 0, 2, 2),
+    widget('Budget by Workspace', 'total_budget', 'workspace', 'bar', 2, 0, 6, 3),
     widget('Average Progress by Board', 'average_progress', 'board', 'bar', 8, 0, 4, 3),
   ],
   cycle: [
-    widget('Median Cycle Time', 'median_cycle_time', 'none', 'kpi', 0, 0, 3, 3),
-    widget('P90 Cycle Time by Board', 'p90_cycle_time', 'board', 'bar', 3, 0, 5, 3),
+    widget('Median Cycle Time', 'median_cycle_time', 'none', 'kpi', 0, 0, 2, 2),
+    widget('P90 Cycle Time by Board', 'p90_cycle_time', 'board', 'bar', 2, 0, 6, 3),
     widget('Median Lead Time by Priority', 'median_lead_time', 'priority', 'bar', 8, 0, 4, 3),
   ],
 };

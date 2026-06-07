@@ -43,6 +43,37 @@ function TooltipShell({ children }: { children: ReactNode }) {
   );
 }
 
+function kpiDisplayParts(widgetConfig: MetricWidgetConfig, value: unknown, catalog?: MetricCatalog | null) {
+  const formatted = formatMetricValue(widgetConfig, value, catalog);
+  const number = Number(value ?? 0);
+  const countMatch = formatted.match(/^(.+)\s+(task|tasks|day|days|point|points)$/);
+  if (countMatch) {
+    const unit = countMatch[2];
+    const suffix = widgetConfig.metric === 'overdue_tasks'
+      ? ' overdue'
+      : widgetConfig.metric === 'unassigned_tasks'
+        ? ' unassigned'
+        : '';
+    return { value: countMatch[1], label: `${unit}${suffix}` };
+  }
+  if (formatted.endsWith('%')) {
+    return { value: formatted, label: getMetricHelp(widgetConfig, catalog).metricLabel.toLowerCase() };
+  }
+  if (formatted.startsWith('$')) {
+    return { value: formatted, label: getMetricHelp(widgetConfig, catalog).metricLabel.toLowerCase() };
+  }
+  if (getMetricHelp(widgetConfig, catalog).unit === 'points') {
+    return { value: formatted, label: number === 1 ? 'point' : 'points' };
+  }
+  return { value: formatted, label: getMetricHelp(widgetConfig, catalog).metricLabel.toLowerCase() };
+}
+
+function compactComparisonValue(widgetConfig: MetricWidgetConfig, value: unknown, catalog?: MetricCatalog | null) {
+  return formatMetricValue(widgetConfig, value, catalog)
+    .replace(/\s+(tasks?|days?|points?)$/i, '')
+    .replace(/%$/, '');
+}
+
 function MetricVisualization({ widgetConfig, visualization, response, catalog, onOpenSegment }: MetricVisualizationProps) {
   const help = getMetricHelp(widgetConfig, catalog);
   if (!response) return <Typography sx={{ color: 'text.secondary', fontSize: 13 }}>{help.emptyStateHint}</Typography>;
@@ -57,21 +88,67 @@ function MetricVisualization({ widgetConfig, visualization, response, catalog, o
     } | undefined;
     const hasComparison = Boolean(comparison);
     const comparisonColor = comparison?.isPositive ? 'success.main' : 'error.main';
+    const display = kpiDisplayParts(widgetConfig, kpi?.value ?? 0, catalog);
     return (
-      <Box sx={{ height: '100%', minHeight: 96, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
-        <Typography sx={{ fontSize: 34, fontWeight: 900, color: 'primary.main', lineHeight: 1 }}>
-          {formatMetricValue(widgetConfig, kpi?.value ?? 0, catalog)}
+      <Box
+        sx={{
+          height: '100%',
+          minHeight: 96,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: 'clamp(5px, 1.8cqh, 14px)',
+          containerType: 'size',
+          overflow: 'visible',
+          textAlign: 'center',
+        }}
+      >
+        <Typography
+          sx={{
+            fontSize: 'clamp(42px, min(26cqw, 36cqh), 112px)',
+            fontWeight: 900,
+            color: 'primary.main',
+            lineHeight: 0.86,
+            overflowWrap: 'anywhere',
+            wordBreak: 'normal',
+          }}
+        >
+          {display.value}
+        </Typography>
+        <Typography
+          sx={{
+            color: 'text.secondary',
+            fontSize: 'clamp(10px, min(4.6cqw, 5.8cqh), 18px)',
+            fontWeight: 800,
+            lineHeight: 1.1,
+            textTransform: 'lowercase',
+            overflowWrap: 'anywhere',
+          }}
+        >
+          {display.label}
         </Typography>
         {hasComparison && (
-          <Typography sx={{ mt: 0.75, color: comparison?.hasPrevious ? comparisonColor : 'text.secondary', fontSize: 12, fontWeight: 800, lineHeight: 1.25 }}>
+          <Typography
+            sx={{
+              mt: 0.35,
+              px: 0.8,
+              py: 0.35,
+              borderRadius: 999,
+              bgcolor: 'action.hover',
+              color: comparison?.hasPrevious ? comparisonColor : 'text.secondary',
+              fontSize: 'clamp(9px, min(3.3cqw, 4.2cqh), 13px)',
+              fontWeight: 800,
+              lineHeight: 1.2,
+              overflowWrap: 'anywhere',
+              wordBreak: 'normal',
+            }}
+          >
             {comparison?.hasPrevious
-              ? `${(comparison.absoluteDelta ?? 0) > 0 ? '+' : ''}${formatMetricValue(widgetConfig, comparison.absoluteDelta ?? 0, catalog)} (${(comparison.percentDelta ?? 0) > 0 ? '+' : ''}${comparison.percentDelta ?? 0}%)`
+              ? `${(comparison.absoluteDelta ?? 0) > 0 ? '+' : ''}${compactComparisonValue(widgetConfig, comparison.absoluteDelta ?? 0, catalog)}`
               : 'No previous data'} {comparison?.periodLabel ?? ''}
           </Typography>
         )}
-        <Typography sx={{ mt: 1, color: 'text.secondary', fontSize: 12, lineHeight: 1.2, textTransform: 'uppercase', fontWeight: 800 }}>
-          {help.metricLabel}
-        </Typography>
       </Box>
     );
   }
