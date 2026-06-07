@@ -108,7 +108,13 @@ function Sidebar({
   projects = defaultProjects,
 }: SidebarProps) {
   const navigate = useNavigate();
-  const { session, profile } = useAuth();
+  const { session, profile, hasRoleAtLeast } = useAuth();
+  const canManageWorkspaceActions = hasRoleAtLeast('TEAM_LEAD');
+  const hideMetrics = Boolean(session?.roles.includes('DEVELOPER')) && !hasRoleAtLeast('TEAM_LEAD');
+  const visibleNavItems = useMemo(
+    () => navItems.filter((item) => item.value !== 'metrics' || !hideMetrics),
+    [navItems, hideMetrics]
+  );
   const emailPrefix = session?.email?.split('@')[0] ?? 'User';
   const userName = profile?.name ?? (emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1));
   const userInitials = userName
@@ -336,7 +342,7 @@ function Sidebar({
 
       <Box component="nav" sx={{ flex: 1 }}>
         <List disablePadding>
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <ListItemButton
               key={item.value}
               selected={item.value === activeNavItem}
@@ -423,18 +429,24 @@ function Sidebar({
           <OpenInNewIcon sx={menuIconSx} />
           <Typography sx={{ fontSize: 13 }}>Open workspace</Typography>
         </MenuItem>
-        <MenuItem onClick={() => { if (workspaceMenu) onWorkspaceCreateBoard?.(workspaceMenu.project.id); setWorkspaceMenu(null); }}>
-          <DashboardCustomizeIcon sx={menuIconSx} />
-          <Typography sx={{ fontSize: 13 }}>Create board</Typography>
-        </MenuItem>
-        <MenuItem onClick={() => { onWorkspaceCreateWorkspace?.(); setWorkspaceMenu(null); }}>
-          <AddCircleOutlineIcon sx={menuIconSx} />
-          <Typography sx={{ fontSize: 13 }}>Create workspace</Typography>
-        </MenuItem>
-        <MenuItem onClick={() => { if (workspaceMenu) setRenameState({ type: 'workspace', project: workspaceMenu.project, value: workspaceMenu.project.label }); setWorkspaceMenu(null); }}>
-          <DriveFileRenameOutlineIcon sx={menuIconSx} />
-          <Typography sx={{ fontSize: 13 }}>Rename</Typography>
-        </MenuItem>
+        {canManageWorkspaceActions ? (
+          <MenuItem onClick={() => { if (workspaceMenu) onWorkspaceCreateBoard?.(workspaceMenu.project.id); setWorkspaceMenu(null); }}>
+            <DashboardCustomizeIcon sx={menuIconSx} />
+            <Typography sx={{ fontSize: 13 }}>Create board</Typography>
+          </MenuItem>
+        ) : null}
+        {canManageWorkspaceActions ? (
+          <MenuItem onClick={() => { onWorkspaceCreateWorkspace?.(); setWorkspaceMenu(null); }}>
+            <AddCircleOutlineIcon sx={menuIconSx} />
+            <Typography sx={{ fontSize: 13 }}>Create workspace</Typography>
+          </MenuItem>
+        ) : null}
+        {canManageWorkspaceActions ? (
+          <MenuItem onClick={() => { if (workspaceMenu) setRenameState({ type: 'workspace', project: workspaceMenu.project, value: workspaceMenu.project.label }); setWorkspaceMenu(null); }}>
+            <DriveFileRenameOutlineIcon sx={menuIconSx} />
+            <Typography sx={{ fontSize: 13 }}>Rename</Typography>
+          </MenuItem>
+        ) : null}
         <MenuItem onClick={() => { if (workspaceMenu) togglePin(workspaceMenu.project.id); setWorkspaceMenu(null); }}>
           <PushPinIcon sx={menuIconSx} />
           <Typography sx={{ fontSize: 13 }}>{workspaceMenu && isPinned(workspaceMenu.project.id) ? 'Unpin workspace' : 'Pin workspace'}</Typography>
@@ -443,31 +455,39 @@ function Sidebar({
           <LinkIcon sx={menuIconSx} />
           <Typography sx={{ fontSize: 13 }}>Copy link</Typography>
         </MenuItem>
-        <Divider sx={{ my: 0.5 }} />
-        <MenuItem sx={{ color: 'error.main' }} onClick={() => { if (workspaceMenu) onWorkspaceDelete?.(workspaceMenu.project.id); setWorkspaceMenu(null); }}>
-          <DeleteOutlineIcon sx={dangerIconSx} />
-          <Typography sx={{ fontSize: 13 }}>Delete</Typography>
-        </MenuItem>
+        {canManageWorkspaceActions ? <Divider sx={{ my: 0.5 }} /> : null}
+        {canManageWorkspaceActions ? (
+          <MenuItem sx={{ color: 'error.main' }} onClick={() => { if (workspaceMenu) onWorkspaceDelete?.(workspaceMenu.project.id); setWorkspaceMenu(null); }}>
+            <DeleteOutlineIcon sx={dangerIconSx} />
+            <Typography sx={{ fontSize: 13 }}>Delete</Typography>
+          </MenuItem>
+        ) : null}
       </Menu>
 
       <Menu open={Boolean(boardMenu)} anchorEl={boardMenu?.anchor ?? null} onClose={() => setBoardMenu(null)} slotProps={contextMenuSlotProps}>
-        <MenuItem onClick={() => { if (boardMenu) setRenameState({ type: 'board', project: boardMenu.project, board: boardMenu.board, value: boardMenu.board.label }); setBoardMenu(null); }}>
-          <DriveFileRenameOutlineIcon sx={menuIconSx} />
-          <Typography sx={{ fontSize: 13 }}>Rename</Typography>
-        </MenuItem>
+        {canManageWorkspaceActions ? (
+          <MenuItem onClick={() => { if (boardMenu) setRenameState({ type: 'board', project: boardMenu.project, board: boardMenu.board, value: boardMenu.board.label }); setBoardMenu(null); }}>
+            <DriveFileRenameOutlineIcon sx={menuIconSx} />
+            <Typography sx={{ fontSize: 13 }}>Rename</Typography>
+          </MenuItem>
+        ) : null}
         <MenuItem onClick={() => { if (boardMenu) onCopyLink?.(`/workspaces/${boardMenu.project.id}/boards/${boardMenu.board.id}`); setBoardMenu(null); }}>
           <LinkIcon sx={menuIconSx} />
           <Typography sx={{ fontSize: 13 }}>Copy link</Typography>
         </MenuItem>
-        <MenuItem disabled>
-          <ContentCopyIcon sx={menuIconSx} />
-          <Typography sx={{ fontSize: 13 }}>Duplicate board</Typography>
-        </MenuItem>
-        <Divider sx={{ my: 0.5 }} />
-        <MenuItem sx={{ color: 'error.main' }} onClick={() => { if (boardMenu) onBoardDelete?.(boardMenu.project.id, boardMenu.board.id); setBoardMenu(null); }}>
-          <DeleteOutlineIcon sx={dangerIconSx} />
-          <Typography sx={{ fontSize: 13 }}>Delete</Typography>
-        </MenuItem>
+        {canManageWorkspaceActions ? (
+          <MenuItem disabled>
+            <ContentCopyIcon sx={menuIconSx} />
+            <Typography sx={{ fontSize: 13 }}>Duplicate board</Typography>
+          </MenuItem>
+        ) : null}
+        {canManageWorkspaceActions ? <Divider sx={{ my: 0.5 }} /> : null}
+        {canManageWorkspaceActions ? (
+          <MenuItem sx={{ color: 'error.main' }} onClick={() => { if (boardMenu) onBoardDelete?.(boardMenu.project.id, boardMenu.board.id); setBoardMenu(null); }}>
+            <DeleteOutlineIcon sx={dangerIconSx} />
+            <Typography sx={{ fontSize: 13 }}>Delete</Typography>
+          </MenuItem>
+        ) : null}
       </Menu>
 
       <Dialog open={Boolean(renameState)} onClose={() => setRenameState(null)} fullWidth maxWidth="xs">

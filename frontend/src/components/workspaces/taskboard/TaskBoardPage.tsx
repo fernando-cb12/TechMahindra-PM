@@ -110,6 +110,7 @@ function TaskBoardContent() {
   const [visibleOptionalViews, setVisibleOptionalViews] = useState<Exclude<BoardView, 'table'>[]>(() => loadVisibleViews(viewPreferenceKey));
   const availableViews = OPTIONAL_VIEWS.filter((view) => !visibleOptionalViews.includes(view.value));
   const canRenameBoard = hasRoleAtLeast('TEAM_LEAD');
+  const canInviteBoardMembers = hasRoleAtLeast('TEAM_LEAD');
   const existingUserIds = useMemo(() => new Set(Object.keys(users).map((id) => Number(id))), [users]);
   const inviteCandidates = useMemo(
     () => assignableUsers.filter((user) => !existingUserIds.has(user.id)),
@@ -253,6 +254,7 @@ function TaskBoardContent() {
   };
 
   const openInviteDialog = () => {
+    if (!canInviteBoardMembers) return;
     setInviteOpen(true);
     setSelectedInviteUserIds([]);
     if (assignableUsers.length > 0 || isLoadingAssignableUsers) return;
@@ -269,6 +271,7 @@ function TaskBoardContent() {
   };
 
   const submitInvite = async () => {
+    if (!canInviteBoardMembers) return;
     if (selectedInviteUserIds.length === 0) return;
     try {
       setIsInvitingMembers(true);
@@ -345,16 +348,18 @@ function TaskBoardContent() {
               </Typography>
             )}
           </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Button
-              variant="outlined"
-              startIcon={<PersonAddAlt1Icon />}
-              onClick={openInviteDialog}
-              sx={{ textTransform: 'none', borderRadius: 2 }}
-            >
-              Invite / {Object.keys(users).length}
-            </Button>
-          </Box>
+          {canInviteBoardMembers ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Button
+                variant="outlined"
+                startIcon={<PersonAddAlt1Icon />}
+                onClick={openInviteDialog}
+                sx={{ textTransform: 'none', borderRadius: 2 }}
+              >
+                Invite / {Object.keys(users).length}
+              </Button>
+            </Box>
+          ) : null}
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -488,7 +493,7 @@ function TaskBoardContent() {
 
       {/* Slide-in Panel */}
       <TaskDetailPanel />
-      <Dialog open={inviteOpen} onClose={() => setInviteOpen(false)} fullWidth maxWidth="xs">
+      <Dialog open={canInviteBoardMembers && inviteOpen} onClose={() => setInviteOpen(false)} fullWidth maxWidth="xs">
         <DialogTitle sx={{ fontWeight: 700 }}>Invite to board</DialogTitle>
         <DialogContent sx={{ pt: 1 }}>
           <Select

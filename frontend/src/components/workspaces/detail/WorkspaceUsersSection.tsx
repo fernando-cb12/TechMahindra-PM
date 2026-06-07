@@ -1,6 +1,7 @@
 import { Box, Paper, Typography, Avatar, Chip, Button, useTheme, alpha } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import type { WorkspaceProjectCardData } from '../WorkspaceProjectCard';
+import { useAuth } from '../../../auth/useAuth';
 
 interface WorkspaceUsersSectionProps {
   workspace: WorkspaceProjectCardData;
@@ -14,6 +15,8 @@ interface TeamUser {
 
 function WorkspaceUsersSection({ workspace }: WorkspaceUsersSectionProps) {
   const theme = useTheme();
+  const { hasRoleAtLeast } = useAuth();
+  const canManageWorkspaceActions = hasRoleAtLeast('TEAM_LEAD');
 
   const teamUsers: TeamUser[] = workspace.memberDetails && workspace.memberDetails.length > 0
     ? workspace.memberDetails.map((member) => ({
@@ -90,19 +93,21 @@ function WorkspaceUsersSection({ workspace }: WorkspaceUsersSectionProps) {
         >
           Users
         </Typography>
-        <Button
-          size="small"
-          startIcon={<AddIcon />}
-          sx={{
-            textTransform: 'none',
-            fontSize: 12,
-            fontWeight: 600,
-            color: theme.palette.mode === 'dark' ? '#fff' : 'primary.main',
-            '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.08) },
-          }}
-        >
-          Add
-        </Button>
+        {canManageWorkspaceActions ? (
+          <Button
+            size="small"
+            startIcon={<AddIcon />}
+            sx={{
+              textTransform: 'none',
+              fontSize: 12,
+              fontWeight: 600,
+              color: theme.palette.mode === 'dark' ? '#fff' : 'primary.main',
+              '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.08) },
+            }}
+          >
+            Add
+          </Button>
+        ) : null}
       </Box>
 
       <Box

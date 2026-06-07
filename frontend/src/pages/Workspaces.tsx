@@ -174,6 +174,7 @@ function Workspaces() {
   const filteredProjects = filterProjects(projects);
 
   const handleCreateWorkspace = async (payload: CreateWorkspaceProjectPayload) => {
+    if (!canCreateWorkspaces) return;
     if (isCreatingRef.current || isSaving) return;
     isCreatingRef.current = true;
     setIsSaving(true);
@@ -193,11 +194,13 @@ function Workspaces() {
   };
 
   const handleManualCreate = () => {
+    if (!canCreateWorkspaces) return;
     setIsCreateChoiceOpen(false);
     setIsCreateOpen(true);
   };
 
   const handleAISelect = () => {
+    if (!canCreateWorkspaces) return;
     setIsCreateChoiceOpen(false);
     setIsAIUploadOpen(true);
   };
@@ -208,6 +211,7 @@ function Workspaces() {
   };
 
   const handleAIContinue = async () => {
+    if (!canCreateWorkspaces) return;
     if (!aiSelectedFile || isAIProcessing) return;
     setIsAIProcessing(true);
     try {
@@ -334,7 +338,7 @@ function Workspaces() {
       </Box>
 
       <CreateWorkspaceModal
-        open={isCreateOpen}
+        open={canCreateWorkspaces && isCreateOpen}
         onClose={() => {
           setIsCreateOpen(false);
           setAISelectedFile(null);
@@ -346,7 +350,7 @@ function Workspaces() {
       />
 
       <Dialog
-        open={isCreateChoiceOpen}
+        open={canCreateWorkspaces && isCreateChoiceOpen}
         onClose={() => setIsCreateChoiceOpen(false)}
         fullWidth
         maxWidth="sm"
@@ -419,7 +423,7 @@ function Workspaces() {
       </Dialog>
 
       <AiWorkspaceImportDialog
-        open={isAIUploadOpen}
+        open={canCreateWorkspaces && isAIUploadOpen}
         mode={aiMode}
         fileName={aiSelectedFileName}
         processing={isAIProcessing}
