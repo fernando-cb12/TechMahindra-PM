@@ -5,7 +5,6 @@ import { SettingsNotificationsCard } from '../components/settings/SettingsNotifi
 import { SettingsProfileEditModal } from '../components/settings/SettingsProfileEditModal';
 import { SettingsProfileCard } from '../components/settings/SettingsProfileCard';
 import { useAuth } from '../auth/useAuth';
-import { canEditSettings } from '../auth/permissions';
 import {
   getUserProfile,
   updateUserProfile,
@@ -16,10 +15,11 @@ import {
 import { showAppError, showAppNotification } from '../components/shared/appNotifications';
 
 function Settings() {
-  const { profile: currentProfile, session, setProfile: setCurrentProfile } = useAuth();
+  const { profile: currentProfile, hasRoleAtLeast, setProfile: setCurrentProfile } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(currentProfile);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(!currentProfile);
+  const [isAvatarSaving, setIsAvatarSaving] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -57,12 +57,33 @@ function Settings() {
   }, [currentProfile]);
 
   const handleSaveProfile = async (updatedProfile: UpdateUserProfilePayload) => {
-    if (!canEditSettings(session?.roles ?? [])) return;
+    if (!hasRoleAtLeast('TEAM_LEAD')) return;
     const savedProfile = await updateUserProfile(updatedProfile);
     setProfile(savedProfile);
     setCurrentProfile(savedProfile);
     setIsEditOpen(false);
     showAppNotification({ message: 'Profile updated', severity: 'success' });
+  };
+
+  const handleAvatarChange = async (avatarFile: File) => {
+    if (!profile || isAvatarSaving) return;
+    setIsAvatarSaving(true);
+    try {
+      const savedProfile = await updateUserProfile({
+        name: profile.name,
+        timezone: profile.timezone,
+        avatarUrl: profile.avatarUrl,
+        avatarFile,
+        notifications: profile.notifications,
+      });
+      setProfile(savedProfile);
+      setCurrentProfile(savedProfile);
+      showAppNotification({ message: 'Profile photo updated', severity: 'success' });
+    } catch (error) {
+      showAppError(error, 'Failed to update profile photo');
+    } finally {
+      setIsAvatarSaving(false);
+    }
   };
 
   const handleNotificationsChange = async (notifications: NotificationSettings) => {
@@ -137,17 +158,18 @@ function Settings() {
         <Stack spacing={3} sx={{ flex: 1, width: '100%', maxWidth: { lg: 720 } }}>
           <SettingsProfileCard
             profile={profile}
-            canEdit={canEditSettings(session?.roles ?? [])}
-            editDisabledReason="You do not have enough privileges to edit settings."
+            showEdit={hasRoleAtLeast('TEAM_LEAD')}
+            isAvatarSaving={isAvatarSaving}
+            onAvatarChange={handleAvatarChange}
             onEdit={() => {
-              if (canEditSettings(session?.roles ?? [])) setIsEditOpen(true);
+              if (hasRoleAtLeast('TEAM_LEAD')) setIsEditOpen(true);
             }}
           />
           <SettingsAppearanceCard />
         </Stack>
 
         <SettingsProfileEditModal
-          open={canEditSettings(session?.roles ?? []) && isEditOpen}
+          open={hasRoleAtLeast('TEAM_LEAD') && isEditOpen}
           profile={profile}
           onClose={() => setIsEditOpen(false)}
           onSave={handleSaveProfile}

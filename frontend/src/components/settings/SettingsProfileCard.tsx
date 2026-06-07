@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Avatar,
   Box,
   Button,
+  CircularProgress,
   Stack,
-  Tooltip,
   Typography,
 } from '@mui/material';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
@@ -14,40 +14,19 @@ import type { UserProfile } from '../../services/userService';
 type SettingsProfileCardProps = {
   profile: UserProfile;
   onEdit?: () => void;
-  canEdit?: boolean;
-  editDisabledReason?: string;
+  showEdit?: boolean;
+  onAvatarChange?: (file: File) => Promise<void>;
+  isAvatarSaving?: boolean;
 };
 
-function SettingsProfileCard({ profile, onEdit, canEdit = true, editDisabledReason }: SettingsProfileCardProps) {
+function SettingsProfileCard({ profile, onEdit, showEdit = true, onAvatarChange, isAvatarSaving = false }: SettingsProfileCardProps) {
   const [hoverAvatar, setHoverAvatar] = useState(false);
-  const editButton = (
-    <span>
-      <Button
-        variant="contained"
-        disableElevation
-        disabled={!canEdit}
-        onClick={onEdit}
-        sx={{
-          bgcolor: 'primary.main',
-          borderRadius: '5px',
-          minHeight: 28,
-          px: 1.5,
-          py: 0.25,
-          fontFamily: 'Montserrat, sans-serif',
-          fontWeight: 700,
-          fontSize: 14,
-          textTransform: 'none',
-          '&:hover': { bgcolor: 'primary.dark' },
-          '&.Mui-disabled': {
-            bgcolor: (theme) => theme.palette.action.disabledBackground,
-            color: (theme) => theme.palette.text.disabled,
-          },
-        }}
-      >
-        Edit
-      </Button>
-    </span>
-  );
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleAvatarFile = (file: File | null) => {
+    if (!file || !file.type.startsWith('image/')) return;
+    void onAvatarChange?.(file);
+  };
 
   return (
     <SettingsCard>
@@ -66,18 +45,35 @@ function SettingsProfileCard({ profile, onEdit, canEdit = true, editDisabledReas
           >
             Profile
           </Typography>
-          {canEdit ? editButton : (
-            <Tooltip title={editDisabledReason ?? 'You do not have enough privileges to edit settings.'} placement="left">
-              {editButton}
-            </Tooltip>
-          )}
+          {showEdit ? (
+            <Button
+              variant="contained"
+              disableElevation
+              onClick={onEdit}
+              sx={{
+                bgcolor: 'primary.main',
+                borderRadius: '5px',
+                minHeight: 28,
+                px: 1.5,
+                py: 0.25,
+                fontFamily: 'Montserrat, sans-serif',
+                fontWeight: 700,
+                fontSize: 14,
+                textTransform: 'none',
+                '&:hover': { bgcolor: 'primary.dark' },
+              }}
+            >
+              Edit
+            </Button>
+          ) : null}
         </Stack>
 
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} alignItems={{ xs: 'center', sm: 'flex-start' }}>
           <Box
-            sx={{ position: 'relative', width: 147, height: 148, flexShrink: 0 }}
+            sx={{ position: 'relative', width: 147, height: 148, flexShrink: 0, cursor: onAvatarChange ? 'pointer' : 'default' }}
             onMouseEnter={() => setHoverAvatar(true)}
             onMouseLeave={() => setHoverAvatar(false)}
+            onClick={() => fileInputRef.current?.click()}
           >
             <Avatar
               src={profile.avatarUrl ?? undefined}
@@ -112,10 +108,22 @@ function SettingsProfileCard({ profile, onEdit, canEdit = true, editDisabledReas
                 pointerEvents: 'none',
               }}
             >
-              {hoverAvatar ? (
+              {isAvatarSaving ? (
+                <CircularProgress size={32} sx={{ color: 'common.white' }} />
+              ) : hoverAvatar ? (
                 <EditOutlinedIcon sx={{ color: 'common.white', fontSize: 32 }} />
               ) : null}
             </Box>
+            <input
+              ref={fileInputRef}
+              hidden
+              accept="image/*"
+              type="file"
+              onChange={(event) => {
+                handleAvatarFile(event.target.files?.[0] ?? null);
+                event.currentTarget.value = '';
+              }}
+            />
           </Box>
 
           <Stack spacing={1.25} sx={{ pt: { sm: 0.5 }, alignSelf: { sm: 'center' }, width: '100%' }}>

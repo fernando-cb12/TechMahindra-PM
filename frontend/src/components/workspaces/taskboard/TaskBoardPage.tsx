@@ -45,7 +45,6 @@ import TaskDetailPanel from './panel/TaskDetailPanel';
 import type { BoardView } from './types';
 import { useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent, type ReactElement } from 'react';
 import { useAuth } from '../../../auth/useAuth';
-import { canManageWorkspaces } from '../../../auth/permissions';
 import { showAppNotification } from '../../shared/appNotifications';
 import { getBoardMemberCandidates } from '../../../services/taskBoardService';
 import { getWorkspace, type AssignableUser } from '../../../services/workspacesService';
@@ -111,7 +110,7 @@ function TaskBoardContent() {
   const [visibleOptionalViews, setVisibleOptionalViews] = useState<Exclude<BoardView, 'table'>[]>(() => loadVisibleViews(viewPreferenceKey));
   const availableViews = OPTIONAL_VIEWS.filter((view) => !visibleOptionalViews.includes(view.value));
   const canRenameBoard = hasRoleAtLeast('TEAM_LEAD');
-  const canInviteBoardMembers = canManageWorkspaces(session?.roles ?? []);
+  const canInviteBoardMembers = hasRoleAtLeast('TEAM_LEAD');
   const existingUserIds = useMemo(() => new Set(Object.keys(users).map((id) => Number(id))), [users]);
   const inviteCandidates = useMemo(
     () => assignableUsers.filter((user) => !existingUserIds.has(user.id)),

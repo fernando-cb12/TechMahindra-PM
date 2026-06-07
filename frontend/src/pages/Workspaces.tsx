@@ -28,8 +28,7 @@ import {
   type AssignableUser,
   type CreateWorkspaceProjectPayload,
 } from '../services/workspacesService';
-import { loadSession } from '../auth/auth';
-import { canManageWorkspaces } from '../auth/permissions';
+import { hasMinimumRole, loadSession } from '../auth/auth';
 import { processAiWorkspacePdf, type AiWorkspaceMode } from '../services/aiWorkspaceService';
 import { showAppError } from '../components/shared/appNotifications';
 
@@ -59,7 +58,7 @@ function Workspaces() {
 
   const canCreateWorkspaces = useMemo(() => {
     const session = loadSession();
-    return session ? canManageWorkspaces(session.roles) : false;
+    return session ? hasMinimumRole(session.roles, 'TEAM_LEAD') : false;
   }, []);
 
   const memberFilterOptions = useMemo(() => {

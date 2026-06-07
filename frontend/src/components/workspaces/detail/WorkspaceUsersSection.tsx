@@ -2,7 +2,6 @@ import { Box, Paper, Typography, Avatar, Chip, Button, useTheme, alpha } from '@
 import AddIcon from '@mui/icons-material/Add';
 import type { WorkspaceProjectCardData } from '../WorkspaceProjectCard';
 import { useAuth } from '../../../auth/useAuth';
-import { canManageWorkspaces } from '../../../auth/permissions';
 
 interface WorkspaceUsersSectionProps {
   workspace: WorkspaceProjectCardData;
@@ -16,8 +15,8 @@ interface TeamUser {
 
 function WorkspaceUsersSection({ workspace }: WorkspaceUsersSectionProps) {
   const theme = useTheme();
-  const { session } = useAuth();
-  const canManageWorkspaceActions = canManageWorkspaces(session?.roles ?? []);
+  const { hasRoleAtLeast } = useAuth();
+  const canManageWorkspaceActions = hasRoleAtLeast('TEAM_LEAD');
 
   const teamUsers: TeamUser[] = workspace.memberDetails && workspace.memberDetails.length > 0
     ? workspace.memberDetails.map((member) => ({

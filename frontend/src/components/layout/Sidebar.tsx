@@ -44,7 +44,6 @@ import mahindraLogo from '../../assets/mahindralogobk.png';
 import type { NavItem, Project, ProjectSubsection, SidebarProps } from './types';
 import { NAV_ITEM_TO_PATH } from '../../app/routes';
 import { useAuth } from '../../auth/useAuth';
-import { canAccessMetrics, canManageWorkspaces } from '../../auth/permissions';
 
 const defaultNavItems: NavItem[] = [
   { label: 'Dashboard', value: 'dashboard' },
@@ -109,11 +108,12 @@ function Sidebar({
   projects = defaultProjects,
 }: SidebarProps) {
   const navigate = useNavigate();
-  const { session, profile } = useAuth();
-  const canManageWorkspaceActions = canManageWorkspaces(session?.roles ?? []);
+  const { session, profile, hasRoleAtLeast } = useAuth();
+  const canManageWorkspaceActions = hasRoleAtLeast('TEAM_LEAD');
+  const hideMetrics = Boolean(session?.roles.includes('DEVELOPER')) && !hasRoleAtLeast('TEAM_LEAD');
   const visibleNavItems = useMemo(
-    () => navItems.filter((item) => item.value !== 'metrics' || canAccessMetrics(session?.roles ?? [])),
-    [navItems, session?.roles]
+    () => navItems.filter((item) => item.value !== 'metrics' || !hideMetrics),
+    [navItems, hideMetrics]
   );
   const emailPrefix = session?.email?.split('@')[0] ?? 'User';
   const userName = profile?.name ?? (emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1));

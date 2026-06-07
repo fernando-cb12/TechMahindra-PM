@@ -6,7 +6,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Sidebar } from '../components/layout/Sidebar';
 import { pathToActiveNavItem } from '../app/routes';
 import { useAuth } from '../auth/useAuth';
-import { canManageWorkspaces } from '../auth/permissions';
 import { ROUTES } from '../app/routes';
 import type { Project } from '../components/layout/types';
 import {
@@ -34,8 +33,8 @@ type DeleteNotice =
 function MainLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout, session, hasRoleAtLeast } = useAuth();
-  const canManageWorkspaceActions = canManageWorkspaces(session?.roles ?? []);
+  const { logout, hasRoleAtLeast } = useAuth();
+  const canManageWorkspaceActions = hasRoleAtLeast('TEAM_LEAD');
   const [sidebarProjects, setSidebarProjects] = useState<Project[]>([]);
   const [assignableUsers, setAssignableUsers] = useState<AssignableUser[]>([]);
   const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
