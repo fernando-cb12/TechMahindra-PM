@@ -37,6 +37,12 @@ import WorkspaceActionPillButton from '../components/workspaces/detail/Workspace
 
 const isMyTasksFilterMode = (value: unknown): value is MyTasksFilterMode => value === 'kpis' || value === 'filters';
 
+type FilterState = {
+  scopeKey: string;
+  customized: boolean;
+  filters: MyTasksFilters;
+};
+
 function getStoredFilterMode() {
   const email = loadSession()?.email ?? 'anonymous';
   const storedMode = window.localStorage.getItem(`mytasks:${email}:filterMode`);
@@ -52,7 +58,11 @@ function Issues() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState<MyTasksFilterMode>(() => getStoredFilterMode());
   const [selectedInsight, setSelectedInsight] = useState<InsightId | null>(null);
-  const [filters, setFilters] = useState<MyTasksFilters>(EMPTY_MY_TASKS_FILTERS);
+  const [filterState, setFilterState] = useState<FilterState>({
+    scopeKey: '',
+    customized: false,
+    filters: EMPTY_MY_TASKS_FILTERS,
+  });
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [menuState, setMenuState] = useState<TaskMenuState>(null);
   const filterModeStorageKey = useMemo(
@@ -62,6 +72,7 @@ function Issues() {
   const scopedWorkspaceId = searchParams.get('workspaceId');
   const scopedWorkspaceName = searchParams.get('project');
   const currentUserId = profile ? String(profile.id) : '';
+  const filterScopeKey = `${scopedWorkspaceId ?? ''}:${currentUserId}`;
 
   const buildDefaultFilters = useCallback((): MyTasksFilters => ({
     ...EMPTY_MY_TASKS_FILTERS,
@@ -94,14 +105,21 @@ function Issues() {
     };
   }, [scopedWorkspaceId]);
 
-  useEffect(() => loadTasks(), [loadTasks]);
+  const resolvedFilterState = useMemo<FilterState>(() => (
+    filterState.scopeKey === filterScopeKey
+      ? filterState
+      : {
+          scopeKey: filterScopeKey,
+          customized: false,
+          filters: buildDefaultFilters(),
+        }
+  ), [buildDefaultFilters, filterScopeKey, filterState]);
 
-  useEffect(() => {
-    if (!currentUserId) {
-      return;
-    }
-    setFilters(buildDefaultFilters());
-  }, [buildDefaultFilters, currentUserId]);
+  const filters = resolvedFilterState.customized
+    ? resolvedFilterState.filters
+    : buildDefaultFilters();
+
+  useEffect(() => loadTasks(), [loadTasks]);
 
   useEffect(() => {
     let cancelled = false;
@@ -161,27 +179,42 @@ function Issues() {
   );
 
   const toggleFilter = <K extends keyof MyTasksFilters>(key: K, value: MyTasksFilters[K][number]) => {
-    setFilters((prev) => {
-      const current = prev[key] as string[];
+    setFilterState((prev) => {
+      const baseState = prev.scopeKey === filterScopeKey
+        ? prev
+        : {
+            scopeKey: filterScopeKey,
+            customized: false,
+            filters: buildDefaultFilters(),
+          };
+      const sourceFilters = baseState.customized ? baseState.filters : buildDefaultFilters();
+      const current = sourceFilters[key] as string[];
       const next = current.includes(String(value))
         ? current.filter((item) => item !== String(value))
         : [...current, String(value)];
 
-        if (key === 'workspaceIds') {
-          const nextWorkspaceIds = next;
-          const allowedBoardIds = new Set(
+      let nextFilters: MyTasksFilters;
+      if (key === 'workspaceIds') {
+        const nextWorkspaceIds = next;
+        const allowedBoardIds = new Set(
           tasks
             .filter((task) => nextWorkspaceIds.length === 0 || nextWorkspaceIds.includes(task.workspaceId))
             .map((task) => task.boardId)
         );
-        return {
-          ...prev,
+        nextFilters = {
+          ...sourceFilters,
           workspaceIds: nextWorkspaceIds,
-          boardIds: prev.boardIds.filter((boardId) => allowedBoardIds.has(boardId)),
+          boardIds: sourceFilters.boardIds.filter((boardId) => allowedBoardIds.has(boardId)),
         };
+      } else {
+        nextFilters = { ...sourceFilters, [key]: next };
       }
 
-      return { ...prev, [key]: next };
+      return {
+        scopeKey: filterScopeKey,
+        customized: true,
+        filters: nextFilters,
+      };
     });
   };
 
@@ -191,7 +224,21 @@ function Issues() {
     window.localStorage.setItem(filterModeStorageKey, mode);
 
     if (mode === 'kpis') {
-      setFilters((prev) => ({ ...prev, workflows: [], dueDates: [] }));
+      setFilterState((prev) => {
+        const baseState = prev.scopeKey === filterScopeKey
+          ? prev
+          : {
+              scopeKey: filterScopeKey,
+              customized: false,
+              filters: buildDefaultFilters(),
+            };
+        const sourceFilters = baseState.customized ? baseState.filters : buildDefaultFilters();
+        return {
+          scopeKey: filterScopeKey,
+          customized: true,
+          filters: { ...sourceFilters, workflows: [], dueDates: [] },
+        };
+      });
     }
 
     void updateMyTasksFilterMode(mode).catch(() => undefined);
@@ -319,7 +366,11 @@ function Issues() {
         visibleCount={visibleTasks.length}
         onToggleFilter={toggleFilter}
         onFilterModeChange={changeFilterMode}
-        onClear={() => setFilters(buildClearedFilters())}
+        onClear={() => setFilterState({
+          scopeKey: filterScopeKey,
+          customized: true,
+          filters: buildClearedFilters(),
+        })}
       />
 
       <MyTasksTable
