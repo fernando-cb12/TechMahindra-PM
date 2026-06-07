@@ -17,6 +17,7 @@ import {
   Select,
   Typography,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -69,6 +70,7 @@ import {
   type DrilldownState,
   type GlobalFilters,
 } from '../components/metrics/analytics/types';
+import { useTheme } from '@mui/material/styles';
 
 const METRICS_SELECTED_VIEW_STORAGE_KEY = 'metrics:selectedView';
 const METRICS_FILTERS_STORAGE_KEY = 'metrics:globalFilters';
@@ -175,6 +177,8 @@ function resolveFiltersForSelection(id: string, dashboards: MetricDashboardRecor
 }
 
 function Metrics() {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const [catalog, setCatalog] = useState<MetricCatalog | null>(null);
   const [dashboards, setDashboards] = useState<MetricDashboardRecord[]>([]);
   const [presetOverrides, setPresetOverrides] = useState<Record<string, PresetOverride>>(() => readPresetOverrides());
@@ -667,7 +671,7 @@ function Metrics() {
     <Box component="main" sx={{ flex: 1, minHeight: '100vh', backgroundColor: 'background.default', px: { xs: 2, sm: 4 }, py: 3 }}>
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 2 }}>
         <Box>
-          <Typography sx={{ fontWeight: 800, fontSize: 28, color: 'primary.main', lineHeight: 1 }}>Metrics</Typography>
+          <Typography sx={{ fontWeight: 800, fontSize: 28, color: isDark ? '#FFFFFF' : 'primary.main', lineHeight: 1 }}>Metrics</Typography>
           <Typography sx={{ mt: 0.8, color: 'text.secondary', fontSize: 13 }}>
             Deep observability for delivery, workflow, workload, risk, and custom board signals.
           </Typography>
@@ -694,12 +698,38 @@ function Metrics() {
               {dashboards.map((dashboard) => <MenuItem key={dashboard.id} value={dashboard.id}>{dashboard.name}</MenuItem>)}
             </Select>
           </FormControl>
-          <Button variant="outlined" startIcon={<AddIcon />} onClick={() => { setEditingWidget(null); setIsAddOpen(true); }}>Add Metric</Button>
+          <Button
+            variant="outlined"
+            startIcon={<AddIcon />}
+            onClick={() => { setEditingWidget(null); setIsAddOpen(true); }}
+            sx={isDark ? {
+              color: '#FFFFFF',
+              borderColor: alpha('#FFFFFF', 0.32),
+              '&:hover': {
+                borderColor: alpha('#FFFFFF', 0.5),
+                bgcolor: alpha('#FFFFFF', 0.06),
+              },
+            } : undefined}
+          >
+            Add Metric
+          </Button>
           <Button
             variant={isEditMode ? 'contained' : 'outlined'}
             startIcon={<EditIcon />}
             disabled={isSaving}
             onClick={() => void handleEditLayoutToggle()}
+            sx={isDark ? (
+              isEditMode
+                ? { bgcolor: '#FFFFFF', color: '#1F1F1F', '&:hover': { bgcolor: alpha('#FFFFFF', 0.9) } }
+                : {
+                    color: '#FFFFFF',
+                    borderColor: alpha('#FFFFFF', 0.32),
+                    '&:hover': {
+                      borderColor: alpha('#FFFFFF', 0.5),
+                      bgcolor: alpha('#FFFFFF', 0.06),
+                    },
+                  }
+            ) : undefined}
           >
             {isSaving && isEditMode ? 'Saving' : isEditMode ? 'Done' : 'Edit Layout'}
           </Button>
@@ -722,7 +752,20 @@ function Metrics() {
             variant="outlined"
             startIcon={<MoreVertIcon />}
             onClick={(event) => setMoreMenuAnchor(event.currentTarget)}
-            sx={{ transition: 'background-color 160ms ease, border-color 160ms ease, transform 160ms ease', '&:hover': { transform: 'translateY(-1px)' } }}
+            sx={{
+              transition: 'background-color 160ms ease, border-color 160ms ease, transform 160ms ease',
+              ...(isDark ? {
+                color: '#FFFFFF',
+                borderColor: alpha('#FFFFFF', 0.32),
+                '&:hover': {
+                  borderColor: alpha('#FFFFFF', 0.5),
+                  bgcolor: alpha('#FFFFFF', 0.06),
+                  transform: 'translateY(-1px)',
+                },
+              } : {
+                '&:hover': { transform: 'translateY(-1px)' },
+              }),
+            }}
           >
             More
           </Button>

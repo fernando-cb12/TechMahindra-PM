@@ -58,4 +58,34 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
               t.id asc
             """)
     List<Task> findMyAssignedTasks(@Param("userId") Long userId, @Param("admin") boolean admin);
+
+    @Query("""
+            select t
+            from Task t
+            join fetch t.board b
+            join fetch b.workspace w
+            left join fetch t.group g
+            left join fetch t.statusOption so
+            left join fetch t.priorityOption po
+            where t.deletedAt is null
+              and b.deletedAt is null
+              and b.archivedAt is null
+              and w.deletedAt is null
+              and (:workspaceId is null or w.id = :workspaceId)
+              and (:admin = true or exists (
+                  select 1
+                  from BoardMember bm
+                  where bm.board = b
+                    and bm.user.id = :userId
+                    and bm.deletedAt is null
+              ))
+            order by
+              case when t.dueDate is null then 1 else 0 end,
+              t.dueDate asc,
+              t.updatedAt desc,
+              t.id asc
+            """)
+    List<Task> findVisibleTasks(@Param("userId") Long userId,
+            @Param("admin") boolean admin,
+            @Param("workspaceId") Long workspaceId);
 }

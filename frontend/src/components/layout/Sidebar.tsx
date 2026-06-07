@@ -48,7 +48,7 @@ import { useAuth } from '../../auth/useAuth';
 const defaultNavItems: NavItem[] = [
   { label: 'Dashboard', value: 'dashboard' },
   { label: 'Workspaces', value: 'workspaces' },
-  { label: 'My Tasks', value: 'issues' },
+  { label: 'Tasks', value: 'issues' },
   { label: 'Metrics', value: 'metrics' },
   { label: 'Career', value: 'career' },
   { label: 'Settings', value: 'settings' },

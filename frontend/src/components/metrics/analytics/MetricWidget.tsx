@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Box, Button, CircularProgress, IconButton, Paper, Tooltip as MuiTooltip, Typography } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -23,6 +24,8 @@ type MetricWidgetProps = {
 };
 
 function MetricWidget({ widgetConfig, filters, catalog, refreshKey = 0, isEditMode, onEdit, onRemove, onOpenDrilldown }: MetricWidgetProps) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const navigate = useNavigate();
   const requestKey = JSON.stringify({ widgetConfig, filters, refreshKey });
   const [responseState, setResponseState] = useState<{ key: string; response: MetricQueryResponse | null }>({ key: '', response: null });
@@ -66,7 +69,8 @@ function MetricWidget({ widgetConfig, filters, catalog, refreshKey = 0, isEditMo
         height: '100%',
         borderRadius: '5px',
         border: '1px solid',
-        borderColor: isEditMode ? 'primary.main' : 'divider',
+        borderColor: isEditMode ? (isDark ? alpha('#FFFFFF', 0.6) : 'primary.main') : 'divider',
+        bgcolor: isDark ? alpha('#FFFFFF', 0.05) : 'background.paper',
         p: 2,
         display: 'flex',
         flexDirection: 'column',
@@ -146,8 +150,8 @@ function MetricWidget({ widgetConfig, filters, catalog, refreshKey = 0, isEditMo
                 py: 0.6,
                 borderRadius: 1,
                 cursor: 'pointer',
-                bgcolor: 'action.hover',
-                '&:hover': { bgcolor: 'action.selected' },
+                bgcolor: isDark ? alpha('#FFFFFF', 0.08) : 'action.hover',
+                '&:hover': { bgcolor: isDark ? alpha('#FFFFFF', 0.12) : 'action.selected' },
               }}
             >
               <Typography sx={{ fontSize: 11, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -159,7 +163,7 @@ function MetricWidget({ widgetConfig, filters, catalog, refreshKey = 0, isEditMo
             </Box>
           ))}
           {drilldownRows.length > 3 && (
-            <Button size="small" onClick={() => onOpenDrilldown(widgetConfig)} sx={{ alignSelf: 'flex-start', minHeight: 24, px: 1 }}>
+            <Button size="small" onClick={() => onOpenDrilldown(widgetConfig)} sx={{ alignSelf: 'flex-start', minHeight: 24, px: 1, color: isDark ? '#FFFFFF' : 'primary.main' }}>
               View all
             </Button>
           )}

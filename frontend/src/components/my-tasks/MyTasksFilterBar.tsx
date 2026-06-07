@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Box, Button, Checkbox, Chip, Paper, Popover, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
-import { alpha } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 import type { DueDateFilterId, FilterChoice, MyTasksFilterMode, MyTasksFilters } from './types';
 import { countFilters } from './myTasksUtils';
 
@@ -17,6 +17,8 @@ function FilterButton({
   selected: string[];
   onToggle: (id: string) => void;
 }) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
   const selectedCount = selected.length;
 
@@ -27,7 +29,18 @@ function FilterButton({
         variant={selectedCount > 0 ? 'contained' : 'outlined'}
         startIcon={<FilterAltOutlinedIcon sx={{ fontSize: 16 }} />}
         onClick={(event) => setAnchorEl(event.currentTarget)}
-        sx={{ textTransform: 'none', borderRadius: 1.5, minHeight: 32 }}
+        sx={[
+          { textTransform: 'none', borderRadius: 1.5, minHeight: 32 },
+          isDark ? {
+            color: selectedCount > 0 ? '#FFFFFF' : '#FFFFFF',
+            borderColor: alpha('#FFFFFF', 0.32),
+            bgcolor: selectedCount > 0 ? 'primary.main' : 'transparent',
+            '&:hover': {
+              borderColor: selectedCount > 0 ? alpha('#5F0229', 0.8) : alpha('#FFFFFF', 0.48),
+              bgcolor: selectedCount > 0 ? '#4A011F' : alpha('#FFFFFF', 0.06),
+            },
+          } : {},
+        ]}
       >
         {label}
         {selectedCount > 0 && (
@@ -39,7 +52,7 @@ function FilterButton({
               height: 18,
               minWidth: 18,
               bgcolor: 'common.white',
-              color: 'primary.main',
+              color: isDark ? '#1F1F1F' : 'primary.main',
               fontSize: 10,
               fontWeight: 900,
               '& .MuiChip-label': { px: 0.6 },
@@ -54,7 +67,7 @@ function FilterButton({
         onClose={() => setAnchorEl(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-        slotProps={{ paper: { sx: { mt: 0.75, p: 1, width: 260, maxHeight: 330, borderRadius: 2 } } }}
+        slotProps={{ paper: { sx: { mt: 0.75, p: 1, width: 260, maxHeight: 330, borderRadius: 2, bgcolor: isDark ? '#3B3B3B' : 'background.paper' } } }}
       >
         <Typography sx={{ px: 1, py: 0.75, fontSize: 12, fontWeight: 900, color: 'text.secondary', textTransform: 'uppercase' }}>
           {label}
@@ -107,6 +120,7 @@ export default function MyTasksFilterBar({
   filters,
   workspaceChoices,
   boardChoices,
+  personChoices,
   priorityChoices,
   statusChoices,
   dueDateChoices,
@@ -119,6 +133,7 @@ export default function MyTasksFilterBar({
   filters: MyTasksFilters;
   workspaceChoices: FilterChoice[];
   boardChoices: FilterChoice[];
+  personChoices: FilterChoice[];
   priorityChoices: FilterChoice[];
   statusChoices: FilterChoice[];
   dueDateChoices: FilterChoice[];
@@ -128,6 +143,9 @@ export default function MyTasksFilterBar({
   onFilterModeChange: (mode: MyTasksFilterMode) => void;
   onClear: () => void;
 }) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+
   return (
     <Paper
       elevation={0}
@@ -142,7 +160,7 @@ export default function MyTasksFilterBar({
         justifyContent: 'space-between',
         gap: 1.5,
         flexWrap: 'wrap',
-        bgcolor: 'background.paper',
+        bgcolor: isDark ? 'background.paper' : 'background.paper',
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
@@ -162,6 +180,18 @@ export default function MyTasksFilterBar({
               textTransform: 'none',
               fontSize: 12,
               fontWeight: 900,
+              ...(isDark ? {
+                color: alpha('#FFFFFF', 0.82),
+                borderColor: alpha('#FFFFFF', 0.18),
+                bgcolor: 'background.paper',
+                '&.Mui-selected': {
+                  color: '#1F1F1F',
+                  bgcolor: '#FFFFFF',
+                  '&:hover': {
+                    bgcolor: alpha('#FFFFFF', 0.9),
+                  },
+                },
+              } : {}),
             },
             '& .MuiToggleButtonGroup-grouped:not(:first-of-type)': { borderTopLeftRadius: 0, borderBottomLeftRadius: 0 },
             '& .MuiToggleButtonGroup-grouped:not(:last-of-type)': { borderTopRightRadius: 0, borderBottomRightRadius: 0 },
@@ -172,6 +202,7 @@ export default function MyTasksFilterBar({
         </ToggleButtonGroup>
         <FilterButton label="Workspace" choices={workspaceChoices} selected={filters.workspaceIds} onToggle={(id) => onToggleFilter('workspaceIds', id)} />
         <FilterButton label="Board" choices={boardChoices} selected={filters.boardIds} onToggle={(id) => onToggleFilter('boardIds', id)} />
+        <FilterButton label="People" choices={personChoices} selected={filters.personIds} onToggle={(id) => onToggleFilter('personIds', id)} />
         <FilterButton label="Priority" choices={priorityChoices} selected={filters.priorities} onToggle={(id) => onToggleFilter('priorities', id)} />
         {filterMode === 'filters' && (
           <>
@@ -185,7 +216,21 @@ export default function MyTasksFilterBar({
         <Chip
           size="small"
           label={`${visibleCount} visible`}
-          sx={{ height: 26, fontSize: 11.5, fontWeight: 800, bgcolor: alpha('#5F0229', 0.08), color: 'primary.main' }}
+          sx={isDark
+            ? {
+                height: 26,
+                fontSize: 11.5,
+                fontWeight: 800,
+                bgcolor: alpha('#FFFFFF', 0.14),
+                color: '#FFFFFF',
+              }
+            : {
+                height: 26,
+                fontSize: 11.5,
+                fontWeight: 800,
+                bgcolor: alpha('#5F0229', 0.08),
+                color: 'primary.main',
+              }}
         />
         {countFilters(filters) > 0 && (
           <Button
@@ -193,7 +238,21 @@ export default function MyTasksFilterBar({
             variant="text"
             startIcon={<RestartAltIcon sx={{ fontSize: 16 }} />}
             onClick={onClear}
-            sx={{ textTransform: 'none', fontSize: 12, fontWeight: 800 }}
+            sx={isDark
+              ? {
+                  textTransform: 'none',
+                  fontSize: 12,
+                  fontWeight: 800,
+                  color: '#FFFFFF',
+                  '&:hover': {
+                    bgcolor: alpha('#FFFFFF', 0.06),
+                  },
+                }
+              : {
+                  textTransform: 'none',
+                  fontSize: 12,
+                  fontWeight: 800,
+                }}
           >
             Clear
           </Button>

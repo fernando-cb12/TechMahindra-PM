@@ -3,7 +3,7 @@ import { Box, Button, Checkbox, Chip, Paper, Popover, TextField, Typography } fr
 import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
-import { alpha } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 import type { MetricCatalog } from '../../../services/metricsService';
 import type { WorkspaceBoard } from '../../../services/workspacesService';
 import { DEFAULT_FILTERS, type GlobalFilters } from './types';
@@ -64,6 +64,8 @@ function FilterButton({
   selected: string[];
   onToggle: (id: string) => void;
 }) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
   const selectedCount = selected.length;
 
@@ -74,7 +76,18 @@ function FilterButton({
         variant={selectedCount > 0 ? 'contained' : 'outlined'}
         startIcon={<FilterAltOutlinedIcon sx={{ fontSize: 16 }} />}
         onClick={(event) => setAnchorEl(event.currentTarget)}
-        sx={{ textTransform: 'none', borderRadius: 1.5, minHeight: 32 }}
+        sx={[
+          { textTransform: 'none', borderRadius: 1.5, minHeight: 32 },
+          isDark ? {
+            color: selectedCount > 0 ? '#FFFFFF' : '#F5F5F5',
+            borderColor: selectedCount > 0 ? 'primary.main' : alpha('#FFFFFF', 0.28),
+            bgcolor: selectedCount > 0 ? 'primary.main' : 'transparent',
+            '&:hover': {
+              borderColor: selectedCount > 0 ? 'primary.main' : alpha('#FFFFFF', 0.45),
+              bgcolor: selectedCount > 0 ? 'primary.dark' : alpha('#FFFFFF', 0.08),
+            },
+          } : {},
+        ]}
       >
         {label}
         {selectedCount > 0 && (
@@ -86,7 +99,7 @@ function FilterButton({
               height: 18,
               minWidth: 18,
               bgcolor: 'common.white',
-              color: 'primary.main',
+              color: isDark ? 'primary.main' : 'primary.main',
               fontSize: 10,
               fontWeight: 900,
               '& .MuiChip-label': { px: 0.6 },
@@ -101,7 +114,7 @@ function FilterButton({
         onClose={() => setAnchorEl(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-        slotProps={{ paper: { sx: { mt: 0.75, p: 1, width: 280, maxHeight: 330, borderRadius: 2 } } }}
+        slotProps={{ paper: { sx: { mt: 0.75, p: 1, width: 280, maxHeight: 330, borderRadius: 2, bgcolor: isDark ? '#3B3B3B' : 'background.paper' } } }}
       >
         <Typography sx={{ px: 1, py: 0.75, fontSize: 12, fontWeight: 900, color: 'text.secondary', textTransform: 'uppercase' }}>
           {label}
@@ -150,6 +163,8 @@ function FilterButton({
 }
 
 function DateFilterButton({ filters, onChange }: { filters: GlobalFilters; onChange: (filters: GlobalFilters) => void }) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
   const selectedCount = (filters.dateFrom ? 1 : 0) + (filters.dateTo ? 1 : 0);
 
@@ -160,7 +175,18 @@ function DateFilterButton({ filters, onChange }: { filters: GlobalFilters; onCha
         variant={selectedCount > 0 ? 'contained' : 'outlined'}
         startIcon={<CalendarMonthOutlinedIcon sx={{ fontSize: 16 }} />}
         onClick={(event) => setAnchorEl(event.currentTarget)}
-        sx={{ textTransform: 'none', borderRadius: 1.5, minHeight: 32 }}
+        sx={[
+          { textTransform: 'none', borderRadius: 1.5, minHeight: 32 },
+          isDark ? {
+            color: selectedCount > 0 ? '#FFFFFF' : '#F5F5F5',
+            borderColor: selectedCount > 0 ? 'primary.main' : alpha('#FFFFFF', 0.28),
+            bgcolor: selectedCount > 0 ? 'primary.main' : 'transparent',
+            '&:hover': {
+              borderColor: selectedCount > 0 ? 'primary.main' : alpha('#FFFFFF', 0.45),
+              bgcolor: selectedCount > 0 ? 'primary.dark' : alpha('#FFFFFF', 0.08),
+            },
+          } : {},
+        ]}
       >
         Period
         {selectedCount > 0 && (
@@ -172,7 +198,7 @@ function DateFilterButton({ filters, onChange }: { filters: GlobalFilters; onCha
               height: 18,
               minWidth: 18,
               bgcolor: 'common.white',
-              color: 'primary.main',
+              color: isDark ? 'primary.main' : 'primary.main',
               fontSize: 10,
               fontWeight: 900,
               '& .MuiChip-label': { px: 0.6 },
@@ -186,7 +212,7 @@ function DateFilterButton({ filters, onChange }: { filters: GlobalFilters; onCha
         onClose={() => setAnchorEl(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-        slotProps={{ paper: { sx: { mt: 0.75, p: 1.5, width: 280, borderRadius: 2 } } }}
+        slotProps={{ paper: { sx: { mt: 0.75, p: 1.5, width: 280, borderRadius: 2, bgcolor: isDark ? '#3B3B3B' : 'background.paper' } } }}
       >
         <Typography sx={{ mb: 1, fontSize: 12, fontWeight: 900, color: 'text.secondary', textTransform: 'uppercase' }}>
           Period
@@ -219,6 +245,8 @@ function toggleSingle(current: string, next: string) {
 }
 
 function MetricFiltersBar({ filters, workspaces, boards, assignees, onChange }: MetricFiltersBarProps) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const visibleBoards = filters.workspaceIds.length
     ? boards.filter((board) => filters.workspaceIds.includes(board.workspaceId))
     : boards;
@@ -245,7 +273,7 @@ function MetricFiltersBar({ filters, workspaces, boards, assignees, onChange }: 
         justifyContent: 'space-between',
         gap: 1.5,
         flexWrap: 'wrap',
-        bgcolor: 'background.paper',
+        bgcolor: isDark ? alpha('#FFFFFF', 0.08) : 'background.paper',
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
@@ -303,7 +331,21 @@ function MetricFiltersBar({ filters, workspaces, boards, assignees, onChange }: 
         <Chip
           size="small"
           label={activeCount > 0 ? `${activeCount} active` : 'All data'}
-          sx={{ height: 26, fontSize: 11.5, fontWeight: 800, bgcolor: alpha('#5F0229', 0.08), color: 'primary.main' }}
+          sx={isDark
+            ? {
+                height: 26,
+                fontSize: 11.5,
+                fontWeight: 800,
+                bgcolor: alpha('#FFFFFF', 0.16),
+                color: '#FFFFFF',
+              }
+            : {
+                height: 26,
+                fontSize: 11.5,
+                fontWeight: 800,
+                bgcolor: alpha('#5F0229', 0.08),
+                color: 'primary.main',
+              }}
         />
         {activeCount > 0 && (
           <Button
@@ -311,7 +353,21 @@ function MetricFiltersBar({ filters, workspaces, boards, assignees, onChange }: 
             variant="text"
             startIcon={<RestartAltIcon sx={{ fontSize: 16 }} />}
             onClick={() => onChange(DEFAULT_FILTERS)}
-            sx={{ textTransform: 'none', fontSize: 12, fontWeight: 800 }}
+            sx={isDark
+              ? {
+                  textTransform: 'none',
+                  fontSize: 12,
+                  fontWeight: 800,
+                  color: '#FFFFFF',
+                  '&:hover': {
+                    bgcolor: alpha('#FFFFFF', 0.08),
+                  },
+                }
+              : {
+                  textTransform: 'none',
+                  fontSize: 12,
+                  fontWeight: 800,
+                }}
           >
             Clear
           </Button>

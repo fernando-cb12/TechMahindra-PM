@@ -48,6 +48,7 @@ import { useAuth } from '../../../auth/useAuth';
 import { showAppNotification } from '../../shared/appNotifications';
 import { getBoardMemberCandidates } from '../../../services/taskBoardService';
 import { getWorkspace, type AssignableUser } from '../../../services/workspacesService';
+import WorkspaceActionPillButton from '../detail/WorkspaceActionPillButton';
 
 const OPTIONAL_VIEWS: Array<{ value: Exclude<BoardView, 'table'>; label: string; icon: ReactElement }> = [
   { value: 'insights', label: 'Insights', icon: <InsertChartIcon sx={{ fontSize: 18 }} /> },
@@ -298,22 +299,17 @@ function TaskBoardContent() {
       
       {/* Header */}
       <Box sx={{ px: 4, py: 3, pb: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
-        <Button
+        <WorkspaceActionPillButton
           startIcon={<ArrowBackIcon />}
           onClick={() => navigate(`/workspaces/${routeWorkspaceId}`)}
           sx={{
             textTransform: 'none',
             mb: 2,
-            px: 0,
-            minWidth: 0,
-            alignSelf: 'flex-start',
-            fontWeight: 600,
-            color: 'primary.main',
-            '&:hover': { bgcolor: 'transparent' },
+            fontSize: 14,
           }}
         >
           Back to {workspaceName}
-        </Button>
+        </WorkspaceActionPillButton>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             {isRenamingBoard ? (

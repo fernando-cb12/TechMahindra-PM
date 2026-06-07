@@ -7,6 +7,7 @@ export type DueDateFilterId = 'noDate' | 'dueSoon' | 'overdue' | 'future' | 'com
 export type MyTasksFilters = {
   workspaceIds: string[];
   boardIds: string[];
+  personIds: string[];
   priorities: string[];
   workflows: string[];
   dueDates: DueDateFilterId[];
@@ -32,6 +33,7 @@ export type MyTaskWorkflow = MyTaskListItem['workflow'];
 export const EMPTY_MY_TASKS_FILTERS: MyTasksFilters = {
   workspaceIds: [],
   boardIds: [],
+  personIds: [],
   priorities: [],
   workflows: [],
   dueDates: [],

@@ -3,6 +3,7 @@ package com.mahindra.backend.service;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashMap;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -47,9 +48,9 @@ public class MyTasksService {
     }
 
     @Transactional(readOnly = true)
-    public MyTasksResponseDto listForCurrentUser(Authentication authentication) {
+    public MyTasksResponseDto listVisibleTasks(Authentication authentication, Long workspaceId) {
         User user = resolveUser(authentication);
-        List<MyTaskItemDto> items = taskRepository.findMyAssignedTasks(user.getId(), isAdmin(user)).stream()
+        List<MyTaskItemDto> items = taskRepository.findVisibleTasks(user.getId(), isAdmin(user), workspaceId).stream()
                 .map(this::toItemDto)
                 .toList();
         return new MyTasksResponseDto(items, toSummary(items));
@@ -97,11 +98,24 @@ public class MyTasksService {
                 priorityOption != null ? priorityOption.getColor() : FALLBACK_PRIORITY_COLOR,
                 task.getDueDate() != null ? task.getDueDate().toString() : null,
                 task.getProgress(),
+                assignees(task),
                 updates.stream().map(update -> toUpdateDto(update, files)).toList(),
                 files.stream().map(this::toFileDto).toList(),
                 activities.stream().map(this::toActivityDto).toList(),
                 task.getCreatedAt().toString(),
                 task.getUpdatedAt().toString());
+    }
+
+    private List<UserSummaryDto> assignees(Task task) {
+        LinkedHashMap<Long, User> users = new LinkedHashMap<>();
+        task.getAssignees().forEach(user -> users.put(user.getId(), user));
+        if (task.getAssignedTo() != null) {
+            users.putIfAbsent(task.getAssignedTo().getId(), task.getAssignedTo());
+        }
+        return users.values().stream()
+                .sorted(Comparator.comparing(User::getName, String.CASE_INSENSITIVE_ORDER))
+                .map(this::toUserDto)
+                .toList();
     }
 
     private String resolveWorkflow(BoardColumnOption statusOption, Task task) {

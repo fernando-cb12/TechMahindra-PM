@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { Box, InputAdornment, Stack, TextField, Typography } from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchIcon from '@mui/icons-material/Search';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  getMyTasks,
+  getTasks,
   type MyTaskListItem,
 } from '../services/myTasksService';
 import { getUserPreferences, updateMyTasksFilterMode } from '../services/userPreferencesService';
@@ -32,6 +33,7 @@ import {
   type MyTasksFilters,
   type TaskMenuState,
 } from '../components/my-tasks/types';
+import WorkspaceActionPillButton from '../components/workspaces/detail/WorkspaceActionPillButton';
 
 const isMyTasksFilterMode = (value: unknown): value is MyTasksFilterMode => value === 'kpis' || value === 'filters';
 
@@ -43,7 +45,8 @@ function getStoredFilterMode() {
 
 function Issues() {
   const navigate = useNavigate();
-  const { session } = useAuth();
+  const [searchParams] = useSearchParams();
+  const { session, profile } = useAuth();
   const [tasks, setTasks] = useState<MyTaskListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,17 +59,31 @@ function Issues() {
     () => `mytasks:${session?.email ?? 'anonymous'}:filterMode`,
     [session?.email]
   );
+  const scopedWorkspaceId = searchParams.get('workspaceId');
+  const scopedWorkspaceName = searchParams.get('project');
+  const currentUserId = profile ? String(profile.id) : '';
+
+  const buildDefaultFilters = useCallback((): MyTasksFilters => ({
+    ...EMPTY_MY_TASKS_FILTERS,
+    workspaceIds: scopedWorkspaceId ? [scopedWorkspaceId] : [],
+    personIds: currentUserId ? [currentUserId] : [],
+  }), [currentUserId, scopedWorkspaceId]);
+
+  const buildClearedFilters = useCallback((): MyTasksFilters => ({
+    ...EMPTY_MY_TASKS_FILTERS,
+    workspaceIds: scopedWorkspaceId ? [scopedWorkspaceId] : [],
+  }), [scopedWorkspaceId]);
 
   const loadTasks = useCallback(() => {
     let cancelled = false;
-    void getMyTasks()
+    void getTasks(scopedWorkspaceId)
       .then((response) => {
         if (!cancelled) setTasks(response.items);
       })
       .catch((error) => {
         if (!cancelled) {
           setTasks([]);
-          showAppError(error, 'Failed to load my tasks');
+          showAppError(error, 'Failed to load tasks');
         }
       })
       .finally(() => {
@@ -75,9 +92,16 @@ function Issues() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [scopedWorkspaceId]);
 
   useEffect(() => loadTasks(), [loadTasks]);
+
+  useEffect(() => {
+    if (!currentUserId) {
+      return;
+    }
+    setFilters(buildDefaultFilters());
+  }, [buildDefaultFilters, currentUserId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -110,6 +134,22 @@ function Issues() {
     return uniqueChoices(scopedTasks, (task) => task.boardId, (task) => task.boardName, undefined, (task) => task.workspaceName);
   }, [tasks, filters.workspaceIds]);
 
+  const personChoices = useMemo(() => {
+    const map = new Map<string, { id: string; label: string; groupLabel?: string }>();
+    for (const task of tasks) {
+      for (const assignee of task.assignees) {
+        const id = String(assignee.id);
+        if (!map.has(id)) {
+          map.set(id, {
+            id,
+            label: assignee.name,
+          });
+        }
+      }
+    }
+    return [...map.values()].sort((a, b) => a.label.localeCompare(b.label));
+  }, [tasks]);
+
   const priorityChoices = useMemo(
     () => uniqueChoices(tasks, (task) => task.priority, (task) => task.priorityLabel, (task) => task.priorityColor),
     [tasks]
@@ -127,9 +167,9 @@ function Issues() {
         ? current.filter((item) => item !== String(value))
         : [...current, String(value)];
 
-      if (key === 'workspaceIds') {
-        const nextWorkspaceIds = next;
-        const allowedBoardIds = new Set(
+        if (key === 'workspaceIds') {
+          const nextWorkspaceIds = next;
+          const allowedBoardIds = new Set(
           tasks
             .filter((task) => nextWorkspaceIds.length === 0 || nextWorkspaceIds.includes(task.workspaceId))
             .map((task) => task.boardId)
@@ -212,19 +252,34 @@ function Issues() {
         py: 4,
       }}
     >
+      {scopedWorkspaceId && scopedWorkspaceName ? (
+        <WorkspaceActionPillButton
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate(`/workspaces/${scopedWorkspaceId}`)}
+          sx={{
+            mb: 3,
+            fontSize: 14,
+          }}
+        >
+          Back to {scopedWorkspaceName}
+        </WorkspaceActionPillButton>
+      ) : null}
+
       <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', md: 'flex-start' }} gap={2.5} sx={{ mb: 3 }}>
         <Box>
           <Typography sx={{ fontSize: { xs: 28, sm: 34 }, fontWeight: 900, color: 'text.primary', lineHeight: 1.15 }}>
-            My Tasks
+            Tasks
           </Typography>
           <Typography sx={{ mt: 0.75, fontSize: 13.5, color: 'text.secondary', fontWeight: 600 }}>
-            Tasks assigned to you across workspaces and boards.
+            {scopedWorkspaceName
+              ? `Tasks in ${scopedWorkspaceName}.`
+              : 'Tasks across workspaces and boards.'}
           </Typography>
         </Box>
         <TextField
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
-          placeholder="Search my tasks..."
+          placeholder="Search tasks..."
           size="small"
           InputProps={{
             startAdornment: (
@@ -256,6 +311,7 @@ function Issues() {
         filters={filters}
         workspaceChoices={workspaceChoices}
         boardChoices={boardChoices}
+        personChoices={personChoices}
         priorityChoices={priorityChoices}
         statusChoices={statusChoices}
         dueDateChoices={DUE_DATE_FILTER_CHOICES}
@@ -263,7 +319,7 @@ function Issues() {
         visibleCount={visibleTasks.length}
         onToggleFilter={toggleFilter}
         onFilterModeChange={changeFilterMode}
-        onClear={() => setFilters(EMPTY_MY_TASKS_FILTERS)}
+        onClear={() => setFilters(buildClearedFilters())}
       />
 
       <MyTasksTable

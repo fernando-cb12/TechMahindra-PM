@@ -32,6 +32,7 @@ export function getTaskLink(task: MyTaskListItem) {
 export function countFilters(filters: MyTasksFilters) {
   return filters.workspaceIds.length
     + filters.boardIds.length
+    + filters.personIds.length
     + filters.priorities.length
     + filters.workflows.length
     + filters.dueDates.length;
@@ -95,12 +96,14 @@ export function taskMatchesSearch(task: MyTaskListItem, searchQuery: string) {
     task.groupName,
     task.statusLabel,
     task.priorityLabel,
+    task.assignees.map((assignee) => assignee.name).join(' '),
   ].join(' ').toLowerCase().includes(query);
 }
 
 export function taskMatchesFilters(task: MyTaskListItem, filters: MyTasksFilters) {
   return (filters.workspaceIds.length === 0 || filters.workspaceIds.includes(task.workspaceId))
     && (filters.boardIds.length === 0 || filters.boardIds.includes(task.boardId))
+    && (filters.personIds.length === 0 || task.assignees.some((assignee) => filters.personIds.includes(String(assignee.id))))
     && (filters.priorities.length === 0 || filters.priorities.includes(task.priority))
     && (filters.workflows.length === 0 || filters.workflows.includes(task.workflow))
     && (filters.dueDates.length === 0 || filters.dueDates.some((bucket) => taskMatchesDueDateBucket(task, bucket)));

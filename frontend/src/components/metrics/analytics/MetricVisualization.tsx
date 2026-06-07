@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Box, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Bar,
   BarChart,
@@ -44,6 +45,14 @@ function TooltipShell({ children }: { children: ReactNode }) {
 }
 
 function MetricVisualization({ widgetConfig, visualization, response, catalog, onOpenSegment }: MetricVisualizationProps) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+  const accentColor = isDark ? '#FFFFFF' : '#5F0229';
+  const chartAccent = theme.palette.primary.main;
+  const timelineAccent = isDark ? chartAccent : 'primary.main';
+  const lineColors = isDark
+    ? ['#A3334D', '#60A5FA', '#6CE9A6', '#FBBF24', '#C4B5FD', '#5EEAD4', '#FF8A80', '#D6B9A4']
+    : LINE_COLORS;
   const help = getMetricHelp(widgetConfig, catalog);
   if (!response) return <Typography sx={{ color: 'text.secondary', fontSize: 13 }}>{help.emptyStateHint}</Typography>;
   if (visualization === 'kpi') {
@@ -59,7 +68,7 @@ function MetricVisualization({ widgetConfig, visualization, response, catalog, o
     const comparisonColor = comparison?.isPositive ? 'success.main' : 'error.main';
     return (
       <Box sx={{ height: '100%', minHeight: 96, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
-        <Typography sx={{ fontSize: 34, fontWeight: 900, color: 'primary.main', lineHeight: 1 }}>
+        <Typography sx={{ fontSize: 34, fontWeight: 900, color: accentColor, lineHeight: 1 }}>
           {formatMetricValue(widgetConfig, kpi?.value ?? 0, catalog)}
         </Typography>
         {hasComparison && (
@@ -106,14 +115,14 @@ function MetricVisualization({ widgetConfig, visualization, response, catalog, o
                         width: 8,
                         height: 8,
                         borderRadius: '50%',
-                        bgcolor: hasCompleted ? 'success.main' : hasCreated || hasValue ? 'primary.main' : 'divider',
+                        bgcolor: hasCompleted ? 'success.main' : hasCreated || hasValue ? timelineAccent : 'divider',
                       }}
                     />
                     <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
                       {isDualEventSeries ? (
                         <>
                           <Box sx={{ px: 0.75, py: 0.35, borderRadius: 1, bgcolor: 'action.hover' }}>
-                            <Typography sx={{ fontSize: 11, fontWeight: 800, color: 'primary.main' }}>
+                            <Typography sx={{ fontSize: 11, fontWeight: 800, color: timelineAccent }}>
                               {formatMetricValue(widgetConfig, created, catalog)} created
                             </Typography>
                           </Box>
@@ -125,7 +134,7 @@ function MetricVisualization({ widgetConfig, visualization, response, catalog, o
                         </>
                       ) : (
                         <Box sx={{ px: 0.75, py: 0.35, borderRadius: 1, bgcolor: 'action.hover' }}>
-                          <Typography sx={{ fontSize: 11, fontWeight: 800, color: 'primary.main' }}>
+                          <Typography sx={{ fontSize: 11, fontWeight: 800, color: timelineAccent }}>
                             {formatMetricValue(widgetConfig, value, catalog)} {help.metricLabel.toLowerCase()}
                           </Typography>
                         </Box>
@@ -163,7 +172,7 @@ function MetricVisualization({ widgetConfig, visualization, response, catalog, o
           />
           {isDualEventSeries ? (
             <>
-              <Line type="monotone" dataKey="created" stroke="#A3334D" strokeWidth={2} />
+              <Line type="monotone" dataKey="created" stroke={isDark ? chartAccent : '#A3334D'} strokeWidth={2} />
               <Line type="monotone" dataKey="completed" stroke="#4CAF50" strokeWidth={2} />
             </>
           ) : dynamicSeries.length > 0 ? (
@@ -173,13 +182,13 @@ function MetricVisualization({ widgetConfig, visualization, response, catalog, o
                 type="monotone"
                 dataKey={series}
                 name={series}
-                stroke={LINE_COLORS[index % LINE_COLORS.length]}
+                stroke={lineColors[index % lineColors.length]}
                 strokeWidth={2}
                 dot={{ r: 2 }}
               />
             ))
           ) : (
-            <Line type="monotone" dataKey="value" name={help.metricLabel} stroke="#A3334D" strokeWidth={2} />
+            <Line type="monotone" dataKey="value" name={help.metricLabel} stroke={isDark ? chartAccent : '#A3334D'} strokeWidth={2} />
           )}
         </LineChart>
       </ResponsiveContainer>
@@ -236,7 +245,7 @@ function MetricVisualization({ widgetConfig, visualization, response, catalog, o
         />
         <Bar
           dataKey="value"
-          fill="#5F0229"
+          fill={isDark ? chartAccent : '#5F0229'}
           radius={[3, 3, 0, 0]}
           onClick={(data) => {
             const payload = data?.payload as { label?: unknown } | undefined;

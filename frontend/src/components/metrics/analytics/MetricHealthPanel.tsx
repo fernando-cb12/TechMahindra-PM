@@ -1,4 +1,5 @@
 import { Alert, Box, Button, Chip, Paper, Typography } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 import type { MetricSemanticField } from '../../../services/metricsService';
 
 type MetricHealthPanelProps = {
@@ -8,13 +9,15 @@ type MetricHealthPanelProps = {
 };
 
 function MetricHealthPanel({ warnings, semanticFields = [], onMapField }: MetricHealthPanelProps) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const missingSemanticFields = semanticFields.filter((field) => field.missing);
   const semanticWarningPattern = /^(Budget|Progress|Due Date|Priority|Effort) field missing/;
   const visibleWarnings = warnings.filter((warning) => !semanticWarningPattern.test(warning));
   const warningCount = visibleWarnings.length + missingSemanticFields.length;
 
   return (
-    <Paper elevation={0} sx={{ p: 2, mb: 2, borderRadius: '5px', border: '1px solid', borderColor: 'divider' }}>
+    <Paper elevation={0} sx={{ p: 2, mb: 2, borderRadius: '5px', border: '1px solid', borderColor: 'divider', bgcolor: isDark ? alpha('#FFFFFF', 0.05) : 'background.paper' }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
         <Box>
           <Typography sx={{ fontWeight: 800, fontSize: 13 }}>Metric health</Typography>

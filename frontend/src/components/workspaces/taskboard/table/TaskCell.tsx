@@ -165,7 +165,9 @@ export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellP
   // ─── 1. ASSIGNEE CELL EDITOR (Section 5.1/5.2 of spec) ───
   if (column.id === 'col_assignee' || column.type === 'person') {
     const assignedIds = (cellValue as string[]) || [];
-    const assignedUsers = assignedIds.map((uid) => users[uid]).filter(Boolean);
+    const assignedUsers = assignedIds
+      .map((uid) => users[uid])
+      .filter((user): user is NonNullable<typeof users[string]> => Boolean(user && user.name));
     const userList = Object.values(users);
     
     const filteredUsers = userList.filter((u) =>
@@ -181,6 +183,17 @@ export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellP
 
     // Tooltip names list
     const tooltipTitle = assignedUsers.map((u) => u.name).join(', ') || 'Unassigned';
+    const firstAssignedUser = assignedUsers[0];
+    const secondAssignedUser = assignedUsers[1];
+    const nameSummary = firstAssignedUser
+      ? assignedUsers.length === 1
+        ? firstAssignedUser.name
+        : secondAssignedUser
+          ? assignedUsers.length === 2
+            ? `${firstAssignedUser.name} and ${secondAssignedUser.name}`
+            : `${firstAssignedUser.name}, ${secondAssignedUser.name} +${assignedUsers.length - 2}`
+          : firstAssignedUser.name
+      : 'Unassigned';
 
     return (
       <>
@@ -198,7 +211,7 @@ export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellP
             '&:hover': { bgcolor: 'action.hover' },
           }}
         >
-          {assignedUsers.length > 0 ? (
+          {firstAssignedUser ? (
             <Tooltip title={tooltipTitle} arrow>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
                 <AvatarGroup
@@ -219,12 +232,9 @@ export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellP
                   ))}
                 </AvatarGroup>
                 
-                {/* If exactly 1 assignee, show full name */}
-                {assignedUsers.length === 1 && (
-                  <Typography sx={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {assignedUsers[0].name}
-                  </Typography>
-                )}
+                <Typography sx={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
+                  {nameSummary}
+                </Typography>
               </Box>
             </Tooltip>
           ) : (

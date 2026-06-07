@@ -5,6 +5,7 @@ import java.util.List;
 import com.mahindra.backend.dto.taskboard.FileAttachmentDto;
 import com.mahindra.backend.dto.taskboard.TaskActivityDto;
 import com.mahindra.backend.dto.taskboard.TaskUpdateDto;
+import com.mahindra.backend.dto.taskboard.UserSummaryDto;
 
 public record MyTaskItemDto(
         String id,
@@ -25,6 +26,7 @@ public record MyTaskItemDto(
         String priorityColor,
         String dueDate,
         Integer progress,
+        List<UserSummaryDto> assignees,
         List<TaskUpdateDto> updates,
         List<FileAttachmentDto> files,
         List<TaskActivityDto> activities,

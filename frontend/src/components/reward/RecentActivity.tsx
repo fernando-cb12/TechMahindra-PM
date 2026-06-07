@@ -2,6 +2,7 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
 import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material/styles";
 import type { RewardActivity } from "../../services/rewardsService";
 
 interface RecentActivityProps {
@@ -12,6 +13,8 @@ interface RecentActivityProps {
 const fallbackItems: RewardActivity[] = [];
 
 export default function RecentActivity({ onSeeAll, items = fallbackItems }: RecentActivityProps) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const recentItems = items.map((item) => ({
     id: item.id,
     title: item.label,
@@ -53,7 +56,7 @@ export default function RecentActivity({ onSeeAll, items = fallbackItems }: Rece
           <Button
             onClick={onSeeAll}
             size="small"
-            sx={{ fontSize: 12, fontWeight: 700, textTransform: "none", color: "primary.main", minWidth: 0, px: 0 }}
+            sx={{ fontSize: 12, fontWeight: 700, textTransform: "none", color: isDark ? "#FFFFFF" : "primary.main", minWidth: 0, px: 0 }}
           >
             See all activity
           </Button>

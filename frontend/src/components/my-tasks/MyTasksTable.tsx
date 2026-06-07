@@ -8,6 +8,7 @@ import {
   Typography,
 } from '@mui/material';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
+import { alpha, useTheme } from '@mui/material/styles';
 import type { MyTaskListItem } from '../../services/myTasksService';
 import DueDatePill from './DueDatePill';
 import TaskPill from './TaskPill';
@@ -34,6 +35,9 @@ export default function MyTasksTable({
   onOpenMenu: (event: MouseEvent<HTMLElement>, taskId: string) => void;
   onOpenContextMenu: (event: MouseEvent<HTMLElement>, taskId: string) => void;
 }) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+
   return (
     <Paper
       elevation={0}
@@ -42,7 +46,7 @@ export default function MyTasksTable({
         borderColor: 'divider',
         borderRadius: 2,
         overflow: 'hidden',
-        bgcolor: 'background.paper',
+        bgcolor: isDark ? 'background.paper' : 'background.paper',
       }}
     >
       <Box sx={{ overflowX: 'auto' }}>
@@ -55,7 +59,7 @@ export default function MyTasksTable({
             gap: 1.25,
             px: 2.5,
             py: 1.5,
-            bgcolor: 'action.hover',
+            bgcolor: isDark ? alpha('#FFFFFF', 0.06) : 'action.hover',
             borderBottom: '1px solid',
             borderColor: 'divider',
           }}
@@ -100,7 +104,7 @@ export default function MyTasksTable({
                   borderColor: 'divider',
                   cursor: 'pointer',
                   transition: 'background-color 0.15s ease',
-                  '&:hover': { bgcolor: 'action.hover' },
+                  '&:hover': { bgcolor: isDark ? alpha('#FFFFFF', 0.05) : 'action.hover' },
                 }}
               >
                 <Box sx={{ minWidth: 0 }}>
@@ -140,8 +144,13 @@ export default function MyTasksTable({
                       flex: 1,
                       height: 7,
                       borderRadius: 999,
-                      bgcolor: 'action.hover',
-                      '& .MuiLinearProgress-bar': { bgcolor: task.workflow === 'done' ? '#067647' : '#5F0229', borderRadius: 999 },
+                      bgcolor: isDark ? alpha('#FFFFFF', 0.12) : 'action.hover',
+                      '& .MuiLinearProgress-bar': {
+                        bgcolor: task.workflow === 'done'
+                          ? (isDark ? '#6CE9A6' : '#067647')
+                          : (isDark ? '#F9FAFB' : '#5F0229'),
+                        borderRadius: 999,
+                      },
                     }}
                   />
                   <Typography sx={{ width: 38, textAlign: 'right', fontSize: 11.5, fontWeight: 900, color: 'text.secondary' }}>

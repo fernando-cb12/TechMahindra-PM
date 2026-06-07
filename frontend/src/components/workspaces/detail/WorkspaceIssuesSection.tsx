@@ -129,7 +129,7 @@ function WorkspaceIssuesSection({ workspace }: WorkspaceIssuesSectionProps) {
             justifyContent: 'flex-start',
           }}
         >
-          Issues
+          Tasks
         </Button>
       </Box>
 

@@ -1,6 +1,11 @@
 import type { FileAttachment, TaskActivity, TaskUpdate } from '../components/workspaces/taskboard/types';
 import type { ResolvedWorkflowState } from '../components/workspaces/taskboard/workflow';
 import { apiClient } from './apiClient';
+import type { UserProfile } from './userService';
+
+export type TaskAssignee = Pick<UserProfile, 'id' | 'name' | 'email' | 'avatarUrl'> & {
+  initials: string;
+};
 
 export type MyTaskListItem = {
   id: string;
@@ -21,6 +26,7 @@ export type MyTaskListItem = {
   priorityColor: string;
   dueDate: string | null;
   progress: number;
+  assignees: TaskAssignee[];
   updates: TaskUpdate[];
   files: FileAttachment[];
   activities: TaskActivity[];
@@ -66,8 +72,10 @@ function isStale(updatedAt: string) {
   return Number.isFinite(updated) && Date.now() - updated > 7 * DAY_MS;
 }
 
-export async function getMyTasks(): Promise<MyTasksResponse> {
-  const { data } = await apiClient.get<MyTasksResponse>('/api/tasks/my');
+export async function getTasks(workspaceId?: string | null): Promise<MyTasksResponse> {
+  const { data } = await apiClient.get<MyTasksResponse>('/api/tasks/my', {
+    params: workspaceId ? { workspaceId } : undefined,
+  });
   return data;
 }
 

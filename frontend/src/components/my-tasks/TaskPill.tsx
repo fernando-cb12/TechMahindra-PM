@@ -1,7 +1,11 @@
 import { Chip } from '@mui/material';
-import { alpha } from '@mui/material/styles';
+import { alpha, lighten, useTheme } from '@mui/material/styles';
 
 export default function TaskPill({ label, color }: { label: string; color: string }) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+  const readableColor = isDark ? lighten(color, 0.18) : color;
+
   return (
     <Chip
       size="small"
@@ -9,8 +13,10 @@ export default function TaskPill({ label, color }: { label: string; color: strin
       sx={{
         height: 24,
         borderRadius: 1.5,
-        bgcolor: alpha(color, 0.12),
-        color,
+        bgcolor: isDark ? alpha(readableColor, 0.22) : alpha(color, 0.12),
+        color: isDark ? readableColor : color,
+        border: '1px solid',
+        borderColor: isDark ? alpha(readableColor, 0.32) : 'transparent',
         fontSize: 11,
         fontWeight: 800,
         '& .MuiChip-label': { px: 1 },

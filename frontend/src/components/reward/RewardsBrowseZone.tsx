@@ -88,7 +88,7 @@ export default function RewardsBrowseZone({ onRedeem, rewards = [] }: RewardsBro
           role="button"
           sx={{
             fontSize: 11.5,
-            color: "primary.main",
+            color: isDark ? "#FFFFFF" : "primary.main",
             fontWeight: 600,
             cursor: "pointer",
             opacity: 0.8,
