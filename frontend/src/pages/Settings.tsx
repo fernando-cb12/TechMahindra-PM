@@ -15,10 +15,11 @@ import {
 import { showAppError, showAppNotification } from '../components/shared/appNotifications';
 
 function Settings() {
-  const { profile: currentProfile, setProfile: setCurrentProfile } = useAuth();
+  const { profile: currentProfile, hasRoleAtLeast, setProfile: setCurrentProfile } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(currentProfile);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(!currentProfile);
+  const [isAvatarSaving, setIsAvatarSaving] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -56,11 +57,33 @@ function Settings() {
   }, [currentProfile]);
 
   const handleSaveProfile = async (updatedProfile: UpdateUserProfilePayload) => {
+    if (!hasRoleAtLeast('TEAM_LEAD')) return;
     const savedProfile = await updateUserProfile(updatedProfile);
     setProfile(savedProfile);
     setCurrentProfile(savedProfile);
     setIsEditOpen(false);
     showAppNotification({ message: 'Profile updated', severity: 'success' });
+  };
+
+  const handleAvatarChange = async (avatarFile: File) => {
+    if (!profile || isAvatarSaving) return;
+    setIsAvatarSaving(true);
+    try {
+      const savedProfile = await updateUserProfile({
+        name: profile.name,
+        timezone: profile.timezone,
+        avatarUrl: profile.avatarUrl,
+        avatarFile,
+        notifications: profile.notifications,
+      });
+      setProfile(savedProfile);
+      setCurrentProfile(savedProfile);
+      showAppNotification({ message: 'Profile photo updated', severity: 'success' });
+    } catch (error) {
+      showAppError(error, 'Failed to update profile photo');
+    } finally {
+      setIsAvatarSaving(false);
+    }
   };
 
   const handleNotificationsChange = async (notifications: NotificationSettings) => {
@@ -133,12 +156,20 @@ function Settings() {
 
       <Stack direction={{ xs: 'column', lg: 'row' }} spacing={3} alignItems="flex-start">
         <Stack spacing={3} sx={{ flex: 1, width: '100%', maxWidth: { lg: 720 } }}>
-          <SettingsProfileCard profile={profile} onEdit={() => setIsEditOpen(true)} />
+          <SettingsProfileCard
+            profile={profile}
+            showEdit={hasRoleAtLeast('TEAM_LEAD')}
+            isAvatarSaving={isAvatarSaving}
+            onAvatarChange={handleAvatarChange}
+            onEdit={() => {
+              if (hasRoleAtLeast('TEAM_LEAD')) setIsEditOpen(true);
+            }}
+          />
           <SettingsAppearanceCard />
         </Stack>
 
         <SettingsProfileEditModal
-          open={isEditOpen}
+          open={hasRoleAtLeast('TEAM_LEAD') && isEditOpen}
           profile={profile}
           onClose={() => setIsEditOpen(false)}
           onSave={handleSaveProfile}

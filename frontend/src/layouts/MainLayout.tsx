@@ -34,6 +34,7 @@ function MainLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, hasRoleAtLeast } = useAuth();
+  const canManageWorkspaceActions = hasRoleAtLeast('TEAM_LEAD');
   const [sidebarProjects, setSidebarProjects] = useState<Project[]>([]);
   const [assignableUsers, setAssignableUsers] = useState<AssignableUser[]>([]);
   const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
@@ -159,6 +160,7 @@ function MainLayout() {
   };
 
   const handleCreateWorkspace = async (payload: CreateWorkspaceProjectPayload) => {
+    if (!canManageWorkspaceActions) return;
     try {
       const workspace = await createWorkspaceProject(payload);
       setIsCreateWorkspaceOpen(false);
@@ -172,6 +174,7 @@ function MainLayout() {
   };
 
   const handleCreateBoard = async (workspaceId: string) => {
+    if (!canManageWorkspaceActions) return;
     const now = Date.now();
     const lastCreateAt = boardCreateCooldownRef.current[workspaceId] ?? 0;
     if (creatingBoardWorkspaceRef.current === workspaceId || now - lastCreateAt < 2000) return;
@@ -198,11 +201,13 @@ function MainLayout() {
   };
 
   const handleManualCreate = () => {
+    if (!canManageWorkspaceActions) return;
     setIsCreateChoiceOpen(false);
     setIsCreateWorkspaceOpen(true);
   };
 
   const handleAISelect = () => {
+    if (!canManageWorkspaceActions) return;
     setIsCreateChoiceOpen(false);
     setIsAIUploadOpen(true);
   };
@@ -213,6 +218,7 @@ function MainLayout() {
   };
 
   const handleAIContinue = async () => {
+    if (!canManageWorkspaceActions) return;
     if (!aiSelectedFile || isAIProcessing) return;
     setIsAIProcessing(true);
     try {
@@ -236,12 +242,14 @@ function MainLayout() {
   };
 
   const handleWorkspaceRename = async (workspaceId: string, name: string) => {
+    if (!canManageWorkspaceActions) return;
     await updateWorkspaceProject(workspaceId, { title: name });
     window.dispatchEvent(new CustomEvent('workspace:renamed', { detail: { workspaceId, name } }));
     setSidebarProjects((projects) => projects.map((project) => project.id === workspaceId ? { ...project, label: name } : project));
   };
 
   const handleBoardRename = async (workspaceId: string, boardId: string, name: string) => {
+    if (!canManageWorkspaceActions) return;
     const payload = await updateBoard(workspaceId, boardId, { name });
     window.dispatchEvent(new CustomEvent('taskboard:board-renamed', {
       detail: { workspaceId, boardId, name: payload.boardConfig.boardName ?? name },
@@ -249,6 +257,7 @@ function MainLayout() {
   };
 
   const handleWorkspaceDelete = async (workspaceId: string) => {
+    if (!canManageWorkspaceActions) return;
     const workspace = sidebarProjects.find((project) => project.id === workspaceId);
     await deleteWorkspaceProject(workspaceId);
     setDeleteNotice({ type: 'workspace', id: workspaceId, label: workspace?.label ?? 'Workspace' });
@@ -258,6 +267,7 @@ function MainLayout() {
   };
 
   const handleBoardDelete = async (workspaceId: string, boardId: string) => {
+    if (!canManageWorkspaceActions) return;
     const workspace = sidebarProjects.find((project) => project.id === workspaceId);
     const board = workspace?.subsections.find((item) => item.id === boardId);
     await deleteBoard(workspaceId, boardId);
@@ -294,12 +304,12 @@ function MainLayout() {
         navigate(`/workspaces/${projectId}/boards/${subId}`);
       }}
       onWorkspaceOpen={(projectId) => navigate(`/workspaces/${projectId}`)}
-      onWorkspaceCreateBoard={handleCreateBoard}
-      onWorkspaceCreateWorkspace={() => setIsCreateChoiceOpen(true)}
-      onWorkspaceRename={handleWorkspaceRename}
-      onWorkspaceDelete={handleWorkspaceDelete}
-      onBoardRename={handleBoardRename}
-      onBoardDelete={handleBoardDelete}
+      onWorkspaceCreateBoard={canManageWorkspaceActions ? handleCreateBoard : undefined}
+      onWorkspaceCreateWorkspace={canManageWorkspaceActions ? () => setIsCreateChoiceOpen(true) : undefined}
+      onWorkspaceRename={canManageWorkspaceActions ? handleWorkspaceRename : undefined}
+      onWorkspaceDelete={canManageWorkspaceActions ? handleWorkspaceDelete : undefined}
+      onBoardRename={canManageWorkspaceActions ? handleBoardRename : undefined}
+      onBoardDelete={canManageWorkspaceActions ? handleBoardDelete : undefined}
       onCopyLink={copyLink}
       onLogout={handleLogout}
       projects={sidebarProjects}
@@ -311,7 +321,7 @@ function MainLayout() {
       <Outlet />
     </Box>
     <CreateWorkspaceModal
-      open={isCreateWorkspaceOpen}
+      open={canManageWorkspaceActions && isCreateWorkspaceOpen}
       onClose={() => {
         setIsCreateWorkspaceOpen(false);
         setAISelectedFile(null);
@@ -322,7 +332,7 @@ function MainLayout() {
       aiImportFileName={aiSelectedFileName ?? undefined}
     />
     <Dialog
-      open={isCreateChoiceOpen}
+      open={canManageWorkspaceActions && isCreateChoiceOpen}
       onClose={() => setIsCreateChoiceOpen(false)}
       fullWidth
       maxWidth="sm"
@@ -381,7 +391,7 @@ function MainLayout() {
       </DialogActions>
     </Dialog>
     <AiWorkspaceImportDialog
-      open={isAIUploadOpen}
+      open={canManageWorkspaceActions && isAIUploadOpen}
       mode={aiMode}
       fileName={aiSelectedFileName}
       processing={isAIProcessing}
