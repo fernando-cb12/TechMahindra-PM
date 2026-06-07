@@ -129,7 +129,7 @@ function WorkspaceDetail() {
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, minHeight: 0 }}>
           <WorkspaceMetricsSection />
           <Box sx={{ flex: 1, minHeight: 340 }}>
-            <WorkspaceUsersSection workspace={workspace} onWorkspaceChange={setWorkspace} />
+            <WorkspaceUsersSection workspace={workspace} />
           </Box>
         </Box>
       </Box>

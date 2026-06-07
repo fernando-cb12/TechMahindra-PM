@@ -1,152 +1,34 @@
-import { useMemo, useState, type MouseEvent } from 'react';
-import {
-  Box,
-  Paper,
-  Typography,
-  Avatar,
-  Chip,
-  useTheme,
-  alpha,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Select,
-  OutlinedInput,
-  MenuItem,
-  Menu,
-  IconButton,
-  CircularProgress,
-} from '@mui/material';
+import { Box, Paper, Typography, Avatar, Chip, Button, useTheme, alpha } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
 import type { WorkspaceProjectCardData } from '../WorkspaceProjectCard';
-import {
-  addWorkspaceMembers,
-  getAssignableWorkspaceUsers,
-  removeWorkspaceMember,
-  type AssignableUser,
-} from '../../../services/workspacesService';
 import { useAuth } from '../../../auth/useAuth';
-import { showAppError, showAppNotification } from '../../shared/appNotifications';
-import WorkspaceActionPillButton from './WorkspaceActionPillButton';
 
 interface WorkspaceUsersSectionProps {
   workspace: WorkspaceProjectCardData;
-  onWorkspaceChange?: (workspace: WorkspaceProjectCardData) => void;
 }
 
 interface TeamUser {
-  id?: string;
   name: string;
-  email?: string;
   avatarUrl?: string | null;
   roles: string[];
-  workspaceRole?: string;
 }
 
-function WorkspaceUsersSection({ workspace, onWorkspaceChange }: WorkspaceUsersSectionProps) {
+function WorkspaceUsersSection({ workspace }: WorkspaceUsersSectionProps) {
   const theme = useTheme();
-  const { session, hasRoleAtLeast } = useAuth();
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [assignableUsers, setAssignableUsers] = useState<AssignableUser[]>([]);
-  const [isLoadingAssignableUsers, setIsLoadingAssignableUsers] = useState(false);
-  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
-  const [isSaving, setIsSaving] = useState(false);
-  const [memberMenu, setMemberMenu] = useState<{ anchor: HTMLElement; user: TeamUser } | null>(null);
-  const [memberToRemove, setMemberToRemove] = useState<TeamUser | null>(null);
-  const [isRemoving, setIsRemoving] = useState(false);
-  const canAddUsers = hasRoleAtLeast('TEAM_LEAD');
+  const { hasRoleAtLeast } = useAuth();
+  const canManageWorkspaceActions = hasRoleAtLeast('TEAM_LEAD');
 
   const teamUsers: TeamUser[] = workspace.memberDetails && workspace.memberDetails.length > 0
     ? workspace.memberDetails.map((member) => ({
-        id: member.id,
         name: member.name,
-        email: member.email,
         avatarUrl: member.avatarUrl,
         roles: member.roles.length > 0 ? member.roles : [member.workspaceRole],
-        workspaceRole: member.workspaceRole,
       }))
     : workspace.members.map((name) => ({
         name,
         avatarUrl: null,
         roles: ['Collaborator'],
       }));
-
-  const workspaceUserIds = useMemo(
-    () => new Set((workspace.memberDetails ?? []).map((member) => Number(member.id))),
-    [workspace.memberDetails]
-  );
-  const availableUsers = useMemo(
-    () => assignableUsers.filter((user) => !workspaceUserIds.has(user.id)),
-    [assignableUsers, workspaceUserIds]
-  );
-
-  const openAddDialog = () => {
-    setIsAddOpen(true);
-    setSelectedUserIds([]);
-    if (assignableUsers.length > 0 || isLoadingAssignableUsers) return;
-    setIsLoadingAssignableUsers(true);
-    void getAssignableWorkspaceUsers()
-      .then(setAssignableUsers)
-      .catch((error) => showAppError(error, 'Failed to load users'))
-      .finally(() => setIsLoadingAssignableUsers(false));
-  };
-
-  const openMemberMenu = (event: MouseEvent<HTMLElement>, user: TeamUser) => {
-    event.stopPropagation();
-    setMemberMenu({ anchor: event.currentTarget, user });
-  };
-
-  const closeMemberMenu = () => {
-    setMemberMenu(null);
-  };
-
-  const requestRemoveMember = () => {
-    if (!memberMenu?.user.id) return;
-    setMemberToRemove(memberMenu.user);
-    setMemberMenu(null);
-  };
-
-  const closeAddDialog = () => {
-    if (isSaving) return;
-    setIsAddOpen(false);
-    setSelectedUserIds([]);
-  };
-
-  const submitAddUsers = async () => {
-    if (selectedUserIds.length === 0) return;
-    setIsSaving(true);
-    try {
-      const updatedWorkspace = await addWorkspaceMembers(workspace.id, selectedUserIds);
-      onWorkspaceChange?.(updatedWorkspace);
-      setIsAddOpen(false);
-      setSelectedUserIds([]);
-      showAppNotification({
-        message: selectedUserIds.length === 1 ? 'User added to workspace' : 'Users added to workspace',
-        severity: 'success',
-      });
-    } catch (error) {
-      showAppError(error, 'Failed to add users');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const submitRemoveMember = async () => {
-    if (!memberToRemove?.id) return;
-    setIsRemoving(true);
-    try {
-      const updatedWorkspace = await removeWorkspaceMember(workspace.id, memberToRemove.id);
-      onWorkspaceChange?.(updatedWorkspace);
-      showAppNotification({ message: 'User removed from workspace', severity: 'success' });
-      setMemberToRemove(null);
-    } catch (error) {
-      showAppError(error, 'Failed to remove user');
-    } finally {
-      setIsRemoving(false);
-    }
-  };
 
   const roleColors: Record<string, string> = {
     Admin: theme.palette.error.main,
@@ -192,7 +74,7 @@ function WorkspaceUsersSection({ workspace, onWorkspaceChange }: WorkspaceUsersS
         borderRadius: '5px',
         p: 3,
         minHeight: 340,
-        height: '100%',
+        maxHeight: 460,
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
@@ -211,10 +93,20 @@ function WorkspaceUsersSection({ workspace, onWorkspaceChange }: WorkspaceUsersS
         >
           Users
         </Typography>
-        {canAddUsers ? (
-          <WorkspaceActionPillButton startIcon={<AddIcon />} onClick={openAddDialog}>
+        {canManageWorkspaceActions ? (
+          <Button
+            size="small"
+            startIcon={<AddIcon />}
+            sx={{
+              textTransform: 'none',
+              fontSize: 12,
+              fontWeight: 600,
+              color: theme.palette.mode === 'dark' ? '#fff' : 'primary.main',
+              '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.08) },
+            }}
+          >
             Add
-          </WorkspaceActionPillButton>
+          </Button>
         ) : null}
       </Box>
 
@@ -246,7 +138,7 @@ function WorkspaceUsersSection({ workspace, onWorkspaceChange }: WorkspaceUsersS
 
           return (
             <Box
-              key={`${user.id ?? user.name}-${index}`}
+              key={`${user.name}-${index}`}
               sx={{
                 display: 'flex',
                 alignItems: 'center',
@@ -314,115 +206,10 @@ function WorkspaceUsersSection({ workspace, onWorkspaceChange }: WorkspaceUsersS
                   })}
                 </Box>
               </Box>
-              {canAddUsers && user.id ? (
-                <IconButton
-                  size="small"
-                  aria-label={`Open actions for ${user.name}`}
-                  onClick={(event) => openMemberMenu(event, user)}
-                  sx={{
-                    width: 30,
-                    height: 30,
-                    color: 'text.secondary',
-                    flexShrink: 0,
-                    '&:hover': {
-                      color: 'primary.main',
-                      bgcolor: alpha(theme.palette.primary.main, 0.08),
-                    },
-                  }}
-                >
-                  <MoreVertIcon sx={{ fontSize: 18 }} />
-                </IconButton>
-              ) : null}
             </Box>
           );
         })}
       </Box>
-      <Menu
-        open={Boolean(memberMenu)}
-        anchorEl={memberMenu?.anchor ?? null}
-        onClose={closeMemberMenu}
-        slotProps={{ paper: { sx: { minWidth: 190, borderRadius: 2, py: 0.5 } } }}
-      >
-        <MenuItem
-          disabled={memberMenu?.user.email === session?.email}
-          onClick={requestRemoveMember}
-          sx={{ color: 'error.main', fontSize: 13 }}
-        >
-          Remove from workspace
-        </MenuItem>
-      </Menu>
-      <Dialog open={isAddOpen} onClose={closeAddDialog} fullWidth maxWidth="xs">
-        <DialogTitle sx={{ fontWeight: 700 }}>Add users to workspace</DialogTitle>
-        <DialogContent sx={{ pt: 1 }}>
-          <Select
-            multiple
-            fullWidth
-            value={selectedUserIds}
-            onChange={(event) => {
-              const value = event.target.value;
-              setSelectedUserIds(
-                (Array.isArray(value) ? value : String(value).split(',')).filter(Boolean).map(Number)
-              );
-            }}
-            input={<OutlinedInput />}
-            disabled={isLoadingAssignableUsers || isSaving}
-            renderValue={(selected) => (
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                {(selected as number[]).map((id) => {
-                  const user = assignableUsers.find((item) => item.id === id);
-                  return <Chip key={id} size="small" label={user?.name ?? `#${id}`} />;
-                })}
-              </Box>
-            )}
-            sx={{ '& .MuiSelect-select': { minHeight: 34 } }}
-          >
-            {isLoadingAssignableUsers && (
-              <MenuItem disabled>
-                <CircularProgress size={16} sx={{ mr: 1 }} />
-                Loading users
-              </MenuItem>
-            )}
-            {!isLoadingAssignableUsers && availableUsers.length === 0 && (
-              <MenuItem disabled>All assignable users are already in this workspace.</MenuItem>
-            )}
-            {availableUsers.map((user) => (
-              <MenuItem key={user.id} value={user.id}>
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography sx={{ fontSize: 13.5, fontWeight: 600 }}>{user.name}</Typography>
-                  <Typography sx={{ fontSize: 11.5, color: 'text.secondary' }}>{user.email}</Typography>
-                </Box>
-              </MenuItem>
-            ))}
-          </Select>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <WorkspaceActionPillButton onClick={closeAddDialog}>
-            Cancel
-          </WorkspaceActionPillButton>
-          <WorkspaceActionPillButton
-            onClick={submitAddUsers}
-            disabled={selectedUserIds.length === 0 || isSaving}
-          >
-            {isSaving ? 'Adding...' : 'Add to workspace'}
-          </WorkspaceActionPillButton>
-        </DialogActions>
-      </Dialog>
-      <Dialog open={Boolean(memberToRemove)} onClose={() => !isRemoving && setMemberToRemove(null)} fullWidth maxWidth="xs">
-        <DialogTitle sx={{ fontWeight: 700 }}>Remove user from workspace?</DialogTitle>
-        <DialogContent>
-          <Typography sx={{ color: 'text.secondary', fontSize: 13.5 }}>
-            {memberToRemove ? `${memberToRemove.name} will lose access to this workspace and its boards.` : ''}
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <WorkspaceActionPillButton onClick={() => setMemberToRemove(null)} disabled={isRemoving}>
-            Cancel
-          </WorkspaceActionPillButton>
-          <WorkspaceActionPillButton onClick={submitRemoveMember} disabled={isRemoving}>
-            {isRemoving ? 'Removing...' : 'Remove'}
-          </WorkspaceActionPillButton>
-        </DialogActions>
-      </Dialog>
     </Paper>
   );
 }
