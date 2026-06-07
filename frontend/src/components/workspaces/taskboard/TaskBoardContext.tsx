@@ -64,62 +64,34 @@ interface TaskCreateOptions {
   renameInDetails?: boolean;
 }
 
-const STATUS_PROGRESS_BY_KEY: Record<string, number | null> = {
-  todo: 0,
-  to_do: 0,
-  'to do': 0,
-  in_progress: 25,
-  'in progress': 25,
-  review: 75,
-  done: 100,
-  blocked: null,
-};
-
-const STATUS_KEYS_BY_PROGRESS: Record<number, string[]> = {
-  0: ['todo', 'to_do', 'to do'],
-  25: ['in_progress', 'in progress'],
-  75: ['review'],
-  100: ['done'],
-};
-
 const normalizeStatusKey = (value: string) => value.trim().toLowerCase().replace(/[-\s]+/g, '_');
 
-function getStatusProgress(statusId: string, statusOptions: SelectOption[]) {
+function isDoneStatus(statusId: string, statusOptions: SelectOption[]) {
   const option = statusOptions.find((status) => status.id === statusId);
-  const candidates = [statusId, option?.label ?? ''];
-  for (const candidate of candidates) {
-    const exact = candidate.trim().toLowerCase();
-    const normalized = normalizeStatusKey(candidate);
-    if (exact in STATUS_PROGRESS_BY_KEY) return STATUS_PROGRESS_BY_KEY[exact];
-    if (normalized in STATUS_PROGRESS_BY_KEY) return STATUS_PROGRESS_BY_KEY[normalized];
-  }
-  return undefined;
+  const candidates = [statusId, option?.label ?? '', option?.workflowMeaning ?? ''];
+  return candidates.some((candidate) => normalizeStatusKey(candidate) === 'done');
 }
 
-function findStatusId(statusOptions: SelectOption[], keys: string[]) {
-  const normalizedKeys = new Set(keys.map(normalizeStatusKey));
-  return statusOptions.find((status) => (
-    normalizedKeys.has(normalizeStatusKey(status.id)) ||
-    normalizedKeys.has(normalizeStatusKey(status.label))
-  ))?.id;
-}
-
-function syncTaskPatch(patch: Partial<Task>, statusOptions: SelectOption[]) {
+function syncTaskPatch(
+  patch: Partial<Task>,
+  statusOptions: SelectOption[],
+  existingTask: Task,
+  previousProgressBeforeDone?: number
+) {
   const syncedPatch = { ...patch };
 
-  if (patch.status !== undefined) {
-    const mappedProgress = getStatusProgress(String(patch.status), statusOptions);
-    if (typeof mappedProgress === 'number') {
-      syncedPatch.progress = mappedProgress;
-    }
+  if (patch.progress !== undefined) {
+    syncedPatch.progress = Math.min(100, Math.max(0, Number(patch.progress) || 0));
   }
 
-  if (patch.progress !== undefined) {
-    const nextProgress = Math.min(100, Math.max(0, Number(patch.progress) || 0));
-    syncedPatch.progress = nextProgress;
-    const statusId = findStatusId(statusOptions, STATUS_KEYS_BY_PROGRESS[nextProgress] ?? []);
-    if (statusId) {
-      syncedPatch.status = statusId;
+  if (patch.status !== undefined) {
+    const nextStatusIsDone = isDoneStatus(String(patch.status), statusOptions);
+    const currentStatusIsDone = isDoneStatus(existingTask.status, statusOptions);
+
+    if (nextStatusIsDone) {
+      syncedPatch.progress = 100;
+    } else if (currentStatusIsDone && previousProgressBeforeDone !== undefined) {
+      syncedPatch.progress = previousProgressBeforeDone;
     }
   }
 
@@ -246,6 +218,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
   const [deletedGroupSnapshot, setDeletedGroupSnapshot] = useState<DeletedGroupSnapshot | null>(null);
   const [taskRenameRequestId, setTaskRenameRequestId] = useState<string | null>(null);
   const pendingRenameIdRef = useRef<string | null>(null);
+  const progressBeforeDoneRef = useRef<Record<string, number>>({});
 
   // Live filter & sorting state
   const [searchQuery, setSearchQuery] = useState('');
@@ -306,6 +279,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
     setDeletedGroupSnapshot(null);
     setTaskRenameRequestId(null);
     pendingRenameIdRef.current = null;
+    progressBeforeDoneRef.current = {};
     setSearchQuery('');
     setSortMode('none');
     setSortDirection('desc');
@@ -381,7 +355,35 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
   }, []);
 
   const updateTask = useCallback((taskId: string, patch: Partial<Task>) => {
-    const syncedPatch = syncTaskPatch(patch, boardConfig.statusOptions);
+    const existingTask = tasks[taskId];
+    if (!existingTask) return;
+
+    if (patch.status !== undefined) {
+      const nextStatusIsDone = isDoneStatus(String(patch.status), boardConfig.statusOptions);
+      const currentStatusIsDone = isDoneStatus(existingTask.status, boardConfig.statusOptions);
+
+      if (nextStatusIsDone && !currentStatusIsDone) {
+        progressBeforeDoneRef.current[taskId] = Math.min(100, Math.max(0, Number(existingTask.progress) || 0));
+      } else if (!nextStatusIsDone && currentStatusIsDone) {
+        progressBeforeDoneRef.current[taskId] ??= Math.min(100, Math.max(0, Number(existingTask.progress) || 0));
+      }
+    }
+
+    const syncedPatch = syncTaskPatch(
+      patch,
+      boardConfig.statusOptions,
+      existingTask,
+      progressBeforeDoneRef.current[taskId]
+    );
+
+    if (
+      patch.status !== undefined &&
+      !isDoneStatus(String(patch.status), boardConfig.statusOptions) &&
+      isDoneStatus(existingTask.status, boardConfig.statusOptions)
+    ) {
+      delete progressBeforeDoneRef.current[taskId];
+    }
+
     setTasks((prev) => {
       const existing = prev[taskId];
       if (!existing) return prev;
@@ -407,7 +409,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       .catch((e) => {
         setError(e instanceof Error ? e.message : 'Failed to update task');
       });
-  }, [workspaceId, boardId, boardConfig, groups, manualGroupOrder, syncStorage]);
+  }, [workspaceId, boardId, boardConfig, groups, manualGroupOrder, syncStorage, tasks]);
 
   const postTaskUpdate = useCallback((taskId: string, content: string, attachments: Task['files'], mentions: string[]) => {
     const existing = tasks[taskId];
