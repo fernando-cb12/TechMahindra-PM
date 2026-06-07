@@ -88,11 +88,13 @@ function Workspaces() {
     window.addEventListener('workspace:renamed', refresh);
     window.addEventListener('workspace:deleted', refresh);
     window.addEventListener('workspace:restored', refresh);
+    window.addEventListener('workspace:status-changed', refresh);
     return () => {
       window.removeEventListener('workspace:created', refresh);
       window.removeEventListener('workspace:renamed', refresh);
       window.removeEventListener('workspace:deleted', refresh);
       window.removeEventListener('workspace:restored', refresh);
+      window.removeEventListener('workspace:status-changed', refresh);
     };
   }, [loadProjects]);
 

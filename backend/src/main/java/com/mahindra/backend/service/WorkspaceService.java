@@ -130,7 +130,7 @@ public class WorkspaceService {
         Workspace workspace = new Workspace();
         workspace.setName(request.title().trim());
         workspace.setDescription(request.description().trim());
-        workspace.setStatus(toPersistedStatus(request.status()));
+        workspace.setStatus(WorkspaceStatusMapper.toPersistedStatus(request.status()));
         workspace.setCreatedBy(creator);
         workspace.setBannerImageUrl(trimToNull(request.imageUrl()));
         workspace.setBudgetLabel(trimToNull(request.budgetLabel()));
@@ -178,7 +178,7 @@ public class WorkspaceService {
             workspace.setDescription(request.description().trim());
         }
         if (request.status() != null) {
-            workspace.setStatus(toPersistedStatus(request.status()));
+            workspace.setStatus(WorkspaceStatusMapper.toPersistedStatus(request.status()));
         }
         if (request.imageUrl() != null) {
             workspace.setBannerImageUrl(trimToNull(request.imageUrl()));
@@ -376,7 +376,7 @@ public class WorkspaceService {
                     estimated,
                     due,
                     budget,
-                    toUiStatus(w.getStatus())));
+                    WorkspaceStatusMapper.toUiStatus(w.getStatus())));
         }
         return out;
     }
@@ -416,33 +416,6 @@ public class WorkspaceService {
             return 0;
         }
         return (int) Math.round(100.0 * part / total);
-    }
-
-    private static String toUiStatus(String db) {
-        if (db == null) {
-            return "planning";
-        }
-        return switch (db) {
-            case "draft" -> "planning";
-            case "on_hold" -> "in-progress";
-            case "active" -> "active";
-            case "completed" -> "completed";
-            case "archived" -> "completed";
-            default -> "planning";
-        };
-    }
-
-    private static String toPersistedStatus(String ui) {
-        if (ui == null || ui.isBlank()) {
-            return "draft";
-        }
-        return switch (ui) {
-            case "planning" -> "draft";
-            case "in-progress" -> "on_hold";
-            case "active" -> "active";
-            case "completed" -> "completed";
-            default -> "draft";
-        };
     }
 
     private static LocalDate parseDueDate(String raw) {

@@ -153,7 +153,7 @@ public class AiWorkspaceImportService {
         Workspace workspace = new Workspace();
         workspace.setName(draft.workspace().title());
         workspace.setDescription(draft.workspace().description());
-        workspace.setStatus(toPersistedStatus(request.status()));
+        workspace.setStatus(WorkspaceStatusMapper.toPersistedStatus(request.status()));
         workspace.setCreatedBy(creator);
         workspace.setBudgetLabel(trimToNull(draft.workspace().budgetLabel()));
         workspace.setCardDueDate(parseFutureDateOrNull(draft.workspace().dueDate()));
@@ -501,19 +501,6 @@ public class AiWorkspaceImportService {
     private String normalizeDate(String raw) {
         LocalDate parsed = parseDateOrNull(raw);
         return parsed != null ? parsed.toString() : null;
-    }
-
-    private String toPersistedStatus(String ui) {
-        if (ui == null || ui.isBlank()) {
-            return "draft";
-        }
-        return switch (ui) {
-            case "planning" -> "draft";
-            case "in-progress" -> "on_hold";
-            case "active" -> "active";
-            case "completed" -> "completed";
-            default -> "draft";
-        };
     }
 
     private String required(String value, String label) {

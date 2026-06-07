@@ -10,17 +10,13 @@ function WorkspaceGeneralInfo({ workspace }: WorkspaceGeneralInfoProps) {
   const theme = useTheme();
 
   const statusConfig: Record<string, { label: string; bg: string; color: string }> = {
-    active: { label: 'Active', bg: theme.palette.grey[800], color: theme.palette.common.white },
-    'in-progress': {
-      label: 'In Progress',
-      bg: theme.palette.warning.main,
-      color: theme.palette.grey[900],
-    },
     planning: { label: 'Planning', bg: theme.palette.grey[400], color: theme.palette.common.white },
+    'in-progress': { label: 'In Progress', bg: theme.palette.warning.main, color: theme.palette.grey[900] },
+    'on-hold': { label: 'On Hold', bg: theme.palette.grey[700], color: theme.palette.common.white },
     completed: { label: 'Completed', bg: theme.palette.success.main, color: theme.palette.common.white },
   };
 
-  const status = statusConfig[workspace.status] || statusConfig.active;
+  const status = statusConfig[workspace.status] || statusConfig.planning;
 
   const parseProjectDate = (value: string): Date | null => {
     const mmddyyyy = /^(\d{2})\/(\d{2})\/(\d{4})$/;

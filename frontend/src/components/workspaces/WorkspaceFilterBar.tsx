@@ -1,5 +1,6 @@
 import { Box, Button, Stack, TextField, Select, MenuItem, OutlinedInput, useTheme } from '@mui/material';
 import type { WorkspaceProjectStatus } from './WorkspaceProjectCard';
+import { WORKSPACE_STATUS_OPTIONS } from './workspaceStatus';
 
 type WorkspaceFilters = {
   status: WorkspaceProjectStatus[];
@@ -90,10 +91,11 @@ function WorkspaceFilterBar({ filters, onFiltersChange, memberOptions }: Workspa
               }
               sx={{ fontFamily: 'Montserrat, sans-serif', fontSize: 14 }}
             >
-              <MenuItem value="planning">Planning</MenuItem>
-              <MenuItem value="active">Active</MenuItem>
-              <MenuItem value="in-progress">In Progress</MenuItem>
-              <MenuItem value="completed">Completed</MenuItem>
+              {WORKSPACE_STATUS_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
             </Select>
           </Box>
 

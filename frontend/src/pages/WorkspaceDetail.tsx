@@ -2,22 +2,26 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import type { WorkspaceProjectCardData } from '../components/workspaces/WorkspaceProjectCard';
-import { getWorkspace } from '../services/workspacesService';
+import type { WorkspaceProjectCardData, WorkspaceProjectStatus } from '../components/workspaces/WorkspaceProjectCard';
+import { getWorkspace, updateWorkspaceProject } from '../services/workspacesService';
 import WorkspaceHeader from '../components/workspaces/detail/WorkspaceHeader';
 import WorkspaceStats from '../components/workspaces/detail/WorkspaceStats';
 import WorkspaceIssuesSection from '../components/workspaces/detail/WorkspaceIssuesSection';
 import WorkspaceBoardsSection from '../components/workspaces/detail/WorkspaceBoardsSection';
 import WorkspaceMetricsSection from '../components/workspaces/detail/WorkspaceMetricsSection';
 import WorkspaceUsersSection from '../components/workspaces/detail/WorkspaceUsersSection';
+import { getWorkspaceStatusLabel } from '../components/workspaces/workspaceStatus';
 import { showAppNotification, showAppError } from '../components/shared/appNotifications';
 import WorkspaceActionPillButton from '../components/workspaces/detail/WorkspaceActionPillButton';
+import { useAuth } from '../auth/useAuth';
 
 function WorkspaceDetail() {
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const navigate = useNavigate();
+  const { hasRoleAtLeast } = useAuth();
   const [workspace, setWorkspace] = useState<WorkspaceProjectCardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   useEffect(() => {
     const loadWorkspace = async () => {
@@ -39,6 +43,25 @@ function WorkspaceDetail() {
 
     void loadWorkspace();
   }, [workspaceId]);
+
+  const handleWorkspaceStatusChange = async (status: WorkspaceProjectStatus) => {
+    if (!workspaceId || !workspace || workspace.status === status || isUpdatingStatus) {
+      return;
+    }
+    setIsUpdatingStatus(true);
+    try {
+      const updated = await updateWorkspaceProject(workspaceId, { status });
+      setWorkspace(updated);
+      window.dispatchEvent(new CustomEvent('workspace:status-changed', {
+        detail: { workspaceId: updated.id, status: updated.status },
+      }));
+      showAppNotification({ message: `Workspace marked as ${getWorkspaceStatusLabel(updated.status)}`, severity: 'success' });
+    } catch (e) {
+      showAppError(e, 'Failed to update workspace status');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -109,7 +132,12 @@ function WorkspaceDetail() {
         Back to Workspaces
       </WorkspaceActionPillButton>
 
-      <WorkspaceHeader workspace={workspace} />
+      <WorkspaceHeader
+        workspace={workspace}
+        canManageStatus={hasRoleAtLeast('TEAM_LEAD')}
+        isUpdatingStatus={isUpdatingStatus}
+        onStatusChange={handleWorkspaceStatusChange}
+      />
 
       <Box
         sx={{

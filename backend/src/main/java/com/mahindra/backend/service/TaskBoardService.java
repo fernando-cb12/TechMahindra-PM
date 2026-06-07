@@ -106,6 +106,7 @@ public class TaskBoardService {
     private final TaskFileRepository taskFileRepository;
     private final TaskActivityRepository taskActivityRepository;
     private final CareerRewardsService careerRewardsService;
+    private final WorkspaceLifecycleService workspaceLifecycleService;
 
     public TaskBoardService(WorkspaceRepository workspaceRepository, BoardRepository boardRepository,
             BoardMemberRepository boardMemberRepository, UserRepository userRepository,
@@ -113,7 +114,8 @@ public class TaskBoardService {
             BoardColumnOptionRepository boardColumnOptionRepository, BoardViewRepository boardViewRepository,
             TaskRepository taskRepository, TaskCustomValueRepository taskCustomValueRepository,
             TaskUpdateRepository taskUpdateRepository, TaskFileRepository taskFileRepository,
-            TaskActivityRepository taskActivityRepository, CareerRewardsService careerRewardsService) {
+            TaskActivityRepository taskActivityRepository, CareerRewardsService careerRewardsService,
+            WorkspaceLifecycleService workspaceLifecycleService) {
         this.workspaceRepository = workspaceRepository;
         this.boardRepository = boardRepository;
         this.boardMemberRepository = boardMemberRepository;
@@ -128,6 +130,7 @@ public class TaskBoardService {
         this.taskFileRepository = taskFileRepository;
         this.taskActivityRepository = taskActivityRepository;
         this.careerRewardsService = careerRewardsService;
+        this.workspaceLifecycleService = workspaceLifecycleService;
     }
 
     @Transactional
@@ -406,6 +409,7 @@ public class TaskBoardService {
         }
         task.setPosition(taskRepository.findByGroupIdAndDeletedAtIsNullOrderByPositionAscIdAsc(groupId).size());
         taskRepository.save(task);
+        workspaceLifecycleService.syncStatusFromTasks(workspaceId);
         recordActivity(board, task, user, "task.created", "task", null, taskEventSnapshot(task), "user");
         return toTaskDto(task, List.of(), List.of(), List.of(),
                 taskActivityRepository.findTop100ByBoardIdAndVisibilityOrderByCreatedAtDesc(boardId, "user"));
@@ -464,6 +468,7 @@ public class TaskBoardService {
         }
         task.setUpdatedAt(Instant.now());
         taskRepository.save(task);
+        workspaceLifecycleService.syncStatusFromTasks(workspaceId);
         recordChangedTaskFields(task, user, before, taskSnapshot(task));
         if (!Objects.equals(previousWorkflow, currentWorkflow)) {
             recordActivity(task.getBoard(), task, user, "task.workflow_changed", "workflow",
@@ -495,6 +500,7 @@ public class TaskBoardService {
         task.setDeletedBy(user);
         task.setPurgeAfter(Instant.now().plusSeconds(30L * 24 * 60 * 60));
         taskRepository.save(task);
+        workspaceLifecycleService.syncStatusFromTasks(workspaceId);
         recordActivity(task.getBoard(), task, user, "task.deleted", "task", taskEventSnapshot(task), null, "user");
     }
 
@@ -510,6 +516,7 @@ public class TaskBoardService {
         task.setPurgeAfter(null);
         task.setUpdatedAt(Instant.now());
         taskRepository.save(task);
+        workspaceLifecycleService.syncStatusFromTasks(workspaceId);
         recordActivity(task.getBoard(), task, user, "task.restored", "task", null, taskEventSnapshot(task), "user");
         return toTaskDto(task,
                 taskCustomValueRepository.findByTaskBoardIdAndTaskDeletedAtIsNull(boardId),

@@ -133,6 +133,7 @@ function MainLayout() {
     window.addEventListener('workspace:renamed', refresh);
     window.addEventListener('workspace:deleted', refresh);
     window.addEventListener('workspace:restored', refresh);
+    window.addEventListener('workspace:status-changed', refresh);
     window.addEventListener('board:created', refresh);
     window.addEventListener('board:deleted', refresh);
     window.addEventListener('board:restored', refresh);
@@ -142,6 +143,7 @@ function MainLayout() {
       window.removeEventListener('workspace:renamed', refresh);
       window.removeEventListener('workspace:deleted', refresh);
       window.removeEventListener('workspace:restored', refresh);
+      window.removeEventListener('workspace:status-changed', refresh);
       window.removeEventListener('board:created', refresh);
       window.removeEventListener('board:deleted', refresh);
       window.removeEventListener('board:restored', refresh);

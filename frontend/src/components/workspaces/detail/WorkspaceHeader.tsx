@@ -1,26 +1,31 @@
-import { Box, Paper, Typography, Chip, useTheme } from '@mui/material';
+import { Box, Paper, Typography, Chip, FormControl, MenuItem, Select, useTheme } from '@mui/material';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
-import type { WorkspaceProjectCardData } from '../WorkspaceProjectCard';
+import type { WorkspaceProjectCardData, WorkspaceProjectStatus } from '../WorkspaceProjectCard';
+import { WORKSPACE_STATUS_OPTIONS } from '../workspaceStatus';
 
 interface WorkspaceHeaderProps {
   workspace: WorkspaceProjectCardData;
+  canManageStatus?: boolean;
+  isUpdatingStatus?: boolean;
+  onStatusChange?: (status: WorkspaceProjectStatus) => void;
 }
 
-function WorkspaceHeader({ workspace }: WorkspaceHeaderProps) {
+function WorkspaceHeader({
+  workspace,
+  canManageStatus = false,
+  isUpdatingStatus = false,
+  onStatusChange,
+}: WorkspaceHeaderProps) {
   const theme = useTheme();
 
-  const statusConfig: Record<string, { label: string; bg: string; color: string }> = {
-    active: { label: 'Active', bg: theme.palette.grey[800], color: theme.palette.common.white },
-    'in-progress': {
-      label: 'In Progress',
-      bg: theme.palette.warning.main,
-      color: theme.palette.grey[900],
-    },
+  const statusConfig: Record<WorkspaceProjectStatus, { label: string; bg: string; color: string }> = {
     planning: { label: 'Planning', bg: theme.palette.grey[400], color: theme.palette.common.white },
+    'in-progress': { label: 'In Progress', bg: theme.palette.warning.main, color: theme.palette.grey[900] },
+    'on-hold': { label: 'On Hold', bg: theme.palette.grey[700], color: theme.palette.common.white },
     completed: { label: 'Completed', bg: theme.palette.success.main, color: theme.palette.common.white },
   };
 
-  const status = statusConfig[workspace.status] || statusConfig.active;
+  const status = statusConfig[workspace.status] || statusConfig.planning;
 
   const parseProjectDate = (value: string): Date | null => {
     const mmddyyyy = /^(\d{2})\/(\d{2})\/(\d{4})$/;
@@ -96,18 +101,43 @@ function WorkspaceHeader({ workspace }: WorkspaceHeaderProps) {
               {workspace.description}
             </Typography>
           </Box>
-          <Chip
-            label={status.label}
-            sx={{
-              height: 24,
-              borderRadius: '5px',
-              bgcolor: status.bg,
-              color: status.color,
-              fontWeight: 700,
-              fontSize: 12,
-              '& .MuiChip-label': { px: 1.5 },
-            }}
-          />
+          {canManageStatus && onStatusChange ? (
+            <FormControl size="small" sx={{ minWidth: 160 }}>
+              <Select
+                value={workspace.status}
+                disabled={isUpdatingStatus}
+                onChange={(event) => onStatusChange(event.target.value as WorkspaceProjectStatus)}
+                sx={{
+                  borderRadius: '5px',
+                  bgcolor: status.bg,
+                  color: status.color,
+                  fontWeight: 700,
+                  fontSize: 12,
+                  '.MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
+                  '& .MuiSvgIcon-root': { color: status.color },
+                }}
+              >
+                {WORKSPACE_STATUS_OPTIONS.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          ) : (
+            <Chip
+              label={status.label}
+              sx={{
+                height: 24,
+                borderRadius: '5px',
+                bgcolor: status.bg,
+                color: status.color,
+                fontWeight: 700,
+                fontSize: 12,
+                '& .MuiChip-label': { px: 1.5 },
+              }}
+            />
+          )}
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
