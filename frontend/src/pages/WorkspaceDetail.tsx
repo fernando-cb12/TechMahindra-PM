@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Box, CircularProgress, Button, Typography, useTheme } from '@mui/material';
+import { Box, CircularProgress, Typography } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import type { WorkspaceProjectCardData } from '../components/workspaces/WorkspaceProjectCard';
 import { getWorkspace } from '../services/workspacesService';
@@ -11,11 +11,11 @@ import WorkspaceBoardsSection from '../components/workspaces/detail/WorkspaceBoa
 import WorkspaceMetricsSection from '../components/workspaces/detail/WorkspaceMetricsSection';
 import WorkspaceUsersSection from '../components/workspaces/detail/WorkspaceUsersSection';
 import { showAppNotification, showAppError } from '../components/shared/appNotifications';
+import WorkspaceActionPillButton from '../components/workspaces/detail/WorkspaceActionPillButton';
 
 function WorkspaceDetail() {
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const navigate = useNavigate();
-  const theme = useTheme();
   const [workspace, setWorkspace] = useState<WorkspaceProjectCardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -70,20 +70,16 @@ function WorkspaceDetail() {
           py: 3,
         }}
       >
-        <Button
+        <WorkspaceActionPillButton
           startIcon={<ArrowBackIcon />}
           onClick={() => navigate('/workspaces')}
           sx={{
-            textTransform: 'none',
             mb: 2,
-            color: 'primary.main',
-            fontWeight: 600,
             fontSize: 14,
-            '&:hover': { bgcolor: 'rgba(95, 2, 41, 0.08)' },
           }}
         >
           Back to Workspaces
-        </Button>
+        </WorkspaceActionPillButton>
         <Typography sx={{ color: 'text.secondary', fontFamily: 'Montserrat, sans-serif' }}>
           Workspace not found
         </Typography>
@@ -102,20 +98,16 @@ function WorkspaceDetail() {
         py: 3,
       }}
     >
-      <Button
+      <WorkspaceActionPillButton
         startIcon={<ArrowBackIcon />}
         onClick={() => navigate('/workspaces')}
         sx={{
-          textTransform: 'none',
           mb: 3,
-          color: theme.palette.mode === 'dark' ? '#fff' : 'primary.main',
-          fontWeight: 600,
           fontSize: 14,
-          '&:hover': { bgcolor: 'rgba(95, 2, 41, 0.08)' },
         }}
       >
         Back to Workspaces
-      </Button>
+      </WorkspaceActionPillButton>
 
       <WorkspaceHeader workspace={workspace} />
 
@@ -125,15 +117,20 @@ function WorkspaceDetail() {
           gridTemplateColumns: { xs: '1fr', lg: '2fr 1fr' },
           gap: 3,
           mt: 4,
+          alignItems: 'stretch',
         }}
       >
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, minHeight: 0 }}>
           <WorkspaceIssuesSection workspace={workspace} />
-          <WorkspaceBoardsSection workspaceId={workspace.id} />
+          <Box sx={{ flex: 1, minHeight: 340 }}>
+            <WorkspaceBoardsSection workspaceId={workspace.id} />
+          </Box>
         </Box>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, minHeight: 0 }}>
           <WorkspaceMetricsSection />
-          <WorkspaceUsersSection workspace={workspace} />
+          <Box sx={{ flex: 1, minHeight: 340 }}>
+            <WorkspaceUsersSection workspace={workspace} onWorkspaceChange={setWorkspace} />
+          </Box>
         </Box>
       </Box>
 

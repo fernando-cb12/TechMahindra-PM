@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Box, CircularProgress, Paper, Typography, Button, useTheme, alpha } from '@mui/material';
+import { Box, CircularProgress, Paper, Typography, useTheme, alpha } from '@mui/material';
 import FolderIcon from '@mui/icons-material/Folder';
 import AddIcon from '@mui/icons-material/Add';
 import { createWorkspaceBoard, getWorkspaceBoards, type WorkspaceBoard } from '../../../services/workspacesService';
@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/useAuth';
 import { showAppError, showAppNotification } from '../../shared/appNotifications';
 import CreateBoardModal from './CreateBoardModal';
+import WorkspaceActionPillButton from './WorkspaceActionPillButton';
 
 interface WorkspaceBoardsSectionProps {
   workspaceId: string;
@@ -63,8 +64,8 @@ function WorkspaceBoardsSection({ workspaceId }: WorkspaceBoardsSectionProps): R
           bgcolor: 'background.paper',
           borderRadius: '5px',
           p: 3,
+          height: '100%',
           minHeight: 340,
-          maxHeight: 460,
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
@@ -84,20 +85,12 @@ function WorkspaceBoardsSection({ workspaceId }: WorkspaceBoardsSectionProps): R
             Boards
           </Typography>
           {canCreateBoard ? (
-            <Button
-              size="small"
+            <WorkspaceActionPillButton
               startIcon={<AddIcon />}
               onClick={() => setIsCreateOpen(true)}
-              sx={{
-                textTransform: 'none',
-                fontSize: 12,
-                fontWeight: 600,
-                color: theme.palette.mode === 'dark' ? '#fff' : 'primary.main',
-                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.08) },
-              }}
             >
               New
-            </Button>
+            </WorkspaceActionPillButton>
           ) : null}
         </Box>
 

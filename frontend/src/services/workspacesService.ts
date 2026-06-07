@@ -116,6 +116,24 @@ export async function createWorkspaceBoard(workspaceId: string, payload: CreateB
   }
 }
 
+export async function addWorkspaceMembers(workspaceId: string, userIds: number[]): Promise<WorkspaceProjectCardData> {
+  try {
+    const { data } = await apiClient.post<WorkspaceProjectCardApi>(`/api/workspaces/${workspaceId}/members`, { userIds });
+    return mapCard(data);
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
+export async function removeWorkspaceMember(workspaceId: string, userId: string): Promise<WorkspaceProjectCardData> {
+  try {
+    const { data } = await apiClient.delete<WorkspaceProjectCardApi>(`/api/workspaces/${workspaceId}/members/${userId}`);
+    return mapCard(data);
+  } catch (e) {
+    throw new Error(getErrorMessage(e));
+  }
+}
+
 export async function updateWorkspaceProject(
   workspaceId: string,
   payload: Partial<Pick<CreateWorkspaceProjectPayload, 'title' | 'description' | 'dueDate' | 'budgetLabel' | 'imageUrl' | 'status'>>
