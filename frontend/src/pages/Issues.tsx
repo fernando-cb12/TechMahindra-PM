@@ -52,7 +52,7 @@ function Issues() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState<MyTasksFilterMode>(() => getStoredFilterMode());
   const [selectedInsight, setSelectedInsight] = useState<InsightId | null>(null);
-  const [filters, setFilters] = useState<MyTasksFilters>(EMPTY_MY_TASKS_FILTERS);
+  const [filters, setFilters] = useState<MyTasksFilters | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [menuState, setMenuState] = useState<TaskMenuState>(null);
   const filterModeStorageKey = useMemo(
@@ -73,6 +73,7 @@ function Issues() {
     ...EMPTY_MY_TASKS_FILTERS,
     workspaceIds: scopedWorkspaceId ? [scopedWorkspaceId] : [],
   }), [scopedWorkspaceId]);
+  const activeFilters = useMemo(() => filters ?? buildDefaultFilters(), [buildDefaultFilters, filters]);
 
   const loadTasks = useCallback(() => {
     let cancelled = false;
@@ -95,13 +96,6 @@ function Issues() {
   }, [scopedWorkspaceId]);
 
   useEffect(() => loadTasks(), [loadTasks]);
-
-  useEffect(() => {
-    if (!currentUserId) {
-      return;
-    }
-    setFilters(buildDefaultFilters());
-  }, [buildDefaultFilters, currentUserId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -128,11 +122,11 @@ function Issues() {
   );
 
   const boardChoices = useMemo(() => {
-    const scopedTasks = filters.workspaceIds.length > 0
-      ? tasks.filter((task) => filters.workspaceIds.includes(task.workspaceId))
+    const scopedTasks = activeFilters.workspaceIds.length > 0
+      ? tasks.filter((task) => activeFilters.workspaceIds.includes(task.workspaceId))
       : tasks;
     return uniqueChoices(scopedTasks, (task) => task.boardId, (task) => task.boardName, undefined, (task) => task.workspaceName);
-  }, [tasks, filters.workspaceIds]);
+  }, [activeFilters.workspaceIds, tasks]);
 
   const personChoices = useMemo(() => {
     const map = new Map<string, { id: string; label: string; groupLabel?: string }>();
@@ -162,7 +156,8 @@ function Issues() {
 
   const toggleFilter = <K extends keyof MyTasksFilters>(key: K, value: MyTasksFilters[K][number]) => {
     setFilters((prev) => {
-      const current = prev[key] as string[];
+      const nextFilters = prev ?? buildDefaultFilters();
+      const current = nextFilters[key] as string[];
       const next = current.includes(String(value))
         ? current.filter((item) => item !== String(value))
         : [...current, String(value)];
@@ -175,13 +170,13 @@ function Issues() {
             .map((task) => task.boardId)
         );
         return {
-          ...prev,
+          ...nextFilters,
           workspaceIds: nextWorkspaceIds,
-          boardIds: prev.boardIds.filter((boardId) => allowedBoardIds.has(boardId)),
+          boardIds: nextFilters.boardIds.filter((boardId) => allowedBoardIds.has(boardId)),
         };
       }
 
-      return { ...prev, [key]: next };
+      return { ...nextFilters, [key]: next };
     });
   };
 
@@ -191,7 +186,11 @@ function Issues() {
     window.localStorage.setItem(filterModeStorageKey, mode);
 
     if (mode === 'kpis') {
-      setFilters((prev) => ({ ...prev, workflows: [], dueDates: [] }));
+      setFilters((prev) => ({
+        ...(prev ?? buildDefaultFilters()),
+        workflows: [],
+        dueDates: [],
+      }));
     }
 
     void updateMyTasksFilterMode(mode).catch(() => undefined);
@@ -200,9 +199,9 @@ function Issues() {
   const visibleTasks = useMemo(() => (
     tasks
       .filter((task) => filterMode === 'kpis' ? taskMatchesInsight(task, selectedInsight) : true)
-      .filter((task) => taskMatchesFilters(task, filters))
+      .filter((task) => taskMatchesFilters(task, activeFilters))
       .filter((task) => taskMatchesSearch(task, searchQuery))
-  ), [tasks, filterMode, selectedInsight, filters, searchQuery]);
+  ), [tasks, filterMode, selectedInsight, activeFilters, searchQuery]);
 
   const selectedTask = selectedTaskId ? tasks.find((task) => task.id === selectedTaskId) ?? null : null;
   const menuTask = menuState ? tasks.find((task) => task.id === menuState.taskId) ?? null : null;
@@ -308,7 +307,7 @@ function Issues() {
       )}
 
       <MyTasksFilterBar
-        filters={filters}
+        filters={activeFilters}
         workspaceChoices={workspaceChoices}
         boardChoices={boardChoices}
         personChoices={personChoices}
