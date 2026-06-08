@@ -270,6 +270,96 @@ public class WorkspaceService {
     }
 
     @Transactional
+    public WorkspaceCardDto addMembers(Authentication authentication, Long workspaceId, List<Long> userIds) {
+        User manager = resolveUser(authentication);
+        Workspace workspace = resolveWorkspaceManagerForUpdate(manager, workspaceId);
+        if (userIds == null || userIds.isEmpty()) {
+            throw new IllegalArgumentException("At least one user is required");
+        }
+
+        LinkedHashSet<Long> uniqueUserIds = new LinkedHashSet<>(userIds);
+        LinkedHashSet<Long> existingMemberIds = new LinkedHashSet<>();
+        for (WorkspaceMember member : workspace.getMembers()) {
+            existingMemberIds.add(member.getUser().getId());
+        }
+
+        List<Board> boards = boardRepository.findByWorkspaceIdOrderByCreatedAtAsc(workspaceId);
+        List<BoardMember> boardMembersToSave = new ArrayList<>();
+        boolean changed = false;
+        for (Long userId : uniqueUserIds) {
+            User invitedUser = userRepository.findById(userId)
+                    .orElseThrow(() -> new IllegalArgumentException("Unknown user id: " + userId));
+            if (invitedUser.getStatus() != UserStatus.active) {
+                throw new IllegalArgumentException("User " + userId + " is not active");
+            }
+            if (!existingMemberIds.contains(invitedUser.getId())) {
+                WorkspaceMember workspaceMember = new WorkspaceMember();
+                workspaceMember.setUser(invitedUser);
+                workspaceMember.setRoleInWorkspace("collaborator");
+                workspace.addMember(workspaceMember);
+                existingMemberIds.add(invitedUser.getId());
+                changed = true;
+            }
+
+            for (Board board : boards) {
+                BoardMember boardMember = boardMemberRepository.findByBoardIdAndUserId(board.getId(), invitedUser.getId())
+                        .orElseGet(() -> {
+                            BoardMember created = new BoardMember();
+                            created.setBoard(board);
+                            created.setUser(invitedUser);
+                            return created;
+                        });
+                boardMember.setAssignedBy(manager);
+                boardMember.setRoleInBoard("editor");
+                boardMember.setDeletedAt(null);
+                boardMember.setDeletedBy(null);
+                boardMember.setPurgeAfter(null);
+                boardMembersToSave.add(boardMember);
+            }
+        }
+
+        if (changed) {
+            workspace.setUpdatedAt(Instant.now());
+        }
+        workspaceRepository.save(workspace);
+        boardMemberRepository.saveAll(boardMembersToSave);
+        workspaceRepository.flush();
+        return toDtos(List.of(workspace)).get(0);
+    }
+
+    @Transactional
+    public WorkspaceCardDto removeMember(Authentication authentication, Long workspaceId, Long userId) {
+        User manager = resolveUser(authentication);
+        Workspace workspace = resolveWorkspaceManagerForUpdate(manager, workspaceId);
+        if (manager.getId().equals(userId)) {
+            throw new IllegalArgumentException("You cannot remove yourself from this workspace");
+        }
+
+        WorkspaceMember memberToRemove = workspace.getMembers().stream()
+                .filter(member -> member.getUser().getId().equals(userId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("User is not a member of this workspace"));
+
+        workspace.getMembers().remove(memberToRemove);
+
+        Instant now = Instant.now();
+        Instant purgeAfter = now.plusSeconds(30L * 24 * 60 * 60);
+        List<BoardMember> boardMemberships = boardMemberRepository
+                .findByBoardWorkspaceIdAndUserIdAndDeletedAtIsNull(workspaceId, userId);
+        for (BoardMember boardMember : boardMemberships) {
+            boardMember.setDeletedAt(now);
+            boardMember.setDeletedBy(manager);
+            boardMember.setPurgeAfter(purgeAfter);
+        }
+
+        workspace.setUpdatedAt(now);
+        workspaceRepository.save(workspace);
+        boardMemberRepository.saveAll(boardMemberships);
+        workspaceRepository.flush();
+        return toDtos(List.of(workspace)).get(0);
+    }
+
+    @Transactional
     public void delete(Authentication authentication, Long workspaceId) {
         User user = resolveUser(authentication);
         Workspace workspace = resolveWorkspaceManager(user, workspaceId);

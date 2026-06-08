@@ -254,15 +254,8 @@ function Workspaces() {
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
         <Box>
           <Typography
-            sx={{
-              fontFamily: 'Montserrat, sans-serif',
-              fontWeight: 700,
-              fontSize: 43 / 2,
-              color: (theme) =>
-                theme.palette.mode === 'dark'
-                  ? theme.palette.text.primary
-                  : theme.palette.primary.main,
-            }}
+            variant="h2"
+            data-page-title="true"
           >
             Workspaces
           </Typography>
@@ -286,12 +279,9 @@ function Workspaces() {
             disableElevation
             onClick={() => setIsFilterOpen((prev) => !prev)}
             sx={{
-              borderRadius: '5px',
               minWidth: 120,
               minHeight: 28,
-              textTransform: 'none',
               fontSize: 14,
-              fontWeight: 700,
               color:
                 isFilterOpen || theme.palette.mode === 'dark'
                   ? 'common.white'
@@ -323,14 +313,10 @@ function Workspaces() {
               }}
               sx={{
                 bgcolor: 'primary.main',
-                borderRadius: '5px',
                 minWidth: 169,
                 minHeight: 28,
-                textTransform: 'none',
                 fontSize: 14,
-                fontWeight: 700,
                 '&:hover': { bgcolor: 'primary.dark' },
-                '&:disabled': { opacity: 0.6 },
               }}
             >
               {isSaving ? 'Creating...' : '+ Create Workspace'}
@@ -378,14 +364,11 @@ function Workspaces() {
                 onClick={handleAISelect}
                 startIcon={<UploadFileOutlinedIcon />}
                 sx={{
-                  textTransform: 'none',
                   justifyContent: 'flex-start',
                   p: 2,
-                  borderRadius: 2,
                   borderColor: 'primary.main',
                   color: 'text.primary',
                   fontFamily: 'Montserrat, sans-serif',
-                  fontWeight: 700,
                 }}
               >
                 Create with AI
@@ -395,14 +378,11 @@ function Workspaces() {
                 onClick={handleManualCreate}
                 startIcon={<AddCircleOutlinedIcon />}
                 sx={{
-                  textTransform: 'none',
                   p: 2,
-                  borderRadius: 2,
                   bgcolor: 'primary.main',
                   '&:hover': { bgcolor: 'primary.dark' },
                   color: 'common.white',
                   fontFamily: 'Montserrat, sans-serif',
-                  fontWeight: 700,
                 }}
               >
                 Create from Scratch
@@ -415,7 +395,6 @@ function Workspaces() {
             onClick={() => setIsCreateChoiceOpen(false)}
             sx={{
               fontFamily: 'Montserrat, sans-serif',
-              textTransform: 'none',
               color: 'text.primary',
             }}
           >

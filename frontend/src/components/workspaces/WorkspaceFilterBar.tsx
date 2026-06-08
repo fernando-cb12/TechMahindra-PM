@@ -73,9 +73,6 @@ function MultiSelectFilterButton({
         startIcon={<FilterAltOutlinedIcon sx={{ fontSize: 16 }} />}
         onClick={(event) => setAnchorEl(event.currentTarget)}
         sx={{
-          textTransform: 'none',
-          borderRadius: 1.5,
-          minHeight: 32,
           color: isDark ? (selectedCount > 0 ? '#FFFFFF' : '#F5F5F5') : 'primary.main',
           borderColor: isDark ? (selectedCount > 0 ? 'primary.main' : alpha('#FFFFFF', 0.28)) : undefined,
           bgcolor: selectedCount > 0 ? (isDark ? 'primary.main' : undefined) : 'transparent',
@@ -98,7 +95,6 @@ function MultiSelectFilterButton({
               color: 'primary.main',
               fontSize: 10,
               fontWeight: 900,
-              '& .MuiChip-label': { px: 0.6 },
             }}
           />
         )}
@@ -175,9 +171,6 @@ function SingleSelectFilterButton({
         startIcon={<FilterAltOutlinedIcon sx={{ fontSize: 16 }} />}
         onClick={(event) => setAnchorEl(event.currentTarget)}
         sx={{
-          textTransform: 'none',
-          borderRadius: 1.5,
-          minHeight: 32,
           color: isDark ? (selectedCount > 0 ? '#FFFFFF' : '#F5F5F5') : 'primary.main',
           borderColor: isDark ? (selectedCount > 0 ? 'primary.main' : alpha('#FFFFFF', 0.28)) : undefined,
           bgcolor: selectedCount > 0 ? (isDark ? 'primary.main' : undefined) : 'transparent',
@@ -246,9 +239,6 @@ function DateFilterButton({ filters, onChange }: { filters: WorkspaceFilters; on
         startIcon={<CalendarMonthOutlinedIcon sx={{ fontSize: 16 }} />}
         onClick={(event) => setAnchorEl(event.currentTarget)}
         sx={{
-          textTransform: 'none',
-          borderRadius: 1.5,
-          minHeight: 32,
           color: isDark ? (selectedCount > 0 ? '#FFFFFF' : '#F5F5F5') : 'primary.main',
           borderColor: isDark ? (selectedCount > 0 ? 'primary.main' : alpha('#FFFFFF', 0.28)) : undefined,
           bgcolor: selectedCount > 0 ? (isDark ? 'primary.main' : undefined) : 'transparent',
@@ -271,7 +261,6 @@ function DateFilterButton({ filters, onChange }: { filters: WorkspaceFilters; on
               color: 'primary.main',
               fontSize: 10,
               fontWeight: 900,
-              '& .MuiChip-label': { px: 0.6 },
             }}
           />
         )}
@@ -412,9 +401,7 @@ function WorkspaceFilterBar({ filters, onFiltersChange, memberOptions }: Workspa
             startIcon={<RestartAltIcon sx={{ fontSize: 16 }} />}
             onClick={handleClearFilters}
             sx={{
-              textTransform: 'none',
               fontSize: 12,
-              fontWeight: 800,
               color: isDark ? '#FFFFFF' : 'primary.main',
               '&:hover': {
                 bgcolor: isDark ? alpha('#FFFFFF', 0.06) : undefined,

@@ -197,14 +197,8 @@ function WorkspaceUsersSection({ workspace, onWorkspaceChange }: WorkspaceUsersS
     >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography
-          variant="h6"
-          sx={{
-            fontWeight: 700,
-            color: (currentTheme) =>
-              currentTheme.palette.mode === 'dark'
-                ? currentTheme.palette.text.primary
-                : currentTheme.palette.primary.main,
-          }}
+          variant="h2"
+          data-page-title="true"
         >
           Users
         </Typography>

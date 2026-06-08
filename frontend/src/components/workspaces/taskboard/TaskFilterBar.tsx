@@ -31,7 +31,6 @@ function FilterButton({ label, choices, selected, onToggle }: FilterButtonProps)
         variant={selectedCount > 0 ? 'contained' : 'outlined'}
         startIcon={<FilterAltOutlinedIcon sx={{ fontSize: 16 }} />}
         onClick={(event) => setAnchorEl(event.currentTarget)}
-        sx={{ textTransform: 'none', borderRadius: 1.5, minHeight: 32 }}
       >
         {label}
         {selectedCount > 0 && (
@@ -46,7 +45,6 @@ function FilterButton({ label, choices, selected, onToggle }: FilterButtonProps)
               color: 'primary.main',
               fontSize: 10,
               fontWeight: 800,
-              '& .MuiChip-label': { px: 0.6 },
             }}
           />
         )}
@@ -184,7 +182,7 @@ export default function TaskFilterBar({ filters, setFilters, resultLabel, storag
             variant="text"
             startIcon={<RestartAltIcon sx={{ fontSize: 16 }} />}
             onClick={clearFilters}
-            sx={{ textTransform: 'none', fontSize: 12, fontWeight: 700 }}
+            sx={{ fontSize: 12 }}
           >
             Clear
           </Button>

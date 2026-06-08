@@ -140,16 +140,9 @@ function Settings() {
       }}
     >
       <Typography
-        sx={{
-          fontFamily: 'Montserrat, sans-serif',
-          fontWeight: 700,
-          fontSize: 21.5,
-          color: (theme) =>
-            theme.palette.mode === 'dark'
-              ? theme.palette.text.primary
-              : theme.palette.primary.main,
-          mb: 3,
-        }}
+        variant="h2"
+        data-page-title="true"
+        sx={{ mb: 3 }}
       >
         Settings
       </Typography>

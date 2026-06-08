@@ -12,14 +12,11 @@ export default function TaskPill({ label, color }: { label: string; color: strin
       label={label}
       sx={{
         height: 24,
-        borderRadius: 1.5,
         bgcolor: isDark ? alpha(readableColor, 0.22) : alpha(color, 0.12),
         color: isDark ? readableColor : color,
         border: '1px solid',
         borderColor: isDark ? alpha(readableColor, 0.32) : 'transparent',
-        fontSize: 11,
         fontWeight: 800,
-        '& .MuiChip-label': { px: 1 },
       }}
     />
   );

@@ -85,13 +85,9 @@ function WorkspaceHeader({
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
           <Box>
             <Typography
-              variant="h4"
+              variant="h2"
+              data-page-title="true"
               sx={{
-                fontWeight: 700,
-                color: (theme) =>
-                  theme.palette.mode === 'dark'
-                    ? theme.palette.text.primary
-                    : theme.palette.primary.main,
                 mb: 0.5,
               }}
             >

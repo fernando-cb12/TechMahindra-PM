@@ -266,16 +266,7 @@ function Issues() {
 
       <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', md: 'flex-start' }} gap={2.5} sx={{ mb: 3 }}>
         <Box>
-          <Typography
-            sx={{
-              fontFamily: 'Montserrat, sans-serif',
-              fontSize: 21.5,
-              fontWeight: 700,
-              color: (theme) =>
-                theme.palette.mode === 'dark' ? theme.palette.text.primary : theme.palette.primary.main,
-              lineHeight: 1.15,
-            }}
-          >
+          <Typography variant="h2" data-page-title="true">
             Tasks
           </Typography>
           <Typography

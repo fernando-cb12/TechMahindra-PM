@@ -308,15 +308,7 @@ function Dashboard() {
     <Box sx={{ flex: 1, px: { xs: 2, sm: 4 }, py: 3, backgroundColor: 'background.default', minHeight: '100vh' }}>
       <Stack direction={{ xs: 'column', lg: 'row' }} justifyContent="space-between" gap={2.5}>
         <Box sx={{ maxWidth: 760 }}>
-          <Typography
-            sx={{
-              fontFamily: 'Montserrat, sans-serif',
-              fontWeight: 700,
-              fontSize: 21.5,
-              color: (theme) =>
-                theme.palette.mode === 'dark' ? theme.palette.text.primary : theme.palette.primary.main,
-            }}
-          >
+          <Typography variant="h2" data-page-title="true">
             Dashboard
           </Typography>
           <Typography

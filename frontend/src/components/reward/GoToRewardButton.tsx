@@ -1,40 +1,34 @@
 import Button from '@mui/material/Button';
 import BoltIcon from '@mui/icons-material/Bolt';
+import EmojiEventsOutlinedIcon from '@mui/icons-material/EmojiEventsOutlined';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../app/routes';
 
 interface GoToRewardButtonProps {
   points?: number;
+  destination?: 'rewards' | 'career';
 }
 
-export default function GoToRewardButton({ points }: GoToRewardButtonProps) {
+export default function GoToRewardButton({ points, destination = 'rewards' }: GoToRewardButtonProps) {
   const navigate = useNavigate();
+  const isCareerDestination = destination === 'career';
 
   return (
     <Button
-      onClick={() => navigate(ROUTES.rewards)}
-      startIcon={<BoltIcon sx={{ fontSize: '15px !important' }} />}
+      variant="contained"
+      onClick={() => navigate(isCareerDestination ? ROUTES.career : ROUTES.rewards)}
+      startIcon={isCareerDestination
+        ? <EmojiEventsOutlinedIcon sx={{ fontSize: '15px !important' }} />
+        : <BoltIcon sx={{ fontSize: '15px !important' }} />}
       sx={{
-        bgcolor: 'primary.main',
-        color: 'primary.contrastText',
-        fontWeight: 700,
         fontSize: 13,
         letterSpacing: '0.01em',
-        borderRadius: '20px',
         px: 2,
         py: 0.75,
-        gap: 0.5,
-        textTransform: 'none',
-        boxShadow: 'none',
-        transition: 'background 0.15s, box-shadow 0.15s',
-        '&:hover': {
-          bgcolor: 'primary.dark',
-          boxShadow: '0 2px 8px rgba(95,2,41,0.25)',
-        },
       }}
     >
-      Rewards
-      {points !== undefined && (
+      {isCareerDestination ? 'Career' : 'Rewards'}
+      {!isCareerDestination && points !== undefined && (
         <span
           style={{
             marginLeft: 6,

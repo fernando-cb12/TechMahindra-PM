@@ -673,7 +673,7 @@ function Metrics() {
     <Box component="main" sx={{ flex: 1, minHeight: '100vh', backgroundColor: 'background.default', px: { xs: 2, sm: 4 }, py: 3 }}>
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 2 }}>
         <Box>
-          <Typography sx={{ fontWeight: 800, fontSize: 28, color: isDark ? '#FFFFFF' : 'primary.main', lineHeight: 1 }}>Metrics</Typography>
+          <Typography variant="h2" data-page-title="true">Metrics</Typography>
           <Typography sx={{ mt: 0.8, color: 'text.secondary', fontSize: 13 }}>
             Deep observability for delivery, workflow, workload, risk, and custom board signals.
           </Typography>

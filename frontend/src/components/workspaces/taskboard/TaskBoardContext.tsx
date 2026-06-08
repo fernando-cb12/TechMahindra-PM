@@ -98,6 +98,12 @@ function syncTaskPatch(
   return syncedPatch;
 }
 
+function notifyWorkspaceTasksChanged(workspaceId: string) {
+  window.dispatchEvent(new CustomEvent('workspace:tasks-changed', {
+    detail: { workspaceId },
+  }));
+}
+
 // ─── Provider ───
 interface UserBoardOrderPreferences {
   columnOrder: string[];
@@ -405,6 +411,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
     void patchTask(workspaceId, boardId, taskId, syncedPatch)
       .then((savedTask) => {
         setTasks((prev) => ({ ...prev, [savedTask.id]: savedTask }));
+        notifyWorkspaceTasksChanged(workspaceId);
       })
       .catch((e) => {
         setError(e instanceof Error ? e.message : 'Failed to update task');
@@ -531,6 +538,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
           setTaskRenameRequestId(created.id);
         }
         setPanel((prev) => (prev.taskId === task.id ? { ...prev, taskId: created.id } : prev));
+        notifyWorkspaceTasksChanged(workspaceId);
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to create task'));
   }, [workspaceId, boardId, tasks, groups, boardConfig, manualGroupOrder, syncStorage]);
@@ -840,9 +848,11 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
 
       setTasks(updatedTasks);
       setGroups(updatedGroups);
-      const deletePromise = deleteTaskRequest(workspaceId, boardId, taskId).catch((e) => {
-        setError(e instanceof Error ? e.message : 'Failed to delete task');
-      });
+      const deletePromise = deleteTaskRequest(workspaceId, boardId, taskId)
+        .then(() => notifyWorkspaceTasksChanged(workspaceId))
+        .catch((e) => {
+          setError(e instanceof Error ? e.message : 'Failed to delete task');
+        });
 
       setDeletedTaskSnapshot({
         task: taskToDelete,
@@ -887,7 +897,10 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       setDeletedGroupSnapshot(null);
       void deletePromise
         .then(() => restoreTaskGroupRequest(workspaceId, boardId, group.id))
-        .then(refreshBoardPayload)
+        .then(() => {
+          notifyWorkspaceTasksChanged(workspaceId);
+          refreshBoardPayload();
+        })
         .catch((e) => setError(e instanceof Error ? e.message : 'Failed to restore group'));
       return;
     }
@@ -908,6 +921,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       .then(() => restoreTaskRequest(workspaceId, boardId, task.id))
       .then((restored) => {
         setTasks((prev) => ({ ...prev, [restored.id]: restored }));
+        notifyWorkspaceTasksChanged(workspaceId);
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to restore task'));
   }, [workspaceId, boardId, deletedTaskSnapshot, deletedGroupSnapshot, refreshBoardPayload]);
@@ -1049,9 +1063,11 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       setGroups(updatedGroups);
       setManualGroupOrder(updatedOrder);
       setTasks(updatedTasks);
-      const deletePromise = deleteTaskGroupRequest(workspaceId, boardId, groupId).catch((e) => {
-        setError(e instanceof Error ? e.message : 'Failed to delete group');
-      });
+      const deletePromise = deleteTaskGroupRequest(workspaceId, boardId, groupId)
+        .then(() => notifyWorkspaceTasksChanged(workspaceId))
+        .catch((e) => {
+          setError(e instanceof Error ? e.message : 'Failed to delete group');
+        });
       setDeletedTaskSnapshot(null);
       setDeletedGroupSnapshot({
         group: groupToDelete,
@@ -1086,6 +1102,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       void replaceColumns(workspaceId, boardId, columns)
         .then((savedColumns) => {
           setBoardConfig((prev) => ({ ...prev, columns: savedColumns }));
+          notifyWorkspaceTasksChanged(workspaceId);
           refreshBoardPayload();
         })
         .catch((e) => setError(e instanceof Error ? e.message : 'Failed to update status options'));
