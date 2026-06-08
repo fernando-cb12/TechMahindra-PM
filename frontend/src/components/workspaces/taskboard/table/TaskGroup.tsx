@@ -113,7 +113,7 @@ export default function TaskGroup({ group }: TaskGroupProps) {
       assigneeId: null,
       assigneeIds: [],
       status: boardConfig.statusOptions[0]?.id || '',
-      priority: boardConfig.priorityOptions[0]?.id || '',
+      priority: boardConfig.priorityOptions.find((option) => option.id === 'medium')?.id || 'medium',
       dueDate: null,
       progress: 0,
       budget: null,

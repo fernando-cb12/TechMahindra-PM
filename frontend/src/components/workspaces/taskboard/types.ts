@@ -100,6 +100,7 @@ export interface Task {
   assigneeIds: string[];      // Support multiple assignees (new specification)
   status: string;             // StatusOption.id or custom option id
   priority: string;           // PriorityOption.id or custom option id
+  pointsValue?: number;       // Base points awarded for completing the task
   dueDate: string | null;     // ISO date string — used by CalendarView
   progress: number;           // 0–100 — used by ChartView
   budget: number | null;

@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -55,6 +56,11 @@ import com.mahindra.backend.repository.WorkspaceRepository;
 
 @Service
 public class AiWorkspaceImportService {
+    private static final int LOW_TASK_POINTS = 10;
+    private static final int MEDIUM_TASK_POINTS = 25;
+    private static final int HIGH_TASK_POINTS = 50;
+    private static final int CRITICAL_TASK_POINTS = 100;
+
 
     private static final int MAX_TEXT_CHARS = 60_000;
     private static final int MIN_BOARDS = 2;
@@ -212,6 +218,7 @@ public class AiWorkspaceImportService {
                     task.setCreatedBy(creator);
                     task.setStatus(taskDraft.status());
                     task.setPriority(taskDraft.priority());
+                    task.setPointsValue(taskPointsForPriority(taskDraft.priority()));
                     task.setDueDate(parseDateOrNull(taskDraft.dueDate()));
                     task.setCompletedAt("done".equals(taskDraft.status()) ? Instant.now() : null);
                     task.setPosition(taskIndex++);
@@ -497,6 +504,22 @@ public class AiWorkspaceImportService {
         } catch (DateTimeParseException e) {
             return null;
         }
+    }
+
+    private int taskPointsForPriority(String priority) {
+        String normalized = priority == null
+                ? ""
+                : priority.trim().toLowerCase(Locale.ROOT).replaceAll("[_\\-\\s]+", " ");
+        if (normalized.contains("critical")) {
+            return CRITICAL_TASK_POINTS;
+        }
+        if (normalized.contains("high") || normalized.contains("hard")) {
+            return HIGH_TASK_POINTS;
+        }
+        if (normalized.contains("low") || normalized.contains("easy")) {
+            return LOW_TASK_POINTS;
+        }
+        return MEDIUM_TASK_POINTS;
     }
 
     private LocalDate parseFutureDateOrNull(String raw) {

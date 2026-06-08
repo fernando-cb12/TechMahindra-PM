@@ -25,6 +25,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import CheckIcon from '@mui/icons-material/Check';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import BoltIcon from '@mui/icons-material/Bolt';
 import type { ColumnDefinition, SelectOption, WorkflowMeaning } from '../types';
 import { useTaskBoard } from '../useTaskBoard';
 import { WORKFLOW_MEANING_LABELS, WORKFLOW_MEANING_OPTIONS, normalizeWorkflowMeaning, supportsWorkflowMeaning } from '../workflow';
@@ -914,6 +915,63 @@ export default function TaskCell({ taskId, column, renameSignal = 0 }: TaskCellP
   }
 
   // ─── DEFAULT TEXT CELLS ───
+  if (column.id === 'col_name' && !editing) {
+    return (
+      <Box
+        data-task-name-cell="true"
+        onClick={(e) => {
+          e.stopPropagation();
+          handleCellClick(e);
+        }}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.75,
+          minWidth: 0,
+          width: '100%',
+          cursor: 'text',
+          '&:hover': { bgcolor: 'action.hover' },
+          px: 0.5,
+          py: 0.25,
+          borderRadius: 0.5,
+        }}
+      >
+        <Typography
+          sx={{
+            fontSize: 13,
+            fontWeight: 600,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            minWidth: 0,
+            flex: 1,
+          }}
+        >
+          {String(cellValue ?? '')}
+        </Typography>
+        <Tooltip title="Base task points awarded when completed" arrow>
+          <Chip
+            size="small"
+            icon={<BoltIcon />}
+            label={`${task.pointsValue ?? 25}`}
+            sx={{
+              height: 20,
+              flexShrink: 0,
+              fontSize: 10.5,
+              fontWeight: 800,
+              color: 'primary.main',
+              bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
+              border: '1px solid',
+              borderColor: (theme) => alpha(theme.palette.primary.main, 0.18),
+              '& .MuiChip-icon': { fontSize: 12, color: 'primary.main' },
+              '& .MuiChip-label': { px: 0.6 },
+            }}
+          />
+        </Tooltip>
+      </Box>
+    );
+  }
+
   return editing ? (
     <TextField
       size="small"

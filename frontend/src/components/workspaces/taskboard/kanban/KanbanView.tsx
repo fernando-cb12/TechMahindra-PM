@@ -10,8 +10,10 @@ import {
   Paper,
   Popover,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
+import BoltIcon from '@mui/icons-material/Bolt';
 import {
   DndContext,
   DragOverlay,
@@ -416,6 +418,23 @@ function KanbanCard({ task, isOverlay = false, onTaskMenu }: KanbanCardProps) {
             onChange={(priority) => updateTask(task.id, { priority })}
           />
         )}
+        <Tooltip title="Base task points awarded when this task is completed" arrow>
+          <Chip
+            size="small"
+            icon={<BoltIcon />}
+            label={`${task.pointsValue ?? 25} pts`}
+            sx={{
+              height: 22,
+              fontSize: 10.5,
+              fontWeight: 800,
+              bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
+              color: 'primary.main',
+              border: '1px solid',
+              borderColor: (theme) => alpha(theme.palette.primary.main, 0.18),
+              '& .MuiChip-icon': { fontSize: 13, color: 'primary.main' },
+            }}
+          />
+        </Tooltip>
         {!isOverlay && (
           <EditableDateChip
             value={task.dueDate}

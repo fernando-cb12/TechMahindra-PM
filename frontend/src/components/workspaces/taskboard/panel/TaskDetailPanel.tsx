@@ -22,7 +22,9 @@ import {
   DialogContent,
   DialogActions,
   Divider,
+  Tooltip,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 import EditIcon from '@mui/icons-material/Edit';
@@ -35,6 +37,7 @@ import ImageIcon from '@mui/icons-material/Image';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import HistoryIcon from '@mui/icons-material/History';
+import BoltIcon from '@mui/icons-material/Bolt';
 import { useTaskBoard } from '../useTaskBoard';
 import { useState, useRef, useMemo, useEffect } from 'react';
 import type { TaskUpdate, FileAttachment, User, TaskActivity } from '../types';
@@ -567,6 +570,7 @@ function summarizeActivity(activity: TaskActivity) {
     dueDate: 'due date',
     progress: 'progress',
     budget: 'budget',
+    pointsValue: 'base task points',
     assigneeIds: 'assignees',
     group: 'group',
     board: 'board',
@@ -810,6 +814,29 @@ export default function TaskDetailPanel({
               <IconButton onClick={closePanel} size="small" sx={{ ml: 'auto' }}>
                 <CloseIcon />
               </IconButton>
+            </Box>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
+              <Tooltip title="Base task points used for career XP and reward balance when completed" arrow>
+                <Chip
+                  size="small"
+                  icon={<BoltIcon />}
+                  label={`${task.pointsValue ?? 25} base task points`}
+                  sx={{
+                    height: 26,
+                    fontSize: 11.5,
+                    fontWeight: 800,
+                    color: 'primary.main',
+                    bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
+                    border: '1px solid',
+                    borderColor: (theme) => alpha(theme.palette.primary.main, 0.18),
+                    '& .MuiChip-icon': { fontSize: 14, color: 'primary.main' },
+                  }}
+                />
+              </Tooltip>
+              <Typography sx={{ fontSize: 11.5, color: 'text.secondary', fontWeight: 600 }}>
+                Awarded on completion
+              </Typography>
             </Box>
             
             <Tabs
