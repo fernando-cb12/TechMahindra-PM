@@ -568,7 +568,11 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       pendingRenameIdRef.current = task.id;
     }
     syncStorage(boardConfig, updatedGroups, updatedTasks, manualGroupOrder);
-    void createTaskRequest(workspaceId, boardId, task.groupId, { name: task.name, dueDate: task.dueDate })
+    void createTaskRequest(workspaceId, boardId, task.groupId, {
+      name: task.name,
+      priority: task.priority,
+      dueDate: task.dueDate,
+    })
       .then((created) => {
         setTasks((prev) => {
           const rest = { ...prev };
@@ -606,7 +610,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       assigneeId: null,
       assigneeIds: [],
       status: boardConfig.statusOptions[0]?.id || '',
-      priority: boardConfig.priorityOptions[0]?.id || '',
+      priority: boardConfig.priorityOptions.find((option) => option.id === 'medium')?.id || 'medium',
       dueDate: defaults?.dueDate ?? null,
       progress: 0,
       budget: null,

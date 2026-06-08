@@ -13,6 +13,7 @@ public record TaskDto(
         List<String> assigneeIds,
         String status,
         String priority,
+        int pointsValue,
         String dueDate,
         int progress,
         BigDecimal budget,

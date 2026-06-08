@@ -9,6 +9,7 @@ public record TaskPatchRequest(
         List<String> assigneeIds,
         String status,
         String priority,
+        Integer pointsValue,
         String dueDate,
         Integer progress,
         BigDecimal budget,

@@ -209,7 +209,7 @@ public class CareerRewardsService {
             RewardPointsLedger rewardPoint = new RewardPointsLedger();
             rewardPoint.setUser(user);
             rewardPoint.setTask(task);
-            rewardPoint.setPointsDelta(basePoints);
+            rewardPoint.setPointsDelta(finalPoints);
             rewardPoint.setReason(TASK_COMPLETED);
             rewardPoint.setDescription("Completed task: " + task.getTitle());
             rewardLedgerRepository.save(rewardPoint);

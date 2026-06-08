@@ -9,6 +9,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -78,6 +79,16 @@ import com.mahindra.backend.repository.WorkspaceRepository;
 
 @Service
 public class TaskBoardService {
+    private static final int LOW_TASK_POINTS = 10;
+    private static final int MEDIUM_TASK_POINTS = 25;
+    private static final int HIGH_TASK_POINTS = 50;
+    private static final int CRITICAL_TASK_POINTS = 100;
+    private static final Set<Integer> VALID_TASK_POINTS = Set.of(
+            LOW_TASK_POINTS,
+            MEDIUM_TASK_POINTS,
+            HIGH_TASK_POINTS,
+            CRITICAL_TASK_POINTS);
+
 
     private static final List<SelectOptionDto> DEFAULT_STATUS = List.of(
             new SelectOptionDto("todo", "To Do", "#B3B3B3", "new"),
@@ -400,7 +411,10 @@ public class TaskBoardService {
         Map<String, BoardColumnOption> statusOptions = optionMap(boardId, "col_status");
         Map<String, BoardColumnOption> priorityOptions = optionMap(boardId, "col_priority");
         BoardColumnOption initialStatus = statusOptions.get("todo");
-        BoardColumnOption initialPriority = priorityOptions.get("medium");
+        String initialPriorityKey = request.priority() != null && !request.priority().isBlank()
+                ? request.priority().trim()
+                : "medium";
+        BoardColumnOption initialPriority = priorityOptions.get(initialPriorityKey);
 
         Task task = new Task();
         task.setBoard(board);
@@ -408,9 +422,10 @@ public class TaskBoardService {
         task.setTitle(request.name().trim());
         task.setCreatedBy(user);
         task.setStatus("todo");
-        task.setPriority("medium");
+        task.setPriority(initialPriorityKey);
         task.setStatusOption(initialStatus);
         task.setPriorityOption(initialPriority);
+        task.setPointsValue(taskPointsForPriority(initialPriorityKey, initialPriority));
         if (request.dueDate() != null && !request.dueDate().isBlank()) {
             task.setDueDate(parseDate(request.dueDate()));
         }
@@ -443,9 +458,16 @@ public class TaskBoardService {
             task.setStatus(request.status());
             task.setStatusOption(optionMap(boardId, "col_status").get(request.status()));
         }
+        boolean priorityChanged = false;
         if (request.priority() != null) {
             task.setPriority(request.priority());
             task.setPriorityOption(optionMap(boardId, "col_priority").get(request.priority()));
+            priorityChanged = true;
+        }
+        if (request.pointsValue() != null) {
+            task.setPointsValue(validTaskPoints(request.pointsValue()));
+        } else if (priorityChanged) {
+            task.setPointsValue(taskPointsForPriority(task.getPriority(), task.getPriorityOption()));
         }
         if (request.dueDate() != null) {
             task.setDueDate(parseDate(request.dueDate()));
@@ -1101,6 +1123,7 @@ public class TaskBoardService {
         map.put("name", task.getTitle());
         map.put("status", optionSnapshot(task.getStatusOption(), task.getStatus()));
         map.put("priority", optionSnapshot(task.getPriorityOption(), task.getPriority()));
+        map.put("pointsValue", task.getPointsValue());
         map.put("dueDate", task.getDueDate() != null ? task.getDueDate().toString() : null);
         map.put("progress", task.getProgress());
         map.put("budget", task.getBudget());
@@ -1118,6 +1141,45 @@ public class TaskBoardService {
                 recordActivity(task.getBoard(), task, user, eventTypeForTaskField(field), field, oldValue, newValue, "user");
             }
         });
+    }
+
+    private int validTaskPoints(Integer pointsValue) {
+        if (pointsValue == null || VALID_TASK_POINTS.contains(pointsValue)) {
+            return pointsValue == null ? MEDIUM_TASK_POINTS : pointsValue;
+        }
+        throw new IllegalArgumentException("Task points must be one of 10, 25, 50, or 100");
+    }
+
+    private int taskPointsForPriority(String priorityKey, BoardColumnOption priorityOption) {
+        List<String> candidates = new ArrayList<>();
+        candidates.add(priorityKey);
+        if (priorityOption != null) {
+            candidates.add(priorityOption.getKey());
+            candidates.add(priorityOption.getLabel());
+        }
+        for (String candidate : candidates) {
+            String normalized = normalizeDifficulty(candidate);
+            if (normalized.isBlank()) {
+                continue;
+            }
+            if (normalized.contains("critical")) {
+                return CRITICAL_TASK_POINTS;
+            }
+            if (normalized.contains("high") || normalized.contains("hard")) {
+                return HIGH_TASK_POINTS;
+            }
+            if (normalized.contains("low") || normalized.contains("easy")) {
+                return LOW_TASK_POINTS;
+            }
+            if (normalized.contains("medium") || normalized.contains("default")) {
+                return MEDIUM_TASK_POINTS;
+            }
+        }
+        return MEDIUM_TASK_POINTS;
+    }
+
+    private String normalizeDifficulty(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT).replaceAll("[_\\-\\s]+", " ");
     }
 
     private String eventTypeForTaskField(String field) {
@@ -1279,6 +1341,7 @@ public class TaskBoardService {
                 assigneeIds,
                 task.getStatus(),
                 task.getPriority(),
+                task.getPointsValue() != null ? task.getPointsValue() : MEDIUM_TASK_POINTS,
                 task.getDueDate() != null ? task.getDueDate().toString() : null,
                 task.getProgress(),
                 task.getBudget(),
