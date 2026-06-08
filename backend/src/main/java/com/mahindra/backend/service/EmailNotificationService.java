@@ -24,6 +24,10 @@ public class EmailNotificationService {
     }
 
     public EmailDeliveryResult send(String recipientEmail, String subject, String body) {
+        return send(recipientEmail, subject, body, null);
+    }
+
+    public EmailDeliveryResult send(String recipientEmail, String subject, String textBody, String htmlBody) {
         if (!properties.enabled()) {
             return EmailDeliveryResult.disabled("SES email is disabled");
         }
@@ -35,14 +39,17 @@ public class EmailNotificationService {
                 .credentialsProvider(StaticCredentialsProvider.create(
                         AwsBasicCredentials.create(properties.accessKey(), properties.secretKey())))
                 .build()) {
+            Body.Builder body = Body.builder()
+                    .text(Content.builder().charset("UTF-8").data(textBody).build());
+            if (!isBlank(htmlBody)) {
+                body.html(Content.builder().charset("UTF-8").data(htmlBody).build());
+            }
             var request = SendEmailRequest.builder()
                     .source(properties.fromEmail())
                     .destination(Destination.builder().toAddresses(recipientEmail).build())
                     .message(Message.builder()
                             .subject(Content.builder().charset("UTF-8").data(subject).build())
-                            .body(Body.builder()
-                                    .text(Content.builder().charset("UTF-8").data(body).build())
-                                    .build())
+                            .body(body.build())
                             .build())
                     .build();
             var response = client.sendEmail(request);

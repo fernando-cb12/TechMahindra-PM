@@ -73,6 +73,7 @@ public class AiWorkspaceImportService {
     private final TaskGroupRepository taskGroupRepository;
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final Map<String, AiWorkspaceDraftDto> drafts = new ConcurrentHashMap<>();
@@ -90,6 +91,7 @@ public class AiWorkspaceImportService {
             TaskGroupRepository taskGroupRepository,
             TaskRepository taskRepository,
             UserRepository userRepository,
+            NotificationService notificationService,
             @Value("${azure.openai.endpoint:}") String azureEndpoint,
             @Value("${azure.openai.api-key:}") String azureApiKey,
             @Value("${azure.openai.deployment:}") String azureDeployment,
@@ -101,6 +103,7 @@ public class AiWorkspaceImportService {
         this.taskGroupRepository = taskGroupRepository;
         this.taskRepository = taskRepository;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
         this.azureEndpoint = trimTrailingSlash(azureEndpoint);
         this.azureApiKey = azureApiKey;
         this.azureDeployment = azureDeployment;
@@ -219,6 +222,9 @@ public class AiWorkspaceImportService {
 
         if (draft.id() != null) {
             drafts.remove(draft.id());
+        }
+        for (User member : members) {
+            notificationService.notifyWorkspaceAdded(creator, member, workspace, "ai_import");
         }
         return new AiWorkspaceApproveResponse(
                 String.valueOf(workspace.getId()),

@@ -196,6 +196,7 @@ public class TaskBoardService {
                 .map(member -> member.getUser().getId())
                 .collect(Collectors.toSet());
         List<String> addedNames = new ArrayList<>();
+        List<User> newlyAddedWorkspaceUsers = new ArrayList<>();
 
         for (Long userId : request.userIds().stream().distinct().toList()) {
             User invitedUser = userRepository.findById(userId)
@@ -210,6 +211,7 @@ public class TaskBoardService {
                 workspaceMember.setRoleInWorkspace("collaborator");
                 workspace.addMember(workspaceMember);
                 workspaceMemberIds.add(invitedUser.getId());
+                newlyAddedWorkspaceUsers.add(invitedUser);
             }
 
             BoardMember boardMember = boardMemberRepository.findByBoardIdAndUserId(boardId, invitedUser.getId())
@@ -232,6 +234,9 @@ public class TaskBoardService {
         workspaceRepository.save(workspace);
         if (!addedNames.isEmpty()) {
             recordActivity(board, null, actor, "board_members_added", "members", null, addedNames, "user");
+        }
+        for (User invitedUser : newlyAddedWorkspaceUsers) {
+            notificationService.notifyWorkspaceAdded(actor, invitedUser, workspace, "board_invite");
         }
         return toPayload(actor, board);
     }

@@ -17,6 +17,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.mahindra.backend.dto.AddWorkspaceMembersRequest;
 import com.mahindra.backend.dto.AssignableUserDto;
 import com.mahindra.backend.dto.CreateWorkspaceRequest;
 import com.mahindra.backend.dto.UpdateWorkspaceRequest;
@@ -49,11 +50,12 @@ public class WorkspaceService {
     private final TaskRepository taskRepository;
     private final MilestoneRepository milestoneRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final NotificationService notificationService;
 
     public WorkspaceService(WorkspaceRepository workspaceRepository, BoardRepository boardRepository,
             BoardMemberRepository boardMemberRepository,
             UserRepository userRepository, TaskRepository taskRepository, MilestoneRepository milestoneRepository,
-            JdbcTemplate jdbcTemplate) {
+            JdbcTemplate jdbcTemplate, NotificationService notificationService) {
         this.workspaceRepository = workspaceRepository;
         this.boardRepository = boardRepository;
         this.boardMemberRepository = boardMemberRepository;
@@ -61,6 +63,7 @@ public class WorkspaceService {
         this.taskRepository = taskRepository;
         this.milestoneRepository = milestoneRepository;
         this.jdbcTemplate = jdbcTemplate;
+        this.notificationService = notificationService;
     }
 
     @Transactional(readOnly = true)
@@ -150,17 +153,89 @@ public class WorkspaceService {
 
         for (Board board : workspace.getBoards()) {
             for (WorkspaceMember workspaceMember : workspace.getMembers()) {
-                BoardMember boardMember = new BoardMember();
-                boardMember.setBoard(board);
-                boardMember.setUser(workspaceMember.getUser());
-                boardMember.setAssignedBy(creator);
-                boardMember.setRoleInBoard(switch (workspaceMember.getRoleInWorkspace()) {
-                    case "owner" -> "owner";
-                    case "viewer" -> "viewer";
-                    default -> "editor";
-                });
-                boardMemberRepository.save(boardMember);
+                saveBoardMember(board, workspaceMember, creator);
             }
+        }
+
+        for (User member : members) {
+            notificationService.notifyWorkspaceAdded(creator, member, workspace, "workspace_create");
+        }
+
+        List<Workspace> hydrated = workspaceRepository.findAllWithMembersByIds(List.of(workspace.getId()));
+        return toDtos(hydrated).get(0);
+    }
+
+    @Transactional
+    public WorkspaceCardDto addMembers(Authentication authentication, Long workspaceId, AddWorkspaceMembersRequest request) {
+        User actor = resolveUser(authentication);
+        Workspace workspace = resolveWorkspaceManagerForUpdate(actor, workspaceId);
+        Map<Long, WorkspaceMember> existingMembers = new HashMap<>();
+        for (WorkspaceMember member : workspace.getMembers()) {
+            existingMembers.put(member.getUser().getId(), member);
+        }
+
+        List<User> newlyAddedUsers = new ArrayList<>();
+        for (Long userId : request.userIds().stream().distinct().toList()) {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new IllegalArgumentException("Unknown user id: " + userId));
+            if (user.getStatus() != UserStatus.active) {
+                throw new IllegalArgumentException("User " + userId + " is not active");
+            }
+            if (existingMembers.containsKey(user.getId())) {
+                continue;
+            }
+            WorkspaceMember member = new WorkspaceMember();
+            member.setUser(user);
+            member.setRoleInWorkspace("collaborator");
+            workspace.addMember(member);
+            existingMembers.put(user.getId(), member);
+            newlyAddedUsers.add(user);
+        }
+
+        if (!newlyAddedUsers.isEmpty()) {
+            workspace.setUpdatedAt(Instant.now());
+            workspaceRepository.saveAndFlush(workspace);
+            List<Board> boards = boardRepository.findByWorkspaceIdOrderByCreatedAtAsc(workspaceId);
+            for (Board board : boards) {
+                for (User user : newlyAddedUsers) {
+                    saveOrRestoreBoardMember(board, user, actor, "editor");
+                }
+            }
+            boardMemberRepository.flush();
+            for (User user : newlyAddedUsers) {
+                notificationService.notifyWorkspaceAdded(actor, user, workspace, "workspace_members");
+            }
+        }
+
+        List<Workspace> hydrated = workspaceRepository.findAllWithMembersByIds(List.of(workspace.getId()));
+        return toDtos(hydrated).get(0);
+    }
+
+    @Transactional
+    public WorkspaceCardDto removeMember(Authentication authentication, Long workspaceId, Long userId) {
+        User actor = resolveUser(authentication);
+        Workspace workspace = resolveWorkspaceManagerForUpdate(actor, workspaceId);
+        if (actor.getId().equals(userId)) {
+            throw new IllegalArgumentException("You cannot remove yourself from the workspace");
+        }
+        WorkspaceMember target = workspace.getMembers().stream()
+                .filter(member -> member.getUser().getId().equals(userId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Workspace member not found"));
+        if ("owner".equals(target.getRoleInWorkspace())) {
+            throw new IllegalArgumentException("Workspace owner cannot be removed");
+        }
+
+        workspace.getMembers().remove(target);
+        workspace.setUpdatedAt(Instant.now());
+        workspaceRepository.saveAndFlush(workspace);
+
+        Instant now = Instant.now();
+        for (BoardMember boardMember : boardMemberRepository.findByBoardWorkspaceIdAndUserIdAndDeletedAtIsNull(workspaceId, userId)) {
+            boardMember.setDeletedAt(now);
+            boardMember.setDeletedBy(actor);
+            boardMember.setPurgeAfter(now.plusSeconds(30L * 24 * 60 * 60));
+            boardMemberRepository.save(boardMember);
         }
 
         List<Workspace> hydrated = workspaceRepository.findAllWithMembersByIds(List.of(workspace.getId()));
@@ -268,6 +343,30 @@ public class WorkspaceService {
 
     private void lockWorkspaceBoardCreation(Long workspaceId) {
         jdbcTemplate.query("select pg_advisory_xact_lock(?)", rs -> null, workspaceId);
+    }
+
+    private void saveBoardMember(Board board, WorkspaceMember workspaceMember, User actor) {
+        saveOrRestoreBoardMember(board, workspaceMember.getUser(), actor, switch (workspaceMember.getRoleInWorkspace()) {
+            case "owner" -> "owner";
+            case "viewer" -> "viewer";
+            default -> "editor";
+        });
+    }
+
+    private void saveOrRestoreBoardMember(Board board, User user, User actor, String roleInBoard) {
+        BoardMember boardMember = boardMemberRepository.findByBoardIdAndUserId(board.getId(), user.getId())
+                .orElseGet(BoardMember::new);
+        if (boardMember.getId() == null) {
+            boardMember.setBoard(board);
+            boardMember.setUser(user);
+        }
+        boardMember.setAssignedBy(actor);
+        boardMember.setAssignedAt(Instant.now());
+        boardMember.setRoleInBoard(roleInBoard);
+        boardMember.setDeletedAt(null);
+        boardMember.setDeletedBy(null);
+        boardMember.setPurgeAfter(null);
+        boardMemberRepository.save(boardMember);
     }
 
     private static Board defaultBoard(String name, String description, String color, User creator, int position) {

@@ -14,6 +14,7 @@ import com.mahindra.backend.dto.UnreadNotificationCountDto;
 import com.mahindra.backend.entity.Notification;
 import com.mahindra.backend.entity.Task;
 import com.mahindra.backend.entity.User;
+import com.mahindra.backend.entity.Workspace;
 import com.mahindra.backend.exception.ResourceNotFoundException;
 import com.mahindra.backend.repository.NotificationRepository;
 import com.mahindra.backend.repository.UserRepository;
@@ -77,7 +78,11 @@ public class NotificationService {
                 task.getTitle(),
                 task.getBoard().getWorkspace().getName(),
                 task.getBoard().getName());
-        createAndSend(actor, recipient, "task.assigned", title, body, taskLink(task), taskMetadata(task));
+        createAndSend(actor, recipient, "task.assigned", title, body, taskLink(task), taskMetadata(task),
+                EmailNotificationTemplate.context(
+                        "Workspace", task.getBoard().getWorkspace().getName(),
+                        "Board", task.getBoard().getName(),
+                        "Task", task.getTitle()));
     }
 
     public void notifyTaskMention(User actor, User recipient, Task task) {
@@ -90,12 +95,35 @@ public class NotificationService {
                 task.getTitle(),
                 task.getBoard().getWorkspace().getName(),
                 task.getBoard().getName());
-        createAndSend(actor, recipient, "task.mentioned", title, body, taskLink(task), taskMetadata(task));
+        createAndSend(actor, recipient, "task.mentioned", title, body, taskLink(task), taskMetadata(task),
+                EmailNotificationTemplate.context(
+                        "Workspace", task.getBoard().getWorkspace().getName(),
+                        "Board", task.getBoard().getName(),
+                        "Task", task.getTitle()));
+    }
+
+    public void notifyWorkspaceAdded(User actor, User recipient, Workspace workspace, String source) {
+        if (actor.getId().equals(recipient.getId()) || !notificationEnabled(recipient, "projectUpdates")) {
+            return;
+        }
+        String title = "You were added to " + workspace.getName();
+        String body = "%s added you to the \"%s\" workspace.".formatted(actor.getName(), workspace.getName());
+        Map<String, Object> metadata = workspaceMetadata(workspace, source);
+        createAndSend(actor, recipient, "workspace.member_added", title, body, workspaceLink(workspace), metadata,
+                EmailNotificationTemplate.context(
+                        "Workspace", workspace.getName(),
+                        "Added by", actor.getName()));
     }
 
     @Transactional
     protected void createAndSend(User actor, User recipient, String eventType, String title, String body,
             String linkPath, Map<String, Object> metadata) {
+        createAndSend(actor, recipient, eventType, title, body, linkPath, metadata, Map.of());
+    }
+
+    @Transactional
+    protected void createAndSend(User actor, User recipient, String eventType, String title, String body,
+            String linkPath, Map<String, Object> metadata, Map<String, String> emailContext) {
         Notification notification = new Notification();
         notification.setActor(actor);
         notification.setRecipient(recipient);
@@ -106,7 +134,8 @@ public class NotificationService {
         notification.setMetadata(metadata);
         notificationRepository.save(notification);
 
-        var delivery = emailNotificationService.send(recipient.getEmail(), title, body + "\n\nOpen in CollabX: " + linkPath);
+        var email = EmailNotificationTemplate.branded(title, body, linkPath, emailContext);
+        var delivery = emailNotificationService.send(recipient.getEmail(), title, email.text(), email.html());
         notification.setEmailStatus(delivery.status());
         notification.setSesMessageId(delivery.messageId());
         notification.setErrorText(delivery.errorText());
@@ -135,12 +164,26 @@ public class NotificationService {
                 task.getBoard().getId());
     }
 
+    private String workspaceLink(Workspace workspace) {
+        return "/workspaces/%d".formatted(workspace.getId());
+    }
+
     private Map<String, Object> taskMetadata(Task task) {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("workspaceId", String.valueOf(task.getBoard().getWorkspace().getId()));
         metadata.put("boardId", String.valueOf(task.getBoard().getId()));
         metadata.put("taskId", String.valueOf(task.getId()));
         metadata.put("taskTitle", task.getTitle());
+        return metadata;
+    }
+
+    private Map<String, Object> workspaceMetadata(Workspace workspace, String source) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("workspaceId", String.valueOf(workspace.getId()));
+        metadata.put("workspaceName", workspace.getName());
+        if (source != null && !source.isBlank()) {
+            metadata.put("source", source);
+        }
         return metadata;
     }
 
