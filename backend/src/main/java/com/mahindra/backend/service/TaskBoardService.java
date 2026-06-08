@@ -107,6 +107,7 @@ public class TaskBoardService {
     private final TaskActivityRepository taskActivityRepository;
     private final CareerRewardsService careerRewardsService;
     private final WorkspaceLifecycleService workspaceLifecycleService;
+    private final NotificationService notificationService;
 
     public TaskBoardService(WorkspaceRepository workspaceRepository, BoardRepository boardRepository,
             BoardMemberRepository boardMemberRepository, UserRepository userRepository,
@@ -115,7 +116,7 @@ public class TaskBoardService {
             TaskRepository taskRepository, TaskCustomValueRepository taskCustomValueRepository,
             TaskUpdateRepository taskUpdateRepository, TaskFileRepository taskFileRepository,
             TaskActivityRepository taskActivityRepository, CareerRewardsService careerRewardsService,
-            WorkspaceLifecycleService workspaceLifecycleService) {
+            WorkspaceLifecycleService workspaceLifecycleService, NotificationService notificationService) {
         this.workspaceRepository = workspaceRepository;
         this.boardRepository = boardRepository;
         this.boardMemberRepository = boardMemberRepository;
@@ -131,6 +132,7 @@ public class TaskBoardService {
         this.taskActivityRepository = taskActivityRepository;
         this.careerRewardsService = careerRewardsService;
         this.workspaceLifecycleService = workspaceLifecycleService;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -422,8 +424,12 @@ public class TaskBoardService {
         resolveEditableBoard(user, workspaceId, boardId);
         Task task = resolveTask(boardId, taskId);
         Map<String, Object> before = taskSnapshot(task);
+        Set<Long> previousAssigneeIds = task.getAssignees().stream()
+                .map(User::getId)
+                .collect(Collectors.toSet());
         boolean wasDone = isDone(task);
         String previousWorkflow = workflowMeaning(task.getStatusOption(), task.getStatus());
+        List<User> newlyAssignedUsers = List.of();
 
         if (request.name() != null) {
             task.setTitle(request.name().trim());
@@ -451,6 +457,9 @@ public class TaskBoardService {
             task.getAssignees().clear();
             task.getAssignees().addAll(assignees);
             task.setAssignedTo(assignees.isEmpty() ? null : assignees.get(0));
+            newlyAssignedUsers = assignees.stream()
+                    .filter(assignee -> !previousAssigneeIds.contains(assignee.getId()))
+                    .toList();
         }
         if (request.values() != null) {
             applyCustomValues(task, user, request.values());
@@ -483,6 +492,9 @@ public class TaskBoardService {
         }
         if (!wasDone && "done".equals(currentWorkflow)) {
             careerRewardsService.awardTaskCompletion(task);
+        }
+        for (User assignee : newlyAssignedUsers) {
+            notificationService.notifyTaskAssigned(user, assignee, task);
         }
         return toTaskDto(task,
                 taskCustomValueRepository.findByTaskBoardIdAndTaskDeletedAtIsNull(boardId),
@@ -619,8 +631,13 @@ public class TaskBoardService {
         update.setTask(task);
         update.setAuthor(user);
         update.setContent(request.content() != null ? request.content() : "");
+        List<User> mentionedUsers = List.of();
         if (request.mentions() != null && !request.mentions().isEmpty()) {
-            update.getMentions().addAll(userRepository.findAllById(request.mentions().stream().map(Long::valueOf).toList()));
+            mentionedUsers = userRepository.findAllById(request.mentions().stream()
+                    .map(Long::valueOf)
+                    .distinct()
+                    .toList());
+            update.getMentions().addAll(mentionedUsers);
         }
         taskUpdateRepository.save(update);
 
@@ -639,6 +656,9 @@ public class TaskBoardService {
             }
         }
         recordActivity(task.getBoard(), task, user, "update_created", "updates", null, update.getContent(), "user");
+        for (User mentionedUser : mentionedUsers) {
+            notificationService.notifyTaskMention(user, mentionedUser, task);
+        }
         return toUpdateDto(update, new ArrayList<>(update.getAttachments()));
     }
 
@@ -657,14 +677,28 @@ public class TaskBoardService {
             throw new IllegalArgumentException("Update content or attachments are required");
         }
         String previousContent = update.getContent();
+        Set<Long> previousMentionIds = update.getMentions().stream()
+                .map(User::getId)
+                .collect(Collectors.toSet());
         update.setContent(nextContent);
         update.setUpdatedAt(Instant.now());
         update.getMentions().clear();
+        List<User> newlyMentionedUsers = List.of();
         if (request.mentions() != null && !request.mentions().isEmpty()) {
-            update.getMentions().addAll(userRepository.findAllById(request.mentions().stream().map(Long::valueOf).toList()));
+            List<User> mentionedUsers = userRepository.findAllById(request.mentions().stream()
+                    .map(Long::valueOf)
+                    .distinct()
+                    .toList());
+            update.getMentions().addAll(mentionedUsers);
+            newlyMentionedUsers = mentionedUsers.stream()
+                    .filter(mentionedUser -> !previousMentionIds.contains(mentionedUser.getId()))
+                    .toList();
         }
         taskUpdateRepository.save(update);
         recordActivity(update.getTask().getBoard(), update.getTask(), user, "update_edited", "updates", previousContent, nextContent, "user");
+        for (User mentionedUser : newlyMentionedUsers) {
+            notificationService.notifyTaskMention(user, mentionedUser, update.getTask());
+        }
         return toUpdateDto(update, new ArrayList<>(update.getAttachments()));
     }
 
