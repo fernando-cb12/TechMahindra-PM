@@ -3,6 +3,7 @@ package com.mahindra.backend.controller;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -39,8 +40,19 @@ public class NotificationController {
         return ResponseEntity.ok(notificationService.markRead(authentication, id));
     }
 
+    @PatchMapping("/{id}/unread")
+    public ResponseEntity<NotificationDto> markUnread(Authentication authentication, @PathVariable Long id) {
+        return ResponseEntity.ok(notificationService.markUnread(authentication, id));
+    }
+
     @PatchMapping("/read-all")
     public ResponseEntity<UnreadNotificationCountDto> markAllRead(Authentication authentication) {
         return ResponseEntity.ok(notificationService.markAllRead(authentication));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(Authentication authentication, @PathVariable Long id) {
+        notificationService.delete(authentication, id);
+        return ResponseEntity.noContent().build();
     }
 }
