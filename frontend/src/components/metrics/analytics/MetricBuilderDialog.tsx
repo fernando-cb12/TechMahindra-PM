@@ -92,8 +92,10 @@ function MetricBuilderDialog({ open, catalog, initialWidget, filters, onClose, o
   const resolvedTitle = title.trim() || (metric === 'custom_field'
     ? `${aggregation.toUpperCase()} ${selectedCustomField?.label ?? customFieldKey}`
     : selectedMetric?.label ?? metric);
+  const defaultWidgetWidth = visualization === 'kpi' ? 2 : 4;
+  const defaultWidgetHeight = visualization === 'kpi' ? 2 : 3;
   const draftWidget = {
-    ...(initialWidget ?? widget(resolvedTitle, metric, effectiveDimension, visualization, 0, 0, 4, 3, customFieldKey || undefined, aggregation)),
+    ...(initialWidget ?? widget(resolvedTitle, metric, effectiveDimension, visualization, 0, 0, defaultWidgetWidth, defaultWidgetHeight, customFieldKey || undefined, aggregation)),
     title: resolvedTitle,
     metric,
     dimension: effectiveDimension,

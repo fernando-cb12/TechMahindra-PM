@@ -81,17 +81,19 @@ type PresetOverride = {
 };
 
 function minimumWidgetHeight(widgetConfig: MetricWidgetConfig) {
-  return widgetConfig.visualization === 'kpi' ? 3 : 2;
+  return widgetConfig.visualization === 'kpi' ? 2 : 2;
 }
 
 function normalizeMetricWidget(widgetConfig: MetricWidgetConfig): MetricWidgetConfig {
   const minHeight = minimumWidgetHeight(widgetConfig);
-  if (widgetConfig.layout.h >= minHeight) return widgetConfig;
+  const minWidth = widgetConfig.visualization === 'kpi' ? 2 : 2;
+  if (widgetConfig.layout.h >= minHeight && widgetConfig.layout.w >= minWidth) return widgetConfig;
   return {
     ...widgetConfig,
     layout: {
       ...widgetConfig.layout,
-      h: minHeight,
+      w: Math.max(widgetConfig.layout.w, minWidth),
+      h: Math.max(widgetConfig.layout.h, minHeight),
     },
   };
 }
@@ -736,12 +738,12 @@ function Metrics() {
           <Box
             sx={{
               display: 'inline-flex',
-              opacity: canSaveDashboard ? 1 : 0,
-              transform: canSaveDashboard ? 'scale(1)' : 'scale(0.96)',
-              maxWidth: canSaveDashboard ? 110 : 0,
+              opacity: canSaveDashboard && !isEditMode ? 1 : 0,
+              transform: canSaveDashboard && !isEditMode ? 'scale(1)' : 'scale(0.96)',
+              maxWidth: canSaveDashboard && !isEditMode ? 110 : 0,
               transition: 'opacity 180ms ease, transform 180ms ease, max-width 180ms ease',
               overflow: 'hidden',
-              pointerEvents: canSaveDashboard ? 'auto' : 'none',
+              pointerEvents: canSaveDashboard && !isEditMode ? 'auto' : 'none',
             }}
           >
             <Button variant="contained" startIcon={<SaveIcon />} disabled={isSaving} onClick={() => void handleSave()}>

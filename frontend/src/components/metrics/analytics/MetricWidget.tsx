@@ -8,7 +8,7 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useNavigate } from 'react-router-dom';
 import { queryMetric, type MetricCatalog, type MetricQueryResponse, type MetricWidgetConfig } from '../../../services/metricsService';
 import { showAppError } from '../../shared/appNotifications';
-import { cleanFilters, type GlobalFilters } from './types';
+import { cleanFilters, type DrilldownTask, type GlobalFilters } from './types';
 import MetricVisualization from './MetricVisualization';
 import { dimensionLabel, getMetricHelp } from './metricHelp';
 
@@ -31,8 +31,9 @@ function MetricWidget({ widgetConfig, filters, catalog, refreshKey = 0, isEditMo
   const [responseState, setResponseState] = useState<{ key: string; response: MetricQueryResponse | null }>({ key: '', response: null });
   const response = responseState.key === requestKey ? responseState.response : null;
   const isLoading = responseState.key !== requestKey;
-  const isKpi = widgetConfig.visualization === 'kpi';
   const help = getMetricHelp(widgetConfig, catalog);
+  const isKpi = widgetConfig.visualization === 'kpi';
+  const drilldownRows = (response?.data?.drilldown as DrilldownTask[] | undefined) ?? [];
 
   useEffect(() => {
     let cancelled = false;
@@ -59,8 +60,6 @@ function MetricWidget({ widgetConfig, filters, catalog, refreshKey = 0, isEditMo
       cancelled = true;
     };
   }, [filters, requestKey, widgetConfig]);
-
-  const drilldownRows = ((response?.data.drilldown as Array<Record<string, unknown>> | undefined) ?? []);
 
   return (
     <Paper
@@ -124,7 +123,7 @@ function MetricWidget({ widgetConfig, filters, catalog, refreshKey = 0, isEditMo
           </MuiTooltip>
         </Box>
       </Box>
-      <Box sx={{ flex: isKpi ? '0 0 auto' : 1, minHeight: isKpi ? 96 : 0 }}>
+      <Box sx={{ flex: 1, minHeight: 0 }}>
         {isLoading ? (
           <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <CircularProgress size={22} />
