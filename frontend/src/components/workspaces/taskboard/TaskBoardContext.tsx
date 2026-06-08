@@ -52,6 +52,15 @@ interface DeletedTaskSnapshot {
   deletePromise: Promise<void>;
 }
 
+interface DeletedTasksSnapshot {
+  tasks: Array<{
+    task: Task;
+    groupId: string;
+    index: number;
+  }>;
+  deletePromise: Promise<void>;
+}
+
 interface DeletedGroupSnapshot {
   group: TaskGroup;
   tasks: Task[];
@@ -70,6 +79,26 @@ function isDoneStatus(statusId: string, statusOptions: SelectOption[]) {
   const option = statusOptions.find((status) => status.id === statusId);
   const candidates = [statusId, option?.label ?? '', option?.workflowMeaning ?? ''];
   return candidates.some((candidate) => normalizeStatusKey(candidate) === 'done');
+}
+
+function resolveDoneStatusId(statusOptions: SelectOption[], tasks: Record<string, Task>) {
+  const doneOptions = statusOptions.filter((option) => isDoneStatus(option.id, statusOptions));
+  if (doneOptions.length === 0) return null;
+
+  const defaultDone = doneOptions.find((option) => normalizeStatusKey(option.id) === 'done')
+    ?? doneOptions.find((option) => normalizeStatusKey(option.label) === 'done');
+  if (defaultDone) return defaultDone.id;
+
+  const usageByStatus = Object.values(tasks).reduce<Record<string, number>>((acc, task) => {
+    acc[task.status] = (acc[task.status] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  return [...doneOptions].sort((a, b) => {
+    const usageDelta = (usageByStatus[b.id] ?? 0) - (usageByStatus[a.id] ?? 0);
+    if (usageDelta !== 0) return usageDelta;
+    return a.label.localeCompare(b.label);
+  })[0].id;
 }
 
 function syncTaskPatch(
@@ -219,8 +248,10 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
   });
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
   const [deleteNotice, setDeleteNotice] = useState<{ label: string; type: 'task' | 'group' } | null>(null);
   const [deletedTaskSnapshot, setDeletedTaskSnapshot] = useState<DeletedTaskSnapshot | null>(null);
+  const [deletedTasksSnapshot, setDeletedTasksSnapshot] = useState<DeletedTasksSnapshot | null>(null);
   const [deletedGroupSnapshot, setDeletedGroupSnapshot] = useState<DeletedGroupSnapshot | null>(null);
   const [taskRenameRequestId, setTaskRenameRequestId] = useState<string | null>(null);
   const pendingRenameIdRef = useRef<string | null>(null);
@@ -280,8 +311,10 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
     setPanel({ isOpen: false, taskId: null, activeTab: 'updates' });
     setCollapsedGroups(new Set());
     setCompletedTasks(new Set());
+    setSelectedTaskIds(new Set());
     setDeleteNotice(null);
     setDeletedTaskSnapshot(null);
+    setDeletedTasksSnapshot(null);
     setDeletedGroupSnapshot(null);
     setTaskRenameRequestId(null);
     pendingRenameIdRef.current = null;
@@ -331,6 +364,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
     setUsers(hydrateUsersWithCurrentProfile(payload.users));
     setManualGroupOrder(preferredGroups.map((g) => g.id));
     setAvailableBoards(payload.availableBoards);
+    setSelectedTaskIds(new Set());
   }, [hydrateUsersWithCurrentProfile]);
 
   const refreshBoardPayload = useCallback(() => {
@@ -364,8 +398,21 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
     const existingTask = tasks[taskId];
     if (!existingTask) return;
 
-    if (patch.status !== undefined) {
-      const nextStatusIsDone = isDoneStatus(String(patch.status), boardConfig.statusOptions);
+    const patchWithAutoStatus = { ...patch };
+    if (
+      patchWithAutoStatus.progress !== undefined &&
+      patchWithAutoStatus.status === undefined &&
+      Math.min(100, Math.max(0, Number(patchWithAutoStatus.progress) || 0)) === 100 &&
+      !isDoneStatus(existingTask.status, boardConfig.statusOptions)
+    ) {
+      const doneStatusId = resolveDoneStatusId(boardConfig.statusOptions, tasks);
+      if (doneStatusId) {
+        patchWithAutoStatus.status = doneStatusId;
+      }
+    }
+
+    if (patchWithAutoStatus.status !== undefined) {
+      const nextStatusIsDone = isDoneStatus(String(patchWithAutoStatus.status), boardConfig.statusOptions);
       const currentStatusIsDone = isDoneStatus(existingTask.status, boardConfig.statusOptions);
 
       if (nextStatusIsDone && !currentStatusIsDone) {
@@ -376,15 +423,15 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
     }
 
     const syncedPatch = syncTaskPatch(
-      patch,
+      patchWithAutoStatus,
       boardConfig.statusOptions,
       existingTask,
       progressBeforeDoneRef.current[taskId]
     );
 
     if (
-      patch.status !== undefined &&
-      !isDoneStatus(String(patch.status), boardConfig.statusOptions) &&
+      patchWithAutoStatus.status !== undefined &&
+      !isDoneStatus(String(patchWithAutoStatus.status), boardConfig.statusOptions) &&
       isDoneStatus(existingTask.status, boardConfig.statusOptions)
     ) {
       delete progressBeforeDoneRef.current[taskId];
@@ -833,6 +880,207 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
     });
   }, []);
 
+  const toggleTaskSelection = useCallback((taskId: string) => {
+    setSelectedTaskIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
+  }, []);
+
+  const clearTaskSelection = useCallback(() => {
+    setSelectedTaskIds(new Set());
+  }, []);
+
+  const bulkMoveSelectedTasksToGroup = useCallback(
+    (toGroupId: string) => {
+      const selectedIds = Array.from(selectedTaskIds).filter((taskId) => {
+        const task = tasks[taskId];
+        return task && task.groupId !== toGroupId;
+      });
+      const targetGroup = groups.find((group) => group.id === toGroupId);
+      if (!targetGroup || selectedIds.length === 0) return;
+
+      const selectedSet = new Set(selectedIds);
+      const now = new Date().toISOString();
+      const updatedGroups = groups.map((group) => {
+        const taskIdsWithoutSelection = group.taskIds.filter((taskId) => !selectedSet.has(taskId));
+        if (group.id === toGroupId) {
+          return { ...group, taskIds: [...taskIdsWithoutSelection, ...selectedIds] };
+        }
+        return { ...group, taskIds: taskIdsWithoutSelection };
+      });
+      const updatedTasks = { ...tasks };
+      selectedIds.forEach((taskId) => {
+        updatedTasks[taskId] = {
+          ...updatedTasks[taskId],
+          groupId: toGroupId,
+          updatedAt: now,
+        };
+      });
+
+      setGroups(updatedGroups);
+      setTasks(updatedTasks);
+      setSelectedTaskIds(new Set());
+      syncStorage(boardConfig, updatedGroups, updatedTasks, manualGroupOrder);
+      saveOrderPreferences((current) => ({
+        ...current,
+        taskOrderByGroup: {
+          ...current.taskOrderByGroup,
+          ...Object.fromEntries(updatedGroups.map((group) => [group.id, group.taskIds])),
+        },
+      }));
+
+      void (async () => {
+        for (const [index, taskId] of selectedIds.entries()) {
+          await moveTaskRequest(workspaceId, boardId, taskId, {
+            toBoardId: boardId,
+            toGroupId,
+            position: targetGroup.taskIds.length + index,
+          });
+        }
+      })()
+        .then(refreshBoardPayload)
+        .catch((e) => setError(e instanceof Error ? e.message : 'Failed to move selected tasks'));
+    },
+    [
+      workspaceId,
+      boardId,
+      selectedTaskIds,
+      tasks,
+      groups,
+      boardConfig,
+      manualGroupOrder,
+      syncStorage,
+      saveOrderPreferences,
+      refreshBoardPayload,
+    ]
+  );
+
+  const bulkMoveSelectedTasksToBoardGroup = useCallback(
+    (toBoardId: string, toGroupId: string) => {
+      if (toBoardId === boardId) {
+        bulkMoveSelectedTasksToGroup(toGroupId);
+        return;
+      }
+
+      const targetBoard = availableBoards.find((board) => board.id === toBoardId);
+      const targetGroup = targetBoard?.groups.find((group) => group.id === toGroupId);
+      if (!targetBoard || !targetGroup) return;
+
+      const selectedIds = Array.from(selectedTaskIds).filter((taskId) => Boolean(tasks[taskId]));
+      if (selectedIds.length === 0) return;
+
+      const selectedSet = new Set(selectedIds);
+      const updatedCurrentTasks = Object.fromEntries(
+        Object.entries(tasks).filter(([taskId]) => !selectedSet.has(taskId))
+      );
+      const updatedCurrentGroups = groups.map((group) => ({
+        ...group,
+        taskIds: group.taskIds.filter((taskId) => !selectedSet.has(taskId)),
+      }));
+
+      setTasks(updatedCurrentTasks);
+      setGroups(updatedCurrentGroups);
+      setSelectedTaskIds(new Set());
+      setPanel((prev) => (
+        prev.taskId && selectedSet.has(prev.taskId)
+          ? { isOpen: false, taskId: null, activeTab: 'updates' }
+          : prev
+      ));
+      setCompletedTasks((prev) => {
+        const next = new Set(prev);
+        selectedIds.forEach((taskId) => next.delete(taskId));
+        return next;
+      });
+
+      syncStorage(boardConfig, updatedCurrentGroups, updatedCurrentTasks, manualGroupOrder);
+      void (async () => {
+        for (const [index, taskId] of selectedIds.entries()) {
+          await moveTaskRequest(workspaceId, boardId, taskId, {
+            toBoardId,
+            toGroupId,
+            position: targetGroup.taskIds.length + index,
+          });
+        }
+      })()
+        .then(() => notifyWorkspaceTasksChanged(workspaceId))
+        .then(refreshBoardPayload)
+        .catch((e) => setError(e instanceof Error ? e.message : 'Failed to move selected tasks'));
+    },
+    [
+      workspaceId,
+      boardId,
+      selectedTaskIds,
+      tasks,
+      groups,
+      availableBoards,
+      boardConfig,
+      manualGroupOrder,
+      syncStorage,
+      refreshBoardPayload,
+      bulkMoveSelectedTasksToGroup,
+    ]
+  );
+
+  const bulkDeleteSelectedTasks = useCallback(
+    () => {
+      const selectedIds = Array.from(selectedTaskIds).filter((taskId) => Boolean(tasks[taskId]));
+      if (selectedIds.length === 0) return;
+
+      const selectedSet = new Set(selectedIds);
+      const tasksToDelete = selectedIds.map((taskId) => {
+        const task = tasks[taskId];
+        if (!task) {
+          throw new Error('Selected task is no longer available');
+        }
+        const sourceGroup = groups.find((group) => group.taskIds.includes(taskId));
+        return {
+          task,
+          groupId: sourceGroup?.id ?? task.groupId,
+          index: Math.max(0, sourceGroup?.taskIds.indexOf(taskId) ?? 0),
+        };
+      });
+      const updatedTasks = Object.fromEntries(
+        Object.entries(tasks).filter(([taskId]) => !selectedSet.has(taskId))
+      );
+      const updatedGroups = groups.map((group) => ({
+        ...group,
+        taskIds: group.taskIds.filter((taskId) => !selectedSet.has(taskId)),
+      }));
+
+      setTasks(updatedTasks);
+      setGroups(updatedGroups);
+      setSelectedTaskIds(new Set());
+      setPanel((prev) => (
+        prev.taskId && selectedSet.has(prev.taskId)
+          ? { isOpen: false, taskId: null, activeTab: 'updates' }
+          : prev
+      ));
+      setCompletedTasks((prev) => {
+        const next = new Set(prev);
+        selectedIds.forEach((taskId) => next.delete(taskId));
+        return next;
+      });
+
+      const deletePromise = Promise.all(selectedIds.map((taskId) => deleteTaskRequest(workspaceId, boardId, taskId)))
+        .then(() => {
+          notifyWorkspaceTasksChanged(workspaceId);
+        })
+        .catch((e) => {
+          setError(e instanceof Error ? e.message : 'Failed to delete selected tasks');
+        });
+
+      setDeletedTaskSnapshot(null);
+      setDeletedTasksSnapshot({ tasks: tasksToDelete, deletePromise });
+      setDeletedGroupSnapshot(null);
+      setDeleteNotice({ label: `${selectedIds.length} tasks`, type: 'task' });
+      syncStorage(boardConfig, updatedGroups, updatedTasks, manualGroupOrder);
+    },
+    [workspaceId, boardId, selectedTaskIds, tasks, groups, boardConfig, manualGroupOrder, syncStorage]
+  );
+
   const deleteTask = useCallback(
     (taskId: string) => {
       const taskToDelete = tasks[taskId];
@@ -860,9 +1108,16 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
         index: Math.max(0, sourceIndex),
         deletePromise,
       });
+      setDeletedTasksSnapshot(null);
+      setDeletedGroupSnapshot(null);
       setDeleteNotice({ label: taskToDelete.name, type: 'task' });
       setPanel((prev) => (prev.taskId === taskId ? { isOpen: false, taskId: null, activeTab: 'updates' } : prev));
       setCompletedTasks((prev) => {
+        const next = new Set(prev);
+        next.delete(taskId);
+        return next;
+      });
+      setSelectedTaskIds((prev) => {
         const next = new Set(prev);
         next.delete(taskId);
         return next;
@@ -905,6 +1160,35 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       return;
     }
 
+    if (deletedTasksSnapshot) {
+      const { tasks: deletedTasks, deletePromise } = deletedTasksSnapshot;
+      setTasks((prev) => ({
+        ...prev,
+        ...Object.fromEntries(deletedTasks.map(({ task }) => [task.id, task])),
+      }));
+      setGroups((prev) => prev.map((group) => {
+        const tasksForGroup = deletedTasks
+          .filter(({ groupId, task }) => groupId === group.id && !group.taskIds.includes(task.id))
+          .sort((a, b) => a.index - b.index);
+        if (tasksForGroup.length === 0) return group;
+        const nextIds = [...group.taskIds];
+        tasksForGroup.forEach(({ task, index }) => {
+          nextIds.splice(Math.max(0, Math.min(index, nextIds.length)), 0, task.id);
+        });
+        return { ...group, taskIds: nextIds };
+      }));
+      setDeleteNotice(null);
+      setDeletedTasksSnapshot(null);
+      void deletePromise
+        .then(() => Promise.all(deletedTasks.map(({ task }) => restoreTaskRequest(workspaceId, boardId, task.id))))
+        .then(() => {
+          notifyWorkspaceTasksChanged(workspaceId);
+          refreshBoardPayload();
+        })
+        .catch((e) => setError(e instanceof Error ? e.message : 'Failed to restore tasks'));
+      return;
+    }
+
     if (!deletedTaskSnapshot) return;
     const { task, groupId, index, deletePromise } = deletedTaskSnapshot;
 
@@ -924,7 +1208,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
         notifyWorkspaceTasksChanged(workspaceId);
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to restore task'));
-  }, [workspaceId, boardId, deletedTaskSnapshot, deletedGroupSnapshot, refreshBoardPayload]);
+  }, [workspaceId, boardId, deletedTaskSnapshot, deletedTasksSnapshot, deletedGroupSnapshot, refreshBoardPayload]);
 
   const consumeTaskRenameRequest = useCallback((taskId: string) => {
     setTaskRenameRequestId((prev) => (prev === taskId ? null : prev));
@@ -1069,6 +1353,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
           setError(e instanceof Error ? e.message : 'Failed to delete group');
         });
       setDeletedTaskSnapshot(null);
+      setDeletedTasksSnapshot(null);
       setDeletedGroupSnapshot({
         group: groupToDelete,
         tasks: tasksToDelete,
@@ -1183,6 +1468,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       activeView,
       collapsedGroups,
       completedTasks,
+      selectedTaskIds,
       manualGroupOrder,
       searchQuery,
       setSearchQuery,
@@ -1206,6 +1492,11 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       moveTaskToGroup,
       moveTaskToBoardGroup,
       toggleTaskComplete,
+      toggleTaskSelection,
+      clearTaskSelection,
+      bulkMoveSelectedTasksToGroup,
+      bulkMoveSelectedTasksToBoardGroup,
+      bulkDeleteSelectedTasks,
       deleteTask,
       updateColumns,
       addColumn,
@@ -1237,6 +1528,7 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       activeView,
       collapsedGroups,
       completedTasks,
+      selectedTaskIds,
       manualGroupOrder,
       searchQuery,
       sortMode,
@@ -1257,6 +1549,11 @@ export function TaskBoardProvider({ workspaceId, boardId, children }: TaskBoardP
       moveTaskToGroup,
       moveTaskToBoardGroup,
       toggleTaskComplete,
+      toggleTaskSelection,
+      clearTaskSelection,
+      bulkMoveSelectedTasksToGroup,
+      bulkMoveSelectedTasksToBoardGroup,
+      bulkDeleteSelectedTasks,
       deleteTask,
       updateColumns,
       addColumn,

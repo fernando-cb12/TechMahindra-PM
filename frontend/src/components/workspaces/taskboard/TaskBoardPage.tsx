@@ -297,7 +297,20 @@ function TaskBoardContent() {
           <Tabs
             value={activeView}
             onChange={(_, val: BoardView) => setActiveView(val)}
-            sx={{ minHeight: 40 }}
+            sx={{
+              minHeight: 40,
+              '& .MuiTab-root': {
+                color: (theme) => theme.palette.mode === 'dark' ? theme.palette.common.white : undefined,
+                opacity: (theme) => theme.palette.mode === 'dark' ? 0.82 : undefined,
+                '&.Mui-selected': {
+                  color: (theme) => theme.palette.mode === 'dark' ? theme.palette.common.white : undefined,
+                  opacity: 1,
+                },
+                '& .MuiTab-iconWrapper': {
+                  color: 'inherit',
+                },
+              },
+            }}
           >
             <Tab 
               icon={<TableChartIcon sx={{ fontSize: 18 }} />} 

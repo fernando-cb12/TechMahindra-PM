@@ -34,6 +34,28 @@ function formatTime(value: string) {
   }).format(date);
 }
 
+function getMetadataString(metadata: Record<string, unknown>, key: string) {
+  const value = metadata[key];
+  return typeof value === 'string' || typeof value === 'number' ? String(value) : null;
+}
+
+function resolveNotificationLink(notification: AppInboxNotification) {
+  const taskId = getMetadataString(notification.metadata, 'taskId');
+  if (!taskId) return notification.linkPath;
+
+  const workspaceId = getMetadataString(notification.metadata, 'workspaceId');
+  const boardId = getMetadataString(notification.metadata, 'boardId');
+  if (workspaceId && boardId) {
+    return `/workspaces/${workspaceId}/boards/${boardId}?task=${encodeURIComponent(taskId)}`;
+  }
+
+  if (!notification.linkPath) return null;
+  const [path, query = ''] = notification.linkPath.split('?');
+  const params = new URLSearchParams(query);
+  params.set('task', taskId);
+  return `${path}?${params.toString()}`;
+}
+
 export default function NotificationBell() {
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -80,8 +102,9 @@ export default function NotificationBell() {
       setUnreadCount((count) => Math.max(0, count - 1));
     }
     close();
-    if (notification.linkPath) {
-      navigate(notification.linkPath);
+    const linkPath = resolveNotificationLink(notification);
+    if (linkPath) {
+      navigate(linkPath);
     }
   };
 

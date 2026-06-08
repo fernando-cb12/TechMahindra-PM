@@ -10,6 +10,7 @@ import DashboardCustomizeIcon from '@mui/icons-material/DashboardCustomize';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import LinkIcon from '@mui/icons-material/Link';
+import CloseIcon from '@mui/icons-material/Close';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useParams } from 'react-router-dom';
@@ -28,16 +29,22 @@ export default function TaskRow({ task, columns, groupColor }: TaskRowProps) {
   const {
     groups,
     availableBoards,
-    toggleTaskComplete,
-    completedTasks,
+    selectedTaskIds,
+    toggleTaskSelection,
+    clearTaskSelection,
     openPanel,
     panel,
     deleteTask,
     moveTaskToGroup,
     moveTaskToBoardGroup,
+    bulkMoveSelectedTasksToGroup,
+    bulkMoveSelectedTasksToBoardGroup,
+    bulkDeleteSelectedTasks,
   } = useTaskBoard();
-  const isComplete = completedTasks.has(task.id);
-  const isSelected = panel.taskId === task.id;
+  const isTaskSelected = selectedTaskIds.has(task.id);
+  const selectedTaskCount = selectedTaskIds.size;
+  const isBulkActionMode = selectedTaskCount > 0;
+  const isPanelSelected = panel.taskId === task.id;
   const [contextMenu, setContextMenu] = useState<{ mouseX: number; mouseY: number } | null>(null);
   const [moveMenuAnchor, setMoveMenuAnchor] = useState<HTMLElement | null>(null);
   const [boardMenuAnchor, setBoardMenuAnchor] = useState<HTMLElement | null>(null);
@@ -73,16 +80,22 @@ export default function TaskRow({ task, columns, groupColor }: TaskRowProps) {
   };
 
   const requestRename = () => {
+    if (isBulkActionMode) return;
     setRenameSignal((value) => value + 1);
     closeContextMenu();
   };
 
   const requestDelete = () => {
     closeContextMenu();
+    if (isBulkActionMode) {
+      bulkDeleteSelectedTasks();
+      return;
+    }
     deleteTask(task.id);
   };
 
   const copyTaskLink = async () => {
+    if (isBulkActionMode) return;
     const url = `${window.location.origin}/workspaces/${workspaceId}/boards/${boardId}?task=${task.id}`;
     try {
       await navigator.clipboard.writeText(url);
@@ -110,9 +123,15 @@ export default function TaskRow({ task, columns, groupColor }: TaskRowProps) {
           alignItems: 'stretch',
           borderBottom: '1px solid',
           borderColor: 'divider',
-          bgcolor: isSelected ? (t) => alpha(t.palette.primary.main, 0.08) : 'background.paper',
+          bgcolor: isTaskSelected
+            ? alpha(groupColor, 0.12)
+            : isPanelSelected
+              ? (t) => alpha(t.palette.primary.main, 0.08)
+              : 'background.paper',
           '&:hover': {
-            bgcolor: isSelected
+            bgcolor: isTaskSelected
+              ? alpha(groupColor, 0.18)
+              : isPanelSelected
               ? (t) => alpha(t.palette.primary.main, 0.12)
               : (t) => alpha(t.palette.action.hover, 0.04),
           },
@@ -126,7 +145,7 @@ export default function TaskRow({ task, columns, groupColor }: TaskRowProps) {
         sx={{
           width: 4,
           bgcolor: groupColor,
-          opacity: isSelected ? 1 : 0,
+          opacity: isTaskSelected || isPanelSelected ? 1 : 0,
           transition: 'opacity 0.2s',
         }}
       />
@@ -163,8 +182,13 @@ export default function TaskRow({ task, columns, groupColor }: TaskRowProps) {
         </Box>
         <Checkbox
           size="small"
-          checked={isComplete}
-          onChange={() => toggleTaskComplete(task.id)}
+          checked={isTaskSelected}
+          onChange={(event) => {
+            event.stopPropagation();
+            toggleTaskSelection(task.id);
+          }}
+          onClick={(event) => event.stopPropagation()}
+          title={isTaskSelected ? 'Remove from selection' : 'Select task'}
           sx={{ p: 0.5, color: groupColor, '&.Mui-checked': { color: groupColor } }}
         />
       </Box>
@@ -175,7 +199,6 @@ export default function TaskRow({ task, columns, groupColor }: TaskRowProps) {
           display: 'flex',
           flex: `0 0 ${columnsWidth}px`,
           width: columnsWidth,
-          opacity: isComplete ? 0.6 : 1,
         }}
       >
         {columns.map((col, index) => {
@@ -200,7 +223,6 @@ export default function TaskRow({ task, columns, groupColor }: TaskRowProps) {
                 alignItems: 'center',
                 px: 2,
                 cursor: isFirst ? 'pointer' : 'default',
-                textDecoration: isFirst && isComplete ? 'line-through' : 'none',
                 position: 'relative',
                 py: 0.5,
               }}
@@ -244,7 +266,14 @@ export default function TaskRow({ task, columns, groupColor }: TaskRowProps) {
         anchorPosition={contextMenu ? { top: contextMenu.mouseY, left: contextMenu.mouseX } : undefined}
         slotProps={{ paper: { sx: { minWidth: 210, borderRadius: 2, py: 0.5 } } }}
       >
-        <MenuItem onClick={requestRename}>
+        {isBulkActionMode && (
+          <MenuItem disabled>
+            <Typography sx={{ fontSize: 12, fontWeight: 800, color: 'text.secondary' }}>
+              {selectedTaskCount} {selectedTaskCount === 1 ? 'task selected' : 'tasks selected'}
+            </Typography>
+          </MenuItem>
+        )}
+        <MenuItem onClick={requestRename} disabled={isBulkActionMode}>
           <DriveFileRenameOutlineIcon sx={{ fontSize: 18, mr: 1.25, color: 'text.secondary' }} />
           <Typography sx={{ fontSize: 13 }}>Rename item</Typography>
         </MenuItem>
@@ -253,24 +282,35 @@ export default function TaskRow({ task, columns, groupColor }: TaskRowProps) {
           disabled={groups.length <= 1}
         >
           <DriveFileMoveIcon sx={{ fontSize: 18, mr: 1.25, color: 'text.secondary' }} />
-          <Typography sx={{ fontSize: 13 }}>Move to group</Typography>
+          <Typography sx={{ fontSize: 13 }}>{isBulkActionMode ? 'Move selected to group' : 'Move to group'}</Typography>
         </MenuItem>
         <MenuItem
           onClick={(e) => setBoardMenuAnchor(e.currentTarget)}
           disabled={targetBoards.length === 0}
         >
           <DashboardCustomizeIcon sx={{ fontSize: 18, mr: 1.25, color: 'text.secondary' }} />
-          <Typography sx={{ fontSize: 13 }}>Change board</Typography>
+          <Typography sx={{ fontSize: 13 }}>{isBulkActionMode ? 'Change selected board' : 'Change board'}</Typography>
           <KeyboardArrowRightIcon sx={{ fontSize: 16, ml: 'auto', color: 'text.secondary' }} />
         </MenuItem>
-        <MenuItem onClick={copyTaskLink}>
+        <MenuItem onClick={copyTaskLink} disabled={isBulkActionMode}>
           <LinkIcon sx={{ fontSize: 18, mr: 1.25, color: 'text.secondary' }} />
           <Typography sx={{ fontSize: 13 }}>Copy task link</Typography>
         </MenuItem>
         <Divider sx={{ my: 0.5 }} />
+        {isBulkActionMode && (
+          <MenuItem
+            onClick={() => {
+              clearTaskSelection();
+              closeContextMenu();
+            }}
+          >
+            <CloseIcon sx={{ fontSize: 18, mr: 1.25, color: 'text.secondary' }} />
+            <Typography sx={{ fontSize: 13 }}>Clear select</Typography>
+          </MenuItem>
+        )}
         <MenuItem onClick={requestDelete} sx={{ color: 'error.main' }}>
           <DeleteOutlineIcon sx={{ fontSize: 18, mr: 1.25 }} />
-          <Typography sx={{ fontSize: 13 }}>Delete item</Typography>
+          <Typography sx={{ fontSize: 13 }}>{isBulkActionMode ? 'Delete selected' : 'Delete item'}</Typography>
         </MenuItem>
       </Menu>
 
@@ -285,9 +325,13 @@ export default function TaskRow({ task, columns, groupColor }: TaskRowProps) {
         {groups.map((group) => (
           <MenuItem
             key={group.id}
-            disabled={group.id === task.groupId}
+            disabled={!isBulkActionMode && group.id === task.groupId}
             onClick={() => {
-              moveTaskToGroup(task.id, group.id);
+              if (isBulkActionMode) {
+                bulkMoveSelectedTasksToGroup(group.id);
+              } else {
+                moveTaskToGroup(task.id, group.id);
+              }
               closeContextMenu();
             }}
           >
@@ -340,7 +384,11 @@ export default function TaskRow({ task, columns, groupColor }: TaskRowProps) {
           <MenuItem
             key={group.id}
             onClick={() => {
-              moveTaskToBoardGroup(task.id, selectedBoard.id, group.id);
+              if (isBulkActionMode) {
+                bulkMoveSelectedTasksToBoardGroup(selectedBoard.id, group.id);
+              } else {
+                moveTaskToBoardGroup(task.id, selectedBoard.id, group.id);
+              }
               closeContextMenu();
             }}
           >

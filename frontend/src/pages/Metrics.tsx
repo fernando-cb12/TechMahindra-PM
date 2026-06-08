@@ -849,7 +849,39 @@ function Metrics() {
           </Button>
         </Paper>
       ) : (
-        <Box ref={gridRef}>
+        <Box
+          ref={gridRef}
+          sx={{
+            position: 'relative',
+            borderRadius: '5px',
+            transition: 'background 180ms ease',
+            ...(isEditMode ? {
+              backgroundImage: `
+                linear-gradient(${theme.palette.mode === 'dark' ? alpha('#FFFFFF', 0.16) : alpha(theme.palette.primary.main, 0.12)} 1px, transparent 1px),
+                linear-gradient(90deg, ${theme.palette.mode === 'dark' ? alpha('#FFFFFF', 0.16) : alpha(theme.palette.primary.main, 0.12)} 1px, transparent 1px)
+              `,
+              backgroundSize: 'calc((100% - 176px) / 12 + 16px) 112px',
+              backgroundPosition: '0 0',
+              '& .react-grid-item': {
+                transition: 'all 160ms ease',
+              },
+              '& .react-grid-item:hover .react-resizable-handle::after': {
+                borderRightColor: theme.palette.mode === 'dark' ? '#FFFFFF' : theme.palette.primary.main,
+                borderBottomColor: theme.palette.mode === 'dark' ? '#FFFFFF' : theme.palette.primary.main,
+              },
+              '& .react-resizable-handle::after': {
+                width: 8,
+                height: 8,
+                right: 4,
+                bottom: 4,
+                borderRightWidth: 2,
+                borderBottomWidth: 2,
+                borderRightColor: theme.palette.mode === 'dark' ? alpha('#FFFFFF', 0.7) : alpha(theme.palette.primary.main, 0.75),
+                borderBottomColor: theme.palette.mode === 'dark' ? alpha('#FFFFFF', 0.7) : alpha(theme.palette.primary.main, 0.75),
+              },
+            } : {}),
+          }}
+        >
           <Responsive
             className="metrics-grid"
             width={containerWidth}
