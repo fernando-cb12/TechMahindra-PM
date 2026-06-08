@@ -266,10 +266,29 @@ function Issues() {
 
       <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', md: 'flex-start' }} gap={2.5} sx={{ mb: 3 }}>
         <Box>
-          <Typography sx={{ fontSize: { xs: 28, sm: 34 }, fontWeight: 900, color: 'text.primary', lineHeight: 1.15 }}>
+          <Typography
+            sx={{
+              fontFamily: 'Montserrat, sans-serif',
+              fontSize: 21.5,
+              fontWeight: 700,
+              color: (theme) =>
+                theme.palette.mode === 'dark' ? theme.palette.text.primary : theme.palette.primary.main,
+              lineHeight: 1.15,
+            }}
+          >
             Tasks
           </Typography>
-          <Typography sx={{ mt: 0.75, fontSize: 13.5, color: 'text.secondary', fontWeight: 600 }}>
+          <Typography
+            sx={{
+              mt: 0.2,
+              color: (theme) =>
+                theme.palette.mode === 'dark'
+                  ? theme.palette.text.primary
+                  : theme.palette.primary.main,
+              fontSize: 15,
+              fontWeight: 500,
+            }}
+          >
             {scopedWorkspaceName
               ? `Tasks in ${scopedWorkspaceName}.`
               : 'Tasks across workspaces and boards.'}
