@@ -1,5 +1,6 @@
 // ─── MainTableView — coordinates task and group Drag & Drop (Section 3.4/10 of spec) ───
 
+import { useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import {
   DndContext,
@@ -23,7 +24,6 @@ import {
 import { useTaskBoard } from '../useTaskBoard';
 import TaskGroup from './TaskGroup';
 import TableToolbar from './TableToolbar';
-import { useState } from 'react';
 import TaskRow from './TaskRow';
 import type { Task, TaskGroup as TaskGroupType } from '../types';
 

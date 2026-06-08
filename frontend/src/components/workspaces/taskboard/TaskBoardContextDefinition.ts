@@ -34,6 +34,12 @@ export interface TaskBoardContextValue extends Omit<TaskBoardState, 'manualGroup
   moveTaskToGroup: (taskId: string, toGroupId: string) => void;
   moveTaskToBoardGroup: (taskId: string, toBoardId: string, toGroupId: string) => void;
   toggleTaskComplete: (taskId: string) => void;
+  selectedTaskIds: Set<string>;
+  toggleTaskSelection: (taskId: string) => void;
+  clearTaskSelection: () => void;
+  bulkMoveSelectedTasksToGroup: (toGroupId: string) => void;
+  bulkMoveSelectedTasksToBoardGroup: (toBoardId: string, toGroupId: string) => void;
+  bulkDeleteSelectedTasks: () => void;
   deleteTask: (taskId: string) => void;
   updateColumns: (columns: ColumnDefinition[]) => void;
   addColumn: (col: ColumnDefinition) => void;

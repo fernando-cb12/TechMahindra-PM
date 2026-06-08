@@ -159,9 +159,10 @@ public class NotificationService {
     }
 
     private String taskLink(Task task) {
-        return "/workspaces/%d/boards/%d".formatted(
+        return "/workspaces/%d/boards/%d?task=%d".formatted(
                 task.getBoard().getWorkspace().getId(),
-                task.getBoard().getId());
+                task.getBoard().getId(),
+                task.getId());
     }
 
     private String workspaceLink(Workspace workspace) {
