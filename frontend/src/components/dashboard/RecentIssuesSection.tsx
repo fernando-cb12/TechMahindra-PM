@@ -8,6 +8,7 @@ type IssuePriority = 'critical' | 'high' | 'medium' | 'low';
 type IssueStatus = 'overdue' | 'due-soon' | 'in-progress' | 'completed';
 
 export interface RecentIssueData {
+  taskId: string;
   key: string;
   summary: string;
   workspace: string;
@@ -20,6 +21,7 @@ export interface RecentIssueData {
 interface RecentIssuesSectionProps {
   issues: RecentIssueData[];
   onOpenAll: () => void;
+  onOpenIssue?: (taskId: string) => void;
 }
 
 function IssuePill({ label, bg, color }: { label: string; bg: string; color: string }) {
@@ -46,7 +48,7 @@ function IssuePill({ label, bg, color }: { label: string; bg: string; color: str
   );
 }
 
-function RecentIssuesSection({ issues, onOpenAll }: RecentIssuesSectionProps) {
+function RecentIssuesSection({ issues, onOpenAll, onOpenIssue }: RecentIssuesSectionProps) {
   const theme = useTheme();
   const priorityConfig: Record<IssuePriority, { label: string; bg: string; color: string }> = {
     critical: { label: 'Critical', bg: alpha(theme.palette.error.main, 0.18), color: theme.palette.error.main },
@@ -109,11 +111,20 @@ function RecentIssuesSection({ issues, onOpenAll }: RecentIssuesSectionProps) {
             return (
               <Box
                 key={issue.key}
+                onClick={() => onOpenIssue?.(issue.taskId)}
                 sx={{
                   border: (t) => `1px solid ${alpha(t.palette.primary.main, 0.12)}`,
                   borderRadius: '5px',
                   px: 1.5,
                   py: 1.4,
+                  cursor: onOpenIssue ? 'pointer' : 'default',
+                  transition: 'background-color 0.2s ease, border-color 0.2s ease',
+                  '&:hover': onOpenIssue
+                    ? {
+                        backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.04),
+                        borderColor: (theme) => alpha(theme.palette.primary.main, 0.24),
+                      }
+                    : undefined,
                 }}
               >
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1.5 }}>

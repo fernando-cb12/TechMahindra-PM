@@ -27,6 +27,7 @@ import RecentIssuesSection, {
 } from '../components/dashboard/RecentIssuesSection';
 import PieDonutChart from '../components/metrics/charts/PieDonutChart';
 import type { PieData } from '../components/metrics/types';
+import MyTaskBoardDetailPanel from '../components/my-tasks/MyTaskBoardDetailPanel';
 import type { WorkspaceProjectCardData } from '../components/workspaces/WorkspaceProjectCard';
 import { ROUTES } from '../app/routes';
 import { useAuth } from '../auth/useAuth';
@@ -106,6 +107,7 @@ function Dashboard() {
   const [state, setState] = useState<DashboardState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   const loadDashboard = useCallback(async () => {
     setIsLoading(true);
@@ -198,6 +200,7 @@ function Dashboard() {
         status: workspace.status,
       }));
     const operationalFocus: RecentIssueData[] = focusTasks.map((task) => ({
+      taskId: task.id,
       key: task.boardName.slice(0, 3).toUpperCase() + `-${task.id}`,
       summary: task.name,
       workspace: task.workspaceName,
@@ -268,6 +271,11 @@ function Dashboard() {
       { label: 'Completed', value: state?.taskSummary.completed ?? 0 },
     ].filter((segment) => segment.value > 0),
   }), [state]);
+
+  const selectedTask = useMemo(
+    () => (selectedTaskId ? state?.tasks.find((task) => task.id === selectedTaskId) ?? null : null),
+    [selectedTaskId, state?.tasks],
+  );
 
   if (isLoading) {
     return (
@@ -482,11 +490,18 @@ function Dashboard() {
               derived.recentActivity.map((task) => (
                 <Box
                   key={task.id}
+                  onClick={() => setSelectedTaskId(task.id)}
                   sx={{
                     borderRadius: '5px',
                     px: 1.4,
                     py: 1.3,
                     border: (t) => `1px solid ${alpha(t.palette.primary.main, 0.12)}`,
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s ease, border-color 0.2s ease',
+                    '&:hover': {
+                      backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.04),
+                      borderColor: (theme) => alpha(theme.palette.primary.main, 0.24),
+                    },
                   }}
                 >
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1.5 }}>
@@ -528,6 +543,7 @@ function Dashboard() {
         <RecentIssuesSection
           issues={derived.operationalFocus}
           onOpenAll={() => navigate(ROUTES.issues)}
+          onOpenIssue={setSelectedTaskId}
         />
 
         <Paper
@@ -596,6 +612,13 @@ function Dashboard() {
           </Stack>
         </Paper>
       </Box>
+
+      <MyTaskBoardDetailPanel
+        task={selectedTask}
+        onClose={() => {
+          setSelectedTaskId(null);
+        }}
+      />
     </Box>
   );
 }
