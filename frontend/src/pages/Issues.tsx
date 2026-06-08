@@ -10,6 +10,7 @@ import {
 import { getUserPreferences, updateMyTasksFilterMode } from '../services/userPreferencesService';
 import { loadSession } from '../auth/auth';
 import { useAuth } from '../auth/useAuth';
+import { ROUTES } from '../app/routes';
 import { showAppError, showAppNotification } from '../components/shared/appNotifications';
 import MyTaskActionsMenu from '../components/my-tasks/MyTaskActionsMenu';
 import MyTaskBoardDetailPanel from '../components/my-tasks/MyTaskBoardDetailPanel';
@@ -61,6 +62,7 @@ function Issues() {
   );
   const scopedWorkspaceId = searchParams.get('workspaceId');
   const scopedWorkspaceName = searchParams.get('project');
+  const deepLinkedTaskId = searchParams.get('task');
   const currentUserId = profile ? String(profile.id) : '';
 
   const buildDefaultFilters = useCallback((): MyTasksFilters => ({
@@ -203,7 +205,8 @@ function Issues() {
       .filter((task) => taskMatchesSearch(task, searchQuery))
   ), [tasks, filterMode, selectedInsight, activeFilters, searchQuery]);
 
-  const selectedTask = selectedTaskId ? tasks.find((task) => task.id === selectedTaskId) ?? null : null;
+  const effectiveSelectedTaskId = selectedTaskId ?? deepLinkedTaskId;
+  const selectedTask = effectiveSelectedTaskId ? tasks.find((task) => task.id === effectiveSelectedTaskId) ?? null : null;
   const menuTask = menuState ? tasks.find((task) => task.id === menuState.taskId) ?? null : null;
 
   const openTaskMenu = (event: MouseEvent<HTMLElement>, taskId: string) => {
@@ -355,6 +358,14 @@ function Issues() {
         task={selectedTask}
         onClose={() => {
           setSelectedTaskId(null);
+          if (deepLinkedTaskId) {
+            const nextParams = new URLSearchParams(searchParams);
+            nextParams.delete('task');
+            navigate({
+              pathname: ROUTES.issues,
+              search: nextParams.toString() ? `?${nextParams.toString()}` : '',
+            }, { replace: true });
+          }
           loadTasks();
         }}
       />
