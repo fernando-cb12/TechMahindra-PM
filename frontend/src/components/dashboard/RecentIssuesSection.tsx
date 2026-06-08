@@ -1,19 +1,25 @@
-import { Box, Chip, Paper, Typography } from '@mui/material';
+import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
+import AssignmentLateOutlinedIcon from '@mui/icons-material/AssignmentLateOutlined';
+import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
+import { Box, Button, Chip, Paper, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 
-type IssuePriority = 'high' | 'medium' | 'low';
-type IssueStatus = 'in-progress' | 'to-do' | 'done';
+type IssuePriority = 'critical' | 'high' | 'medium' | 'low';
+type IssueStatus = 'overdue' | 'due-soon' | 'in-progress' | 'completed';
 
 export interface RecentIssueData {
   key: string;
   summary: string;
-  assignee: string;
+  workspace: string;
+  board: string;
+  dueLabel: string;
   priority: IssuePriority;
   status: IssueStatus;
 }
 
 interface RecentIssuesSectionProps {
   issues: RecentIssueData[];
+  onOpenAll: () => void;
 }
 
 function IssuePill({ label, bg, color }: { label: string; bg: string; color: string }) {
@@ -24,15 +30,14 @@ function IssuePill({ label, bg, color }: { label: string; bg: string; color: str
       sx={{
         width: 'fit-content',
         maxWidth: '100%',
-        height: 14,
-        borderRadius: '2px',
+        height: 24,
+        borderRadius: '5px',
         bgcolor: bg,
         color,
-        justifySelf: 'start',
         '& .MuiChip-label': {
-          px: 0.75,
-          fontSize: '7px',
-          fontWeight: 700,
+          px: 1,
+          fontSize: 11,
+          fontWeight: 800,
           whiteSpace: 'nowrap',
           lineHeight: 1,
         },
@@ -41,141 +46,127 @@ function IssuePill({ label, bg, color }: { label: string; bg: string; color: str
   );
 }
 
-function RecentIssuesSection({ issues }: RecentIssuesSectionProps) {
+function RecentIssuesSection({ issues, onOpenAll }: RecentIssuesSectionProps) {
   const theme = useTheme();
   const priorityConfig: Record<IssuePriority, { label: string; bg: string; color: string }> = {
-    high: { label: 'High', bg: theme.palette.error.main, color: theme.palette.common.white },
-    medium: { label: 'Medium', bg: theme.palette.warning.main, color: theme.palette.grey[900] },
-    low: { label: 'Low', bg: theme.palette.success.main, color: theme.palette.common.white },
+    critical: { label: 'Critical', bg: alpha(theme.palette.error.main, 0.18), color: theme.palette.error.main },
+    high: { label: 'High', bg: alpha(theme.palette.error.main, 0.12), color: theme.palette.error.main },
+    medium: { label: 'Medium', bg: alpha(theme.palette.warning.main, 0.22), color: '#7A5800' },
+    low: { label: 'Low', bg: alpha(theme.palette.success.main, 0.12), color: '#067647' },
   };
 
   const statusConfig: Record<IssueStatus, { label: string; bg: string; color: string }> = {
+    overdue: { label: 'Overdue', bg: alpha(theme.palette.error.main, 0.14), color: theme.palette.error.main },
+    'due-soon': { label: 'Due soon', bg: alpha(theme.palette.warning.main, 0.22), color: '#7A5800' },
     'in-progress': {
-      label: 'In Progress',
-      bg: theme.palette.warning.main,
-      color: theme.palette.grey[900],
+      label: 'In progress',
+      bg: alpha(theme.palette.primary.main, 0.12),
+      color: theme.palette.primary.main,
     },
-    'to-do': { label: 'To Do', bg: theme.palette.grey[500], color: theme.palette.common.white },
-    done: { label: 'Done', bg: theme.palette.success.main, color: theme.palette.common.white },
+    completed: { label: 'Completed', bg: alpha(theme.palette.success.main, 0.12), color: '#067647' },
   };
 
   return (
-    <Box sx={{ mt: 2.5 }}>
-      <Paper
-        elevation={0}
-        sx={{
-          borderRadius: '5px',
-          bgcolor: 'background.paper',
-          px: 1.75,
-          py: 1.75,
-        }}
-      >
-        <Typography
+    <Paper
+      elevation={0}
+      sx={{
+        borderRadius: '5px',
+        bgcolor: 'background.paper',
+        border: (t) => `1px solid ${t.palette.divider}`,
+        px: 2.25,
+        py: 2.25,
+      }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, mb: 2 }}>
+        <Box>
+          <Typography sx={{ color: 'text.primary', fontSize: 20, fontWeight: 900 }}>
+            Operational Focus
+          </Typography>
+          <Typography sx={{ mt: 0.6, color: 'text.secondary', fontSize: 13.5 }}>
+            Tasks that deserve attention first based on due dates and delivery risk.
+          </Typography>
+        </Box>
+        <Button
+          onClick={onOpenAll}
+          endIcon={<ArrowForwardRoundedIcon />}
           sx={{
-            color: (theme) =>
-              theme.palette.mode === 'dark'
-                ? theme.palette.text.primary
-                : theme.palette.primary.dark,
-            fontSize: '15px',
+            textTransform: 'none',
             fontWeight: 700,
-            mb: 1.5,
+            borderRadius: '5px',
+            color: (theme) => (theme.palette.mode === 'dark' ? theme.palette.text.primary : theme.palette.primary.main),
           }}
         >
-          Recent Issues
-        </Typography>
+          Open tasks
+        </Button>
+      </Box>
 
-        <Box sx={{ bgcolor: (t) => alpha(t.palette.text.primary, 0.07), borderRadius: '2px', px: 1.25, py: 0.7 }}>
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: '1.1fr 8fr 2.2fr 1.4fr 1.6fr',
-              alignItems: 'center',
-              columnGap: 1,
-            }}
-          >
-            <Typography
-              sx={{
-                fontSize: '8.5px',
-                fontWeight: 700,
-                color: (theme) =>
-                  theme.palette.mode === 'dark'
-                    ? theme.palette.text.primary
-                    : theme.palette.primary.dark,
-              }}
-            >
-              Key
-            </Typography>
-            <Typography sx={{ fontSize: '8.5px', fontWeight: 700, color: 'text.primary' }}>Summary</Typography>
-            <Typography sx={{ fontSize: '8.5px', fontWeight: 700, color: 'text.primary' }}>Assignee</Typography>
-            <Typography
-              sx={{
-                fontSize: '8.5px',
-                fontWeight: 700,
-                color: (theme) =>
-                  theme.palette.mode === 'dark'
-                    ? theme.palette.text.primary
-                    : theme.palette.primary.dark,
-              }}
-            >
-              Priority
-            </Typography>
-            <Typography
-              sx={{
-                fontSize: '8.5px',
-                fontWeight: 700,
-                color: (theme) =>
-                  theme.palette.mode === 'dark'
-                    ? theme.palette.text.primary
-                    : theme.palette.primary.dark,
-              }}
-            >
-              Status
-            </Typography>
-          </Box>
-        </Box>
+      <Box sx={{ display: 'grid', gap: 1.25 }}>
+        {issues.length > 0 ? (
+          issues.map((issue) => {
+            const priority = priorityConfig[issue.priority];
+            const status = statusConfig[issue.status];
 
-        {issues.map((issue) => {
-          const priority = priorityConfig[issue.priority];
-          const status = statusConfig[issue.status];
-
-          return (
-            <Box
-              key={issue.key}
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: '1.1fr 8fr 2.2fr 1.4fr 1.6fr',
-                alignItems: 'center',
-                columnGap: 1,
-                minHeight: 30,
-                px: 1.25,
-                borderBottom: (t) => `1px solid ${alpha(t.palette.primary.main, 0.28)}`,
-              }}
-            >
-              <Typography
+            return (
+              <Box
+                key={issue.key}
                 sx={{
-                  fontSize: '8.5px',
-                  fontWeight: 700,
-                  color: (theme) =>
-                    theme.palette.mode === 'dark'
-                      ? theme.palette.text.primary
-                      : theme.palette.primary.dark,
+                  border: (t) => `1px solid ${alpha(t.palette.primary.main, 0.12)}`,
+                  borderRadius: '5px',
+                  px: 1.5,
+                  py: 1.4,
                 }}
               >
-                {issue.key}
-              </Typography>
-              <Typography sx={{ fontSize: '8.5px', fontWeight: 500, color: 'text.primary' }}>
-                {issue.summary}
-              </Typography>
-              <Typography sx={{ fontSize: '8.5px', fontWeight: 500, color: 'text.primary' }}>
-                {issue.assignee}
-              </Typography>
-              <IssuePill label={priority.label} bg={priority.bg} color={priority.color} />
-              <IssuePill label={status.label} bg={status.bg} color={status.color} />
-            </Box>
-          );
-        })}
-      </Paper>
-    </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1.5 }}>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography
+                      sx={{
+                        fontSize: 12,
+                        fontWeight: 800,
+                        color: (theme) => (theme.palette.mode === 'dark' ? theme.palette.text.primary : theme.palette.primary.main),
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      {issue.key}
+                    </Typography>
+                    <Typography sx={{ mt: 0.45, fontSize: 15, fontWeight: 800, color: 'text.primary', lineHeight: 1.3 }}>
+                      {issue.summary}
+                    </Typography>
+                    <Typography sx={{ mt: 0.75, fontSize: 12.5, color: 'text.secondary' }}>
+                      {issue.workspace} • {issue.board}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <IssuePill label={priority.label} bg={priority.bg} color={priority.color} />
+                    <IssuePill label={status.label} bg={status.bg} color={status.color} />
+                  </Box>
+                </Box>
+
+                <Box sx={{ mt: 1.2, display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.7, color: 'text.secondary' }}>
+                    <EventOutlinedIcon sx={{ fontSize: 16 }} />
+                    <Typography sx={{ fontSize: 12.5, fontWeight: 600 }}>
+                      {issue.dueLabel}
+                    </Typography>
+                  </Box>
+                  {issue.status === 'overdue' ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.7, color: 'error.main' }}>
+                      <AssignmentLateOutlinedIcon sx={{ fontSize: 16 }} />
+                      <Typography sx={{ fontSize: 12.5, fontWeight: 700 }}>
+                        Requires immediate follow-up
+                      </Typography>
+                    </Box>
+                  ) : null}
+                </Box>
+              </Box>
+            );
+          })
+        ) : (
+          <Typography sx={{ color: 'text.secondary', fontSize: 14 }}>
+            No active tasks need attention right now.
+          </Typography>
+        )}
+      </Box>
+    </Paper>
   );
 }
 
