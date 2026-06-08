@@ -443,7 +443,17 @@ function TaskBoardContent() {
         onClose={dismissDeleteNotice}
         message={deleteNotice ? `Deleted ${deleteNotice.type} "${deleteNotice.label}"` : ''}
         action={
-          <Button size="small" onClick={undoTaskDelete} sx={{ color: 'common.white', fontWeight: 700 }}>
+          <Button
+            size="small"
+            onClick={undoTaskDelete}
+            sx={{
+              color: 'primary.main',
+              bgcolor: 'common.white',
+              fontWeight: 900,
+              px: 1.25,
+              '&:hover': { bgcolor: 'grey.100' },
+            }}
+          >
             Undo
           </Button>
         }

@@ -32,7 +32,8 @@ WITH seeded_users(name, email, role_name) AS (
         ('Luis Carlos Mares', 'luiscarlospikachu@gmail.com', 'TEAM_LEAD'),
         ('Marco Ibarra', 'a01253370@tec.mx', 'TEAM_LEAD'),
         ('Antonio Calderon', 'a01255264@tec.mx', 'TEAM_LEAD'),
-        ('Fernando Camou', 'a01255376@tec.mx', 'TEAM_LEAD')
+        ('Fernando Camou', 'a01255376@tec.mx', 'TEAM_LEAD'),
+        ('Marco Ibarra Y', 'Mark.iba.ye@gmail.com', 'TEAM_LEAD')
 )
     INSERT INTO users (name, email, password_hash, status, preferences)
     SELECT
@@ -57,7 +58,8 @@ WITH seeded_users(email, role_name) AS (
         ('luiscarlospikachu@gmail.com', 'TEAM_LEAD'),
         ('a01253370@tec.mx', 'TEAM_LEAD'),
         ('a01255264@tec.mx', 'TEAM_LEAD'),
-        ('a01255376@tec.mx', 'TEAM_LEAD')
+        ('a01255376@tec.mx', 'TEAM_LEAD'),
+        ('Mark.iba.ye@gmail.com', 'TEAM_LEAD')
 )
 INSERT INTO user_role (user_id, role_id)
 SELECT u.id, r.id

@@ -33,7 +33,16 @@ export async function markNotificationRead(id: string): Promise<AppInboxNotifica
   return data;
 }
 
+export async function markNotificationUnread(id: string): Promise<AppInboxNotification> {
+  const { data } = await apiClient.patch<AppInboxNotification>(`/api/notifications/${id}/unread`);
+  return data;
+}
+
 export async function markAllNotificationsRead(): Promise<number> {
   const { data } = await apiClient.patch<{ count: number }>('/api/notifications/read-all');
   return data.count;
+}
+
+export async function deleteNotification(id: string): Promise<void> {
+  await apiClient.delete(`/api/notifications/${id}`);
 }

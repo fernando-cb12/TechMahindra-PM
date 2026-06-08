@@ -62,10 +62,32 @@ public class NotificationService {
     }
 
     @Transactional
+    public NotificationDto markUnread(Authentication authentication, Long notificationId) {
+        User user = resolveUser(authentication);
+        Notification notification = notificationRepository.findById(notificationId)
+                .filter(n -> n.getRecipient().getId().equals(user.getId()))
+                .orElseThrow(() -> new ResourceNotFoundException("Notification not found"));
+        if (notification.getReadAt() != null) {
+            notification.setReadAt(null);
+            notification.setUpdatedAt(Instant.now());
+        }
+        return toDto(notificationRepository.save(notification));
+    }
+
+    @Transactional
     public UnreadNotificationCountDto markAllRead(Authentication authentication) {
         User user = resolveUser(authentication);
         notificationRepository.markAllRead(user.getId(), Instant.now());
         return unreadCount(authentication);
+    }
+
+    @Transactional
+    public void delete(Authentication authentication, Long notificationId) {
+        User user = resolveUser(authentication);
+        Notification notification = notificationRepository.findById(notificationId)
+                .filter(n -> n.getRecipient().getId().equals(user.getId()))
+                .orElseThrow(() -> new ResourceNotFoundException("Notification not found"));
+        notificationRepository.delete(notification);
     }
 
     public void notifyTaskAssigned(User actor, User recipient, Task task) {

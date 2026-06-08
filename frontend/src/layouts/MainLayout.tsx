@@ -407,7 +407,21 @@ function MainLayout() {
       autoHideDuration={6000}
       onClose={() => setDeleteNotice(null)}
       message={deleteNotice ? `${deleteNotice.label} deleted` : ''}
-      action={<Button size="small" onClick={undoDelete} sx={{ color: 'common.white', fontWeight: 700 }}>Undo</Button>}
+      action={
+        <Button
+          size="small"
+          onClick={undoDelete}
+          sx={{
+            color: 'primary.main',
+            bgcolor: 'common.white',
+            fontWeight: 900,
+            px: 1.25,
+            '&:hover': { bgcolor: 'grey.100' },
+          }}
+        >
+          Undo
+        </Button>
+      }
     />
     <Snackbar
       open={Boolean(feedback)}
