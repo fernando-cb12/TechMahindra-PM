@@ -1,31 +1,53 @@
-import { Avatar, Box, Chip, LinearProgress, Paper, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
+import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
+import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined';
+import TrendingDownRoundedIcon from '@mui/icons-material/TrendingDownRounded';
+import { Avatar, Box, Button, Chip, LinearProgress, Paper, Typography } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
+import type { WorkspaceProjectStatus } from '../workspaces/WorkspaceProjectCard';
 
 export interface RecentProjectData {
+  id: string;
   title: string;
   description: string;
   members: string[];
-  extraMembers?: number;
-  progress: number;
-  status: 'active' | 'in-progress' | 'planning';
+  dueDate: string;
+  currentProgress: number;
+  estimatedProgress: number;
+  status: WorkspaceProjectStatus;
 }
 
 interface RecentProjectsSectionProps {
   projects: RecentProjectData[];
+  delayedCount: number;
+  onOpenWorkspace: (workspaceId: string) => void;
+  onOpenAll: () => void;
 }
 
-function RecentProjectCard({ project }: { project: RecentProjectData }) {
+function formatDueDate(value: string) {
+  const isoDate = /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value;
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date);
+}
+
+function RecentProjectCard({
+  project,
+  onOpen,
+}: {
+  project: RecentProjectData;
+  onOpen: (workspaceId: string) => void;
+}) {
   const theme = useTheme();
-  const statusConfig: Record<RecentProjectData['status'], { label: string; bg: string; color: string }> = {
-    active: { label: 'Active', bg: theme.palette.grey[800], color: theme.palette.common.white },
-    'in-progress': {
-      label: 'In Progress',
-      bg: theme.palette.warning.main,
-      color: theme.palette.grey[900],
-    },
-    planning: { label: 'Planning', bg: theme.palette.grey[400], color: theme.palette.common.white },
+  const statusConfig: Record<WorkspaceProjectStatus, { label: string; bg: string; color: string }> = {
+    planning: { label: 'Planning', bg: theme.palette.grey[500], color: theme.palette.common.white },
+    'in-progress': { label: 'In Progress', bg: theme.palette.warning.main, color: theme.palette.grey[900] },
+    'on-hold': { label: 'On Hold', bg: theme.palette.grey[700], color: theme.palette.common.white },
+    completed: { label: 'Completed', bg: theme.palette.success.main, color: theme.palette.common.white },
   };
   const status = statusConfig[project.status];
+  const progressGap = project.currentProgress - project.estimatedProgress;
+  const isBehind = project.status !== 'completed' && progressGap < 0;
 
   return (
     <Paper
@@ -33,141 +55,184 @@ function RecentProjectCard({ project }: { project: RecentProjectData }) {
       sx={{
         borderRadius: '5px',
         bgcolor: 'background.paper',
-        width: '100%',
-        minHeight: 129,
-        px: 1.5,
-        py: 1.5,
+        border: (t) => `1px solid ${t.palette.divider}`,
+        px: 2,
+        py: 2,
       }}
     >
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
-        <Typography
-          sx={{
-            color: (theme) =>
-              theme.palette.mode === 'dark'
-                ? theme.palette.text.primary
-                : theme.palette.primary.dark,
-            fontSize: '10.5px',
-            fontWeight: 700,
-            lineHeight: 1.3,
-          }}
-        >
-          {project.title}
-        </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1.5 }}>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography sx={{ color: 'text.primary', fontSize: 16, fontWeight: 800, lineHeight: 1.2 }}>
+            {project.title}
+          </Typography>
+          <Typography sx={{ mt: 0.8, color: 'text.secondary', fontSize: 13.5, lineHeight: 1.45 }}>
+            {project.description}
+          </Typography>
+        </Box>
         <Chip
           label={status.label}
           size="small"
           sx={{
-            height: 16,
-            fontSize: '7px',
-            fontWeight: 700,
-            borderRadius: '2px',
+            height: 24,
+            fontSize: 11,
+            fontWeight: 800,
+            borderRadius: '5px',
             bgcolor: status.bg,
             color: status.color,
-            '& .MuiChip-label': { px: 0.75 },
           }}
         />
       </Box>
 
-      <Typography
-        sx={{
-          mt: 0.8,
-          color: 'text.primary',
-          fontSize: '8px',
-          fontWeight: 400,
-          lineHeight: 1.3,
-          minHeight: 28,
-        }}
-      >
-        {project.description}
-      </Typography>
-
-      <Box sx={{ display: 'flex', alignItems: 'center', mt: 1.2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          {project.members.map((member, index) => (
-            <Avatar
-              key={`${project.title}-${member}-${index}`}
-              sx={{
-                width: 18,
-                height: 18,
-                fontSize: '9px',
-                fontWeight: 700,
-                bgcolor: 'primary.main',
-                color: (theme) =>
-                  theme.palette.mode === 'dark' ? '#F5F5F5' : undefined,
-                border: (theme) =>
-                  `1px solid ${
-                    theme.palette.mode === 'dark'
-                      ? theme.palette.background.paper
-                      : theme.palette.common.white
-                  }`,
-                ml: index === 0 ? 0 : -0.45,
-              }}
-            >
-              {member}
-            </Avatar>
-          ))}
-        </Box>
-        {project.extraMembers ? (
-          <Typography sx={{ ml: 1, color: 'text.primary', fontSize: '8px', fontWeight: 400 }}>
-            +{project.extraMembers}
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.25, mt: 1.75 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.7, color: 'text.secondary' }}>
+          <GroupOutlinedIcon sx={{ fontSize: 16 }} />
+          <Typography sx={{ fontSize: 12.5, fontWeight: 600 }}>
+            {project.members.length} member{project.members.length === 1 ? '' : 's'}
           </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.7, color: 'text.secondary' }}>
+          <CalendarMonthOutlinedIcon sx={{ fontSize: 16 }} />
+          <Typography sx={{ fontSize: 12.5, fontWeight: 600 }}>
+            Due {formatDueDate(project.dueDate)}
+          </Typography>
+        </Box>
+        {isBehind ? (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.7, color: 'error.main' }}>
+            <TrendingDownRoundedIcon sx={{ fontSize: 16 }} />
+            <Typography sx={{ fontSize: 12.5, fontWeight: 700 }}>
+              {Math.abs(progressGap)}% behind plan
+            </Typography>
+          </Box>
         ) : null}
       </Box>
 
-      <Box sx={{ mt: 0.8 }}>
+      <Box sx={{ mt: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, mb: 0.85 }}>
+          <Typography sx={{ color: 'text.secondary', fontSize: 12, fontWeight: 700 }}>
+            Delivery progress
+          </Typography>
+          <Typography sx={{ color: 'text.primary', fontSize: 12, fontWeight: 800 }}>
+            {project.currentProgress}% / {project.estimatedProgress}% plan
+          </Typography>
+        </Box>
         <LinearProgress
           variant="determinate"
-          value={project.progress}
+          value={Math.min(project.currentProgress, 100)}
           sx={{
-            height: 5,
-            borderRadius: '2px',
-            bgcolor: 'grey.300',
+            height: 8,
+            borderRadius: 999,
+            bgcolor: (t) => alpha(t.palette.primary.main, 0.12),
             '& .MuiLinearProgress-bar': {
-              borderRadius: '2px',
-              bgcolor: 'primary.main',
+              borderRadius: 999,
+              bgcolor: isBehind ? 'warning.main' : 'primary.main',
             },
           }}
         />
-        <Typography sx={{ mt: 0.5, color: 'text.primary', fontSize: '8px', fontWeight: 400 }}>
-          {project.progress}% Complete
-        </Typography>
+      </Box>
+
+      <Box sx={{ mt: 1.8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          {project.members.slice(0, 4).map((member, index) => (
+            <Avatar
+              key={`${project.id}-${member}-${index}`}
+              sx={{
+                width: 28,
+                height: 28,
+                ml: index === 0 ? 0 : -0.75,
+                border: (t) => `2px solid ${t.palette.background.paper}`,
+                bgcolor: 'primary.main',
+                color: 'common.white',
+                fontSize: 11,
+                fontWeight: 800,
+              }}
+            >
+              {member
+                .split(' ')
+                .map((word) => word[0])
+                .join('')
+                .slice(0, 2)
+                .toUpperCase()}
+            </Avatar>
+          ))}
+        </Box>
+        <Button
+          onClick={() => onOpen(project.id)}
+          endIcon={<ArrowForwardRoundedIcon />}
+          sx={{
+            textTransform: 'none',
+            fontWeight: 700,
+            color: (theme) => (theme.palette.mode === 'dark' ? theme.palette.text.primary : theme.palette.primary.main),
+            borderRadius: '5px',
+          }}
+        >
+          Open
+        </Button>
       </Box>
     </Paper>
   );
 }
 
-function RecentProjectsSection({ projects }: RecentProjectsSectionProps) {
+function RecentProjectsSection({
+  projects,
+  delayedCount,
+  onOpenWorkspace,
+  onOpenAll,
+}: RecentProjectsSectionProps) {
   return (
-    <Box sx={{ mt: 3 }}>
-      <Typography
-        sx={{
-          color: (theme) =>
-            theme.palette.mode === 'dark'
-              ? theme.palette.text.primary
-              : theme.palette.primary.dark,
-          fontSize: '15px',
-          fontWeight: 700,
-          mb: 1.5,
-        }}
-      >
-        Recent Projects
-      </Typography>
+    <Paper
+      elevation={0}
+      sx={{
+        borderRadius: '5px',
+        border: (t) => `1px solid ${t.palette.divider}`,
+        bgcolor: 'background.paper',
+        p: 2.25,
+      }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, mb: 2 }}>
+        <Box>
+          <Typography sx={{ color: 'text.primary', fontSize: 20, fontWeight: 900 }}>
+            Workspace Portfolio
+          </Typography>
+          <Typography sx={{ mt: 0.6, color: 'text.secondary', fontSize: 13.5 }}>
+            {delayedCount > 0
+              ? `${delayedCount} workspace${delayedCount === 1 ? '' : 's'} running behind plan.`
+              : 'Workspaces are currently on track.'}
+          </Typography>
+        </Box>
+        <Button
+          onClick={onOpenAll}
+          sx={{
+            textTransform: 'none',
+            fontWeight: 700,
+            borderRadius: '5px',
+            color: (theme) => (theme.palette.mode === 'dark' ? theme.palette.text.primary : theme.palette.primary.main),
+          }}
+        >
+          View all
+        </Button>
+      </Box>
+
       <Box
         sx={{
           display: 'grid',
           gridTemplateColumns: {
             xs: '1fr',
-            md: 'repeat(2, minmax(0, 1fr))',
-            lg: 'repeat(4, minmax(0, 1fr))',
+            xl: 'repeat(2, minmax(0, 1fr))',
           },
           gap: 1.5,
         }}
       >
-        {projects.map((project) => (
-          <RecentProjectCard key={project.title} project={project} />
-        ))}
+        {projects.length > 0 ? (
+          projects.map((project) => (
+            <RecentProjectCard key={project.id} project={project} onOpen={onOpenWorkspace} />
+          ))
+        ) : (
+          <Typography sx={{ color: 'text.secondary', fontSize: 14 }}>
+            No workspaces available yet.
+          </Typography>
+        )}
       </Box>
-    </Box>
+    </Paper>
   );
 }
 

@@ -114,21 +114,35 @@ const CareerPage: React.FC = () => {
         transition: 'background-color 0.2s ease',
       })}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography
-          sx={{
-            fontFamily: 'Montserrat, sans-serif',
-            fontWeight: 700,
-            fontSize: 21.5,
-            color: (theme) =>
-              theme.palette.mode === 'dark'
-                ? theme.palette.text.primary
-                : theme.palette.primary.main,
-            mb: 3,
-          }}
-        >
-          Career
-        </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
+        <Box>
+          <Typography
+            sx={{
+              fontFamily: 'Montserrat, sans-serif',
+              fontWeight: 700,
+              fontSize: 21.5,
+              color: (theme) =>
+                theme.palette.mode === 'dark'
+                  ? theme.palette.text.primary
+                  : theme.palette.primary.main,
+            }}
+          >
+            Career
+          </Typography>
+          <Typography
+            sx={{
+              mt: 0.2,
+              color: (theme) =>
+                theme.palette.mode === 'dark'
+                  ? theme.palette.text.primary
+                  : theme.palette.primary.main,
+              fontSize: 15,
+              fontWeight: 500,
+            }}
+          >
+            Track your growth, rewards progress, and earned badges in one place.
+          </Typography>
+        </Box>
 
         <GoToRewardsButton />
       </Box>
