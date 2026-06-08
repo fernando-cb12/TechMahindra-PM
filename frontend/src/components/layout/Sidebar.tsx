@@ -44,6 +44,7 @@ import mahindraLogo from '../../assets/mahindralogobk.png';
 import type { NavItem, Project, ProjectSubsection, SidebarProps } from './types';
 import { NAV_ITEM_TO_PATH } from '../../app/routes';
 import { useAuth } from '../../auth/useAuth';
+import NotificationBell from './NotificationBell';
 
 const defaultNavItems: NavItem[] = [
   { label: 'Dashboard', value: 'dashboard' },
@@ -423,6 +424,7 @@ function Sidebar({
             {session?.email ?? ''}
           </Typography>
         </Box>
+        <NotificationBell />
         <Tooltip title="Log out" placement="right">
           <IconButton id="sidebar-logout-btn" size="small" onClick={onLogout} aria-label="Log out" sx={{ color: (theme) => alpha(theme.palette.common.white, 0.75), flexShrink: 0, '&:hover': { color: 'common.white', backgroundColor: (theme) => alpha(theme.palette.common.white, 0.12) } }}>
             <LogoutIcon sx={{ fontSize: 18 }} />

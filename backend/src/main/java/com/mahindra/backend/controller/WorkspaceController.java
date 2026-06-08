@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.mahindra.backend.dto.AssignableUserDto;
+import com.mahindra.backend.dto.AddWorkspaceMembersRequest;
 import com.mahindra.backend.dto.CreateWorkspaceRequest;
 import com.mahindra.backend.dto.UpdateWorkspaceRequest;
 import com.mahindra.backend.dto.WorkspaceBoardDto;
@@ -76,6 +77,22 @@ public class WorkspaceController {
     public ResponseEntity<Void> delete(Authentication authentication, @PathVariable Long workspaceId) {
         workspaceService.delete(authentication, workspaceId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{workspaceId}/members")
+    @PreAuthorize("hasAnyRole('ADMIN','TEAM_LEAD')")
+    public ResponseEntity<WorkspaceCardDto> addMembers(Authentication authentication,
+            @PathVariable Long workspaceId,
+            @Valid @RequestBody AddWorkspaceMembersRequest request) {
+        return ResponseEntity.ok(workspaceService.addMembers(authentication, workspaceId, request));
+    }
+
+    @DeleteMapping("/{workspaceId}/members/{userId}")
+    @PreAuthorize("hasAnyRole('ADMIN','TEAM_LEAD')")
+    public ResponseEntity<WorkspaceCardDto> removeMember(Authentication authentication,
+            @PathVariable Long workspaceId,
+            @PathVariable Long userId) {
+        return ResponseEntity.ok(workspaceService.removeMember(authentication, workspaceId, userId));
     }
 
     @PostMapping("/{workspaceId}/restore")
