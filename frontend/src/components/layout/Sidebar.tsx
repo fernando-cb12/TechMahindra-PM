@@ -149,7 +149,7 @@ function Sidebar({
   const allProjects = projects.filter((project) => !pinnedIdSet.has(project.id) && !recentIdSet.has(project.id));
   const visibleExpandedProjects = useMemo(() => {
     if (!activeProject || manualToggles.has(activeProject)) return expandedProjects;
-    return { ...expandedProjects, [activeProject]: true };
+    return { [activeProject]: true };
   }, [activeProject, expandedProjects, manualToggles]);
 
   const rememberRecent = (projectId: string) => {
@@ -164,7 +164,8 @@ function Sidebar({
   const handleProjectToggle = (projectId: string) => {
     rememberRecent(projectId);
     setManualToggles((prev) => new Set(prev).add(projectId));
-    setExpandedProjects((prev) => ({ ...prev, [projectId]: !prev[projectId] }));
+    const shouldExpand = !visibleExpandedProjects[projectId];
+    setExpandedProjects(shouldExpand ? { [projectId]: true } : {});
     onProjectClick?.(projectId);
   };
 

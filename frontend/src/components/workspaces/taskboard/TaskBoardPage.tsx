@@ -14,17 +14,8 @@ import {
   MenuItem,
   Divider,
   TextField,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Select,
-  OutlinedInput,
-  Chip,
-  CircularProgress,
 } from '@mui/material';
 import type { Theme } from '@mui/material/styles';
-import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1';
 import TableChartIcon from '@mui/icons-material/TableChart';
 import InsertChartIcon from '@mui/icons-material/InsertChart';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
@@ -47,8 +38,7 @@ import type { BoardView } from './types';
 import { useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent, type ReactElement } from 'react';
 import { useAuth } from '../../../auth/useAuth';
 import { showAppNotification } from '../../shared/appNotifications';
-import { getBoardMemberCandidates } from '../../../services/taskBoardService';
-import { getWorkspace, type AssignableUser } from '../../../services/workspacesService';
+import { getWorkspace } from '../../../services/workspacesService';
 import WorkspaceActionPillButton from '../detail/WorkspaceActionPillButton';
 
 const OPTIONAL_VIEWS: Array<{ value: Exclude<BoardView, 'table'>; label: string; icon: ReactElement }> = [
@@ -82,12 +72,10 @@ function TaskBoardContent() {
     renameBoard,
     tasks,
     openPanel,
-    users,
-    inviteBoardMembers,
   } = useTaskBoard();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { workspaceId: routeWorkspaceId = '', boardId: routeBoardId = '' } = useParams();
+  const { workspaceId: routeWorkspaceId = '' } = useParams();
   const taskParamRef = useRef<string | null>(null);
   const hasAutoOpenedTaskRef = useRef(false);
   const { session, hasRoleAtLeast } = useAuth();
@@ -96,11 +84,6 @@ function TaskBoardContent() {
   const [draggedView, setDraggedView] = useState<Exclude<BoardView, 'table'> | null>(null);
   const [isRenamingBoard, setIsRenamingBoard] = useState(false);
   const [boardNameDraft, setBoardNameDraft] = useState('');
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [assignableUsers, setAssignableUsers] = useState<AssignableUser[]>([]);
-  const [isLoadingAssignableUsers, setIsLoadingAssignableUsers] = useState(false);
-  const [selectedInviteUserIds, setSelectedInviteUserIds] = useState<number[]>([]);
-  const [isInvitingMembers, setIsInvitingMembers] = useState(false);
   const [workspaceName, setWorkspaceName] = useState('Workspace');
   
   // Format the board title (e.g., frontend -> Frontend Design)
@@ -112,12 +95,6 @@ function TaskBoardContent() {
   const [visibleOptionalViews, setVisibleOptionalViews] = useState<Exclude<BoardView, 'table'>[]>(() => loadVisibleViews(viewPreferenceKey));
   const availableViews = OPTIONAL_VIEWS.filter((view) => !visibleOptionalViews.includes(view.value));
   const canRenameBoard = hasRoleAtLeast('TEAM_LEAD');
-  const canInviteBoardMembers = hasRoleAtLeast('TEAM_LEAD');
-  const existingUserIds = useMemo(() => new Set(Object.keys(users).map((id) => Number(id))), [users]);
-  const inviteCandidates = useMemo(
-    () => assignableUsers.filter((user) => !existingUserIds.has(user.id)),
-    [assignableUsers, existingUserIds]
-  );
 
   useEffect(() => {
     setVisibleOptionalViews(loadVisibleViews(viewPreferenceKey));
@@ -255,45 +232,6 @@ function TaskBoardContent() {
     setIsRenamingBoard(false);
   };
 
-  const openInviteDialog = () => {
-    if (!canInviteBoardMembers) return;
-    setInviteOpen(true);
-    setSelectedInviteUserIds([]);
-    if (assignableUsers.length > 0 || isLoadingAssignableUsers) return;
-    setIsLoadingAssignableUsers(true);
-    void getBoardMemberCandidates(routeWorkspaceId, routeBoardId)
-      .then(setAssignableUsers)
-      .catch((e) => {
-        showAppNotification({
-          message: e instanceof Error ? e.message : 'Failed to load users',
-          severity: 'error',
-        });
-      })
-      .finally(() => setIsLoadingAssignableUsers(false));
-  };
-
-  const submitInvite = async () => {
-    if (!canInviteBoardMembers) return;
-    if (selectedInviteUserIds.length === 0) return;
-    try {
-      setIsInvitingMembers(true);
-      await inviteBoardMembers(selectedInviteUserIds);
-      showAppNotification({
-        message: selectedInviteUserIds.length === 1 ? 'Member added to board' : 'Members added to board',
-        severity: 'success',
-      });
-      setInviteOpen(false);
-      setSelectedInviteUserIds([]);
-    } catch (e) {
-      showAppNotification({
-        message: e instanceof Error ? e.message : 'Failed to invite members',
-        severity: 'error',
-      });
-    } finally {
-      setIsInvitingMembers(false);
-    }
-  };
-
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
       {isLoading && <LinearProgress sx={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2 }} />}
@@ -353,18 +291,6 @@ function TaskBoardContent() {
               </Typography>
             )}
           </Box>
-          {canInviteBoardMembers ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Button
-                variant="outlined"
-                startIcon={<PersonAddAlt1Icon />}
-                onClick={openInviteDialog}
-                sx={{ textTransform: 'none', borderRadius: 2 }}
-              >
-                Invite / {Object.keys(users).length}
-              </Button>
-            </Box>
-          ) : null}
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -498,64 +424,6 @@ function TaskBoardContent() {
 
       {/* Slide-in Panel */}
       <TaskDetailPanel />
-      <Dialog open={canInviteBoardMembers && inviteOpen} onClose={() => setInviteOpen(false)} fullWidth maxWidth="xs">
-        <DialogTitle sx={{ fontWeight: 700 }}>Invite to board</DialogTitle>
-        <DialogContent sx={{ pt: 1 }}>
-          <Select
-            multiple
-            fullWidth
-            value={selectedInviteUserIds}
-            onChange={(event) => {
-              const value = event.target.value;
-              setSelectedInviteUserIds(
-                (Array.isArray(value) ? value : String(value).split(',')).filter(Boolean).map(Number)
-              );
-            }}
-            input={<OutlinedInput />}
-            disabled={isLoadingAssignableUsers || isInvitingMembers}
-            renderValue={(selected) => (
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                {(selected as number[]).map((id) => {
-                  const user = assignableUsers.find((item) => item.id === id);
-                  return <Chip key={id} size="small" label={user?.name ?? `#${id}`} />;
-                })}
-              </Box>
-            )}
-            sx={{ '& .MuiSelect-select': { minHeight: 34 } }}
-          >
-            {isLoadingAssignableUsers && (
-              <MenuItem disabled>
-                <CircularProgress size={16} sx={{ mr: 1 }} />
-                Loading users
-              </MenuItem>
-            )}
-            {!isLoadingAssignableUsers && inviteCandidates.length === 0 && (
-              <MenuItem disabled>All assignable users are already in this workspace.</MenuItem>
-            )}
-            {inviteCandidates.map((user) => (
-              <MenuItem key={user.id} value={user.id}>
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography sx={{ fontSize: 13.5, fontWeight: 600 }}>{user.name}</Typography>
-                  <Typography sx={{ fontSize: 11.5, color: 'text.secondary' }}>{user.email}</Typography>
-                </Box>
-              </MenuItem>
-            ))}
-          </Select>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setInviteOpen(false)} sx={{ textTransform: 'none' }}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            onClick={submitInvite}
-            disabled={selectedInviteUserIds.length === 0 || isInvitingMembers}
-            sx={{ textTransform: 'none' }}
-          >
-            {isInvitingMembers ? 'Inviting...' : 'Add to board'}
-          </Button>
-        </DialogActions>
-      </Dialog>
       <Snackbar
         open={Boolean(deleteNotice)}
         autoHideDuration={6000}
