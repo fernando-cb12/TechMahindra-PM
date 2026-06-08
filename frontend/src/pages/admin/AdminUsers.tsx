@@ -142,15 +142,8 @@ function AdminUsers() {
       >
         <Box>
           <Typography
-            sx={{
-              fontFamily: 'Montserrat, sans-serif',
-              fontWeight: 700,
-              fontSize: 21.5,
-              color: (theme) =>
-                theme.palette.mode === 'dark'
-                  ? theme.palette.common.white
-                  : theme.palette.primary.main,
-            }}
+            variant="h2"
+            data-page-title="true"
           >
             User management
           </Typography>
@@ -170,9 +163,7 @@ function AdminUsers() {
           startIcon={<AddCircleOutlinedIcon />}
           onClick={handleOpenCreate}
           sx={{
-            textTransform: 'none',
             fontFamily: 'Montserrat, sans-serif',
-            fontWeight: 600,
             bgcolor: 'primary.main',
             '&:hover': { bgcolor: 'primary.dark' },
           }}

@@ -23,6 +23,7 @@ import {
   Chip,
   CircularProgress,
 } from '@mui/material';
+import type { Theme } from '@mui/material/styles';
 import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1';
 import TableChartIcon from '@mui/icons-material/TableChart';
 import InsertChartIcon from '@mui/icons-material/InsertChart';
@@ -326,14 +327,22 @@ function TaskBoardContent() {
                 }}
                 autoFocus
                 variant="standard"
-                InputProps={{ disableUnderline: true, sx: { fontSize: 34, fontWeight: 800, lineHeight: 1.25 } }}
+                InputProps={{
+                  disableUnderline: true,
+                  sx: (theme: Theme) => ({
+                    fontSize: theme.typography.h2.fontSize,
+                    fontWeight: theme.typography.h2.fontWeight,
+                    lineHeight: theme.typography.h2.lineHeight,
+                    color: theme.palette.mode === 'dark' ? theme.palette.text.primary : theme.palette.primary.main,
+                  }),
+                }}
               />
             ) : (
               <Typography
-                variant="h4"
+                variant="h2"
+                data-page-title="true"
                 onClick={() => canRenameBoard && setIsRenamingBoard(true)}
                 sx={{
-                  fontWeight: 700,
                   cursor: canRenameBoard ? 'text' : 'default',
                   borderRadius: 1,
                   px: canRenameBoard ? 0.5 : 0,

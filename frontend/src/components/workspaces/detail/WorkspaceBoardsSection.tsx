@@ -73,14 +73,8 @@ function WorkspaceBoardsSection({ workspaceId }: WorkspaceBoardsSectionProps): R
       >
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Typography
-            variant="h6"
-            sx={{
-              fontWeight: 700,
-              color: (paletteTheme) =>
-                paletteTheme.palette.mode === 'dark'
-                  ? paletteTheme.palette.text.primary
-                  : paletteTheme.palette.primary.main,
-            }}
+            variant="h2"
+            data-page-title="true"
           >
             Boards
           </Typography>

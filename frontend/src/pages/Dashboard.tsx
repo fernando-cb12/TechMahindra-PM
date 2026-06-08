@@ -94,16 +94,10 @@ function Dashboard() {
   return (
     <Box sx={{ flex: 1, p: 3, backgroundColor: 'background.default', minHeight: '100vh' }}>
       <Typography
-        variant="h3"
+        variant="h2"
+        data-page-title="true"
         sx={{
           mb: 2.5,
-          color: (theme) =>
-            theme.palette.mode === 'dark'
-              ? theme.palette.text.primary
-              : theme.palette.primary.main,
-          fontWeight: 700,
-          fontSize: '32px',
-          lineHeight: 1,
         }}
       >
         Dashboard

@@ -114,18 +114,10 @@ const CareerPage: React.FC = () => {
         transition: 'background-color 0.2s ease',
       })}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
         <Typography
-          sx={{
-            fontFamily: 'Montserrat, sans-serif',
-            fontWeight: 700,
-            fontSize: 21.5,
-            color: (theme) =>
-              theme.palette.mode === 'dark'
-                ? theme.palette.text.primary
-                : theme.palette.primary.main,
-            mb: 3,
-          }}
+          variant="h2"
+          data-page-title="true"
         >
           Career
         </Typography>

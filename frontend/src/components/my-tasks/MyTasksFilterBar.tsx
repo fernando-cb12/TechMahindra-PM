@@ -30,7 +30,6 @@ function FilterButton({
         startIcon={<FilterAltOutlinedIcon sx={{ fontSize: 16 }} />}
         onClick={(event) => setAnchorEl(event.currentTarget)}
         sx={[
-          { textTransform: 'none', borderRadius: 1.5, minHeight: 32 },
           isDark ? {
             color: selectedCount > 0 ? '#FFFFFF' : '#FFFFFF',
             borderColor: alpha('#FFFFFF', 0.32),
@@ -55,7 +54,6 @@ function FilterButton({
               color: isDark ? '#1F1F1F' : 'primary.main',
               fontSize: 10,
               fontWeight: 900,
-              '& .MuiChip-label': { px: 0.6 },
             }}
           />
         )}
@@ -175,9 +173,6 @@ export default function MyTasksFilterBar({
             mr: 0.25,
             '& .MuiToggleButton-root': {
               height: 32,
-              px: 1.35,
-              borderRadius: 1.5,
-              textTransform: 'none',
               fontSize: 12,
               fontWeight: 900,
               ...(isDark ? {
@@ -240,18 +235,14 @@ export default function MyTasksFilterBar({
             onClick={onClear}
             sx={isDark
               ? {
-                  textTransform: 'none',
                   fontSize: 12,
-                  fontWeight: 800,
                   color: '#FFFFFF',
                   '&:hover': {
                     bgcolor: alpha('#FFFFFF', 0.06),
                   },
                 }
               : {
-                  textTransform: 'none',
                   fontSize: 12,
-                  fontWeight: 800,
                 }}
           >
             Clear

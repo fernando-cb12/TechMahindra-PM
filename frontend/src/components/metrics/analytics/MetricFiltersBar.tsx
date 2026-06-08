@@ -77,7 +77,6 @@ function FilterButton({
         startIcon={<FilterAltOutlinedIcon sx={{ fontSize: 16 }} />}
         onClick={(event) => setAnchorEl(event.currentTarget)}
         sx={[
-          { textTransform: 'none', borderRadius: 1.5, minHeight: 32 },
           isDark ? {
             color: selectedCount > 0 ? '#FFFFFF' : '#F5F5F5',
             borderColor: selectedCount > 0 ? 'primary.main' : alpha('#FFFFFF', 0.28),
@@ -102,7 +101,6 @@ function FilterButton({
               color: isDark ? 'primary.main' : 'primary.main',
               fontSize: 10,
               fontWeight: 900,
-              '& .MuiChip-label': { px: 0.6 },
             }}
           />
         )}
@@ -176,7 +174,6 @@ function DateFilterButton({ filters, onChange }: { filters: GlobalFilters; onCha
         startIcon={<CalendarMonthOutlinedIcon sx={{ fontSize: 16 }} />}
         onClick={(event) => setAnchorEl(event.currentTarget)}
         sx={[
-          { textTransform: 'none', borderRadius: 1.5, minHeight: 32 },
           isDark ? {
             color: selectedCount > 0 ? '#FFFFFF' : '#F5F5F5',
             borderColor: selectedCount > 0 ? 'primary.main' : alpha('#FFFFFF', 0.28),
@@ -201,7 +198,6 @@ function DateFilterButton({ filters, onChange }: { filters: GlobalFilters; onCha
               color: isDark ? 'primary.main' : 'primary.main',
               fontSize: 10,
               fontWeight: 900,
-              '& .MuiChip-label': { px: 0.6 },
             }}
           />
         )}
@@ -355,7 +351,6 @@ function MetricFiltersBar({ filters, workspaces, boards, assignees, onChange }: 
             onClick={() => onChange(DEFAULT_FILTERS)}
             sx={isDark
               ? {
-                  textTransform: 'none',
                   fontSize: 12,
                   fontWeight: 800,
                   color: '#FFFFFF',
@@ -364,7 +359,6 @@ function MetricFiltersBar({ filters, workspaces, boards, assignees, onChange }: 
                   },
                 }
               : {
-                  textTransform: 'none',
                   fontSize: 12,
                   fontWeight: 800,
                 }}

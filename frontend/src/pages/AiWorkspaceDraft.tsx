@@ -194,7 +194,7 @@ function AiWorkspaceDraft() {
       <Stack spacing={3} sx={{ maxWidth: 1180, mx: 'auto' }}>
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ xs: 'stretch', md: 'center' }}>
           <Box>
-            <Typography sx={{ fontWeight: 800, fontSize: { xs: 26, md: 32 } }}>
+            <Typography variant="h2" data-page-title="true">
               Review AI Draft
             </Typography>
             <Typography sx={{ color: 'text.secondary', mt: 0.5 }}>

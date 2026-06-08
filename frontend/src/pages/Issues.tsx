@@ -266,7 +266,7 @@ function Issues() {
 
       <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', md: 'flex-start' }} gap={2.5} sx={{ mb: 3 }}>
         <Box>
-          <Typography sx={{ fontSize: { xs: 28, sm: 34 }, fontWeight: 900, color: 'text.primary', lineHeight: 1.15 }}>
+          <Typography variant="h2" data-page-title="true">
             Tasks
           </Typography>
           <Typography sx={{ mt: 0.75, fontSize: 13.5, color: 'text.secondary', fontWeight: 600 }}>

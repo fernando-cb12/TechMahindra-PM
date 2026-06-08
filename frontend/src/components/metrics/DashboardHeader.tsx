@@ -26,16 +26,8 @@ function DashboardHeader() {
       }}
     >
       <Typography
-        variant="h3"
-        sx={{
-          color: (theme) =>
-            theme.palette.mode === 'dark'
-              ? theme.palette.text.primary
-              : theme.palette.primary.main,
-          fontWeight: 700,
-          fontSize: '32px',
-          lineHeight: 1,
-        }}
+        variant="h2"
+        data-page-title="true"
       >
         Metrics
       </Typography>
@@ -47,8 +39,6 @@ function DashboardHeader() {
           startIcon={<AddIcon />}
           onClick={openAddModal}
           sx={{
-            textTransform: 'none',
-            fontWeight: 500,
             fontSize: 13,
             borderColor: (theme) =>
               theme.palette.mode === 'dark'
@@ -76,8 +66,6 @@ function DashboardHeader() {
           startIcon={isEditMode ? <CheckIcon /> : <EditIcon />}
           onClick={handleEditButtonClick}
           sx={{
-            textTransform: 'none',
-            fontWeight: 500,
             fontSize: 13,
             ...(isEditMode
               ? {

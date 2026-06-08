@@ -26,7 +26,6 @@ const PriorityButton: React.FC = () => {
         sx={{
           bgcolor: selectedColor,
           color: 'white',
-          fontWeight: 700,
           fontSize: 12,
           cursor: 'pointer',
         }}
@@ -47,7 +46,6 @@ const PriorityButton: React.FC = () => {
               sx={{
                 bgcolor: option.color,
                 color: 'white',
-                fontWeight: 700,
                 fontSize: 12,
                 cursor: 'pointer',
               }}

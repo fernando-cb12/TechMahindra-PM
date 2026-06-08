@@ -84,7 +84,7 @@ export default function TableToolbar() {
           size="small"
           endIcon={<KeyboardArrowDownIcon />}
           onClick={(e) => setNewButtonAnchor(e.currentTarget)}
-          sx={{ textTransform: 'none', fontWeight: 600, px: 2, borderRadius: 2 }}
+          sx={{ px: 2 }}
         >
           New
         </Button>
@@ -128,7 +128,7 @@ export default function TableToolbar() {
                     <SearchIcon fontSize="small" />
                   </InputAdornment>
                 ),
-                sx: { borderRadius: 8, bgcolor: 'background.paper', height: 36, width: 260, fontSize: 13 }
+                sx: { borderRadius: 999, bgcolor: 'background.paper', height: 36, width: 260, fontSize: 13 }
               }
             }}
           />
@@ -152,7 +152,7 @@ export default function TableToolbar() {
               },
               width: 36,
               height: 36,
-              borderRadius: 2,
+              borderRadius: 999,
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
@@ -182,7 +182,7 @@ export default function TableToolbar() {
               },
               width: 36,
               height: 36,
-              borderRadius: 2,
+              borderRadius: 999,
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
@@ -203,7 +203,7 @@ export default function TableToolbar() {
             bgcolor: 'background.paper',
             border: '1px solid',
             borderColor: 'divider',
-            borderRadius: 2,
+            borderRadius: 999,
             width: 36,
             height: 36,
           }}

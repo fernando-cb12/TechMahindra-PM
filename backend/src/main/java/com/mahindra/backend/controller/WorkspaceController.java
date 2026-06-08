@@ -1,6 +1,7 @@
 package com.mahindra.backend.controller;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -88,6 +89,23 @@ public class WorkspaceController {
     @PreAuthorize("hasAnyRole('ADMIN','TEAM_LEAD')")
     public ResponseEntity<List<AssignableUserDto>> assignableUsers() {
         return ResponseEntity.ok(workspaceService.listAssignableUsers());
+    }
+
+    @PostMapping("/{workspaceId}/members")
+    @PreAuthorize("hasAnyRole('ADMIN','TEAM_LEAD')")
+    public ResponseEntity<WorkspaceCardDto> addMembers(Authentication authentication,
+            @PathVariable Long workspaceId,
+            @RequestBody Map<String, List<Long>> request) {
+        List<Long> userIds = request != null ? request.get("userIds") : null;
+        return ResponseEntity.ok(workspaceService.addMembers(authentication, workspaceId, userIds));
+    }
+
+    @DeleteMapping("/{workspaceId}/members/{userId}")
+    @PreAuthorize("hasAnyRole('ADMIN','TEAM_LEAD')")
+    public ResponseEntity<WorkspaceCardDto> removeMember(Authentication authentication,
+            @PathVariable Long workspaceId,
+            @PathVariable Long userId) {
+        return ResponseEntity.ok(workspaceService.removeMember(authentication, workspaceId, userId));
     }
 
     @PostMapping

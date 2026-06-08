@@ -7,6 +7,7 @@ import RewardsBrowseZone from '../components/reward/RewardsBrowseZone';
 import RewardsActivityZone from '../components/reward/RewardsActivityZone';
 import ActivityHistoryPage from "../components/reward/ActivityHistoryPage";
 import RewardRedemptionModal from "../components/reward/RewardRedemptionModal";
+import GoToRewardsButton from "../components/reward/GoToRewardButton";
 import type { RewardModalItem } from "../components/reward/RewardRedemptionModal";
 import { getRewardActivity, getRewardsPage, redeemReward, type RewardActivity, type RewardsPageData } from "../services/rewardsService";
 import { showAppError } from "../components/shared/appNotifications";
@@ -100,20 +101,13 @@ export default function RewardsPage() {
         >
           <Box>
             <Typography
-              sx={{
-                fontFamily: 'Montserrat, sans-serif',
-                fontWeight: 700,
-                fontSize: 21.5,
-                color: (theme) =>
-                  theme.palette.mode === 'dark'
-                    ? theme.palette.text.primary
-                    : theme.palette.primary.main,
-                mb: 3,
-              }}
+              variant="h2"
+              data-page-title="true"
             >
               Rewards
             </Typography>
           </Box>
+          <GoToRewardsButton destination="career" />
         </Box>
 
         {loading ? (
