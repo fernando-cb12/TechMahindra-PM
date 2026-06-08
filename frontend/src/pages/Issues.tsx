@@ -269,7 +269,17 @@ function Issues() {
           <Typography variant="h2" data-page-title="true">
             Tasks
           </Typography>
-          <Typography sx={{ mt: 0.75, fontSize: 13.5, color: 'text.secondary', fontWeight: 600 }}>
+          <Typography
+            sx={{
+              mt: 0.2,
+              color: (theme) =>
+                theme.palette.mode === 'dark'
+                  ? theme.palette.text.primary
+                  : theme.palette.primary.main,
+              fontSize: 15,
+              fontWeight: 500,
+            }}
+          >
             {scopedWorkspaceName
               ? `Tasks in ${scopedWorkspaceName}.`
               : 'Tasks across workspaces and boards.'}
