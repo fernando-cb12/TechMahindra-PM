@@ -13,6 +13,10 @@ function MetricHealthPanel({ warnings, semanticFields = [], onMapField }: Metric
   const visibleWarnings = warnings.filter((warning) => !semanticWarningPattern.test(warning));
   const warningCount = visibleWarnings.length + missingSemanticFields.length;
 
+  if (warningCount === 0) {
+    return null;
+  }
+
   return (
     <Paper elevation={0} sx={{ p: 2, mb: 2, borderRadius: '5px', border: '1px solid', borderColor: 'divider' }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
